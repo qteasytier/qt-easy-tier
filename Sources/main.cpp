@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QStyleFactory>
 #include <QFile>
+#include <QSystemTrayIcon>
 
 int main(int argc, char *argv[])
 {
@@ -24,13 +25,6 @@ int main(int argc, char *argv[])
     QStyle *breezeStyle = QStyleFactory::create("Breeze");
     app.setStyle(breezeStyle);
 #endif
-
-    // 已弃用：使用BreezeStyleSheets项目
-    /*Q_INIT_RESOURCE(breeze);
-    QFile file(":/dark/stylesheet.qss");
-    file.open(QFile::ReadOnly | QFile::Text);
-    QTextStream stream(&file);
-    app.setStyleSheet(stream.readAll());*/
 
     MainWindow w;
     w.show();

@@ -12,7 +12,8 @@
 #include <QAction>
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QContextMenuEvent>
+#include <QSystemTrayIcon>
+#include <QCloseEvent>
 #include <iostream>
 #include <QDir>           // 添加目录操作支持
 #include <QFile>          // 添加文件操作支持
@@ -35,14 +36,9 @@ MainWindow::MainWindow(QWidget *parent)
         QDesktopServices::openUrl(QUrl("https://www.bilibili.com/video/BV1UT42167xb/"));
     });
 
-    /*/ 创建初始网络页面
-    NetPage *initialNetPage = new NetPage();
-    m_netpages.append(initialNetPage);
-    QListWidgetItem *initialItem = new QListWidgetItem(ui->netListWidget);
-    initialItem->setText("Network 1"); // 默认网络名称设置
-    ui->netListWidget->addItem(initialItem);
-    initialItem->setSelected(true);
-    __changeWidget(initialNetPage);*/
+    connect(ui->gitPushButton, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier"));
+    });
 
     // 当点击首页按钮时，把主页换成首页
     connect(ui->homeButton, &QPushButton::clicked, this, [=, this]() {
@@ -78,6 +74,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 启动时自动加载配置
     loadNetworkConfig();
+
+    // 创建系统托盘
+    createTrayIcon();
 }
 
 void MainWindow::setupContextMenu()
@@ -337,4 +336,75 @@ void MainWindow::saveNetworkConfig() {
 
     file.write(doc.toJson());
     file.close();
+}
+
+// 重写关闭事件，使窗口隐藏到系统托盘而不是退出
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    // 隐藏主窗口而不是关闭
+    hide();
+    event->ignore();  // 忽略关闭事件，防止程序退出
+
+    // 显示提示信息（可选）
+    if (trayIcon) {
+        trayIcon->showMessage("QtEasyTier", "程序已隐藏到系统托盘", QSystemTrayIcon::Information, 2000);
+    }
+}
+
+// 创建系统托盘
+void MainWindow::createTrayIcon()
+{
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        // 创建系统托盘图标
+        trayIcon = new QSystemTrayIcon(this);
+        trayIcon->setIcon(QIcon(":/icons/icon.ico"));  // 使用与主窗口相同的图标
+        trayIcon->setToolTip("QtEasyTier");
+
+        // 创建托盘菜单
+        trayMenu = new QMenu(this);
+        showAction = new QAction("显示主界面", this);
+        exitAction = new QAction("退出程序", this);
+
+        connect(showAction, &QAction::triggered, this, &MainWindow::onShowWindow);
+        connect(exitAction, &QAction::triggered, this, &MainWindow::onExitApp);
+
+        trayMenu->addAction(showAction);
+        trayMenu->addSeparator();  // 添加分割线
+        trayMenu->addAction(exitAction);
+
+        trayIcon->setContextMenu(trayMenu);
+
+        // 连接托盘图标激活事件
+        connect(trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayIconActivated);
+
+        // 显示系统托盘图标
+        trayIcon->show();
+    }
+}
+
+// 托盘图标激活事件
+void MainWindow::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)
+{
+    if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+        // 单击或双击托盘图标显示主窗口
+        onShowWindow();
+    }
+}
+
+// 显示主窗口
+void MainWindow::onShowWindow()
+{
+    show();
+    raise();
+    activateWindow();
+}
+
+// 退出应用程序
+void MainWindow::onExitApp()
+{
+    // 先销毁系统托盘，避免再次弹出隐藏消息
+    delete trayIcon;
+    trayIcon = nullptr;
+    // 然后退出程序
+    QApplication::quit();
 }
