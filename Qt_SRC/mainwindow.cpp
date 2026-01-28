@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "netpage.h"
+#include "about.h"
+#include "setting.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -44,6 +46,29 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->homeButton, &QPushButton::clicked, this, [=, this]() {
         __changeWidget(ui->homePage);
     });
+
+    // 点击关于按钮时，打开关于对话框
+    connect(ui->aboutPushButton, &QPushButton::clicked, this, [=, this]() {
+        About *aboutDialog = new About(this);
+        aboutDialog->exec();
+    });
+
+    // 点击帮助按钮时，打开URL
+    connect(ui->helpPushButton, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/assets/help.md"));
+    });
+
+    // 点击设置按钮时打开设置窗口
+    connect(ui->setPushButton, &QPushButton::clicked, this, [=, this]() {
+        setting *settingsWindow = new setting(this);
+        settingsWindow->exec();
+    });
+
+    // 点击etPushButton时，打开et官网
+    connect(ui->etPushButton, &QPushButton::clicked, this, [=, this]() {
+        QDesktopServices::openUrl(QUrl("https://easytier.cn"));
+    });
+
     // 当点击添加按钮时，添加一个network页面并添加到列表中
     connect(ui->addPushButton, &QPushButton::clicked, this, [=, this]() {
         // 创建一个新的NetPage实例
