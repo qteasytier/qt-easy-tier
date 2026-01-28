@@ -77,9 +77,10 @@ public:
     void setNetworkConfig(const QJsonObject &config);  // 设置网络配置
 
     // ===============运行检测相关===============
-    int realRpcPort = 0;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
+    int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
 
 private slots:
+    // ===============网络设置相关===============
     // DHCP复选框状态变化处理
     void onDhcpStateChanged(Qt::CheckState state);
     // 密码可见性切换
@@ -96,13 +97,20 @@ private slots:
     void onAddCidr();
     // 删除子网代理CIDR
     void onRemoveCidr();
+    // RPC端口输入验证
+    void onRpcPortTextChanged(const QString &text);
+
+    // ===============运行状态页面相关===============
     // 初始化运行日志窗口
     void initRunningLogWindow();
     // 运行网络
     void onRunNetwork();
-    // RPC端口输入验证
-    void onRpcPortTextChanged(const QString &text);
-
+    // 进程输出处理
+    void onProcessOutputReady();
+    // 进程错误处理
+    void onProcessErrorReady();
+    // 进程完成处理
+    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
     Ui::NetPage *ui;
@@ -162,9 +170,10 @@ private:
     // 运行et相关
     QPlainTextEdit *m_logTextEdit;
     QProcess *m_easytierProcess;
-    bool m_isRunning = false; // 运行状态跟踪
+    bool m_isRunning;      // 运行状态跟踪
 
     // 运行状态页面相关
+    QProcess *m_asyncProcess;     // 执行cli异步获取节点信息
     QLabel *m_runningStatusLabel;
     QTableWidget *m_peerTable;
     QTimer *m_peerUpdateTimer;
@@ -184,7 +193,7 @@ private:
     // 初始化子网代理CIDR管理界面
     void initCidrManagement();
     // 重置运行按钮状态
-    void resetRunButtonState();
+    void resetStateDisplay();
 
     // 初始化运行状态页面
     void initRunningStatePage();
@@ -193,13 +202,6 @@ private:
     // 解析并显示节点信息
     void parseAndDisplayPeerInfo(const QByteArray &jsonData);
 
-private slots:
-    // 进程输出处理
-    void onProcessOutputReady();
-    // 进程错误处理
-    void onProcessErrorReady();
-    // 进程完成处理
-    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 };
 
 #endif // NETPAGE_H

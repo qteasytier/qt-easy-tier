@@ -7,7 +7,6 @@
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QRegularExpressionValidator>
-#include <QHBoxLayout>
 #include <QMessageBox>
 #include <QGridLayout>
 #include <QPlainTextEdit>
@@ -18,12 +17,16 @@
 #include <QJsonObject>
 #include <QHeaderView>
 #include <QDialog>
+#include <iostream>
 
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
     , ui(new Ui::NetPage)
     , m_logTextEdit(nullptr)
     , m_easytierProcess(nullptr)
+    , m_isRunning(false)
+    , realRpcPort(0)
+    , m_asyncProcess(new QProcess(this))
 {
     ui->setupUi(this);
     createScrollArea();          // 初始化简单设置页面
@@ -55,6 +58,21 @@ NetPage::~NetPage()
         m_easytierProcess->deleteLater();
         m_easytierProcess = nullptr;
     }
+
+    // 终止并清理异步进程
+    if (m_asyncProcess) {
+        m_asyncProcess->kill();
+        m_asyncProcess->deleteLater();
+        m_asyncProcess = nullptr;
+    }
+
+    // 清理定时器
+    if (m_peerUpdateTimer) {
+        m_peerUpdateTimer->stop();
+        m_peerUpdateTimer->deleteLater();
+        m_peerUpdateTimer = nullptr;
+    }
+
     delete ui;
 }
 
@@ -90,7 +108,7 @@ void NetPage::createScrollArea()
     networkFormLayout->addRow(tr("用户名:"), m_usernameEdit);
     networkFormLayout->addRow(tr("网络号:"), m_networkNameEdit);
 
-    QHBoxLayout *passwordLayout = new QHBoxLayout();
+    QHBoxLayout *passwordLayout = new QHBoxLayout(scrollContent);
     passwordLayout->addWidget(m_passwordEdit);
     passwordLayout->addWidget(m_togglePasswordBtn);
     networkFormLayout->addRow(tr("密码:"), passwordLayout);
@@ -111,17 +129,17 @@ void NetPage::createScrollArea()
     serverLayout->setContentsMargins(15, 15, 15, 15);
 
     // 添加服务器管理标题
-    QLabel *serverTitle = new QLabel(tr("服务器:"));
+    QLabel *serverTitle = new QLabel(tr("服务器:"), serverWidget);
     serverTitle->setStyleSheet("font-size: 12px;");
     serverLayout->addWidget(serverTitle);
     // 添加服务器输入和按钮
-    QHBoxLayout *addServerLayout = new QHBoxLayout();
+    QHBoxLayout *addServerLayout = new QHBoxLayout(serverWidget);
     addServerLayout->addWidget(m_serverEdit, 1);
     addServerLayout->addWidget(m_addServerBtn);
     serverLayout->addLayout(addServerLayout);
 
     // 添加已添加服务器列表和删除按钮
-    QHBoxLayout *serverListLayout = new QHBoxLayout();
+    QHBoxLayout *serverListLayout = new QHBoxLayout(serverWidget);
     serverListLayout->addWidget(m_serverListWidget, 1);
     serverListLayout->addWidget(m_removeServerBtn);
     serverLayout->addLayout(serverListLayout);
@@ -143,20 +161,20 @@ void NetPage::createScrollArea()
 void NetPage::initNetworkSettings()
 {
     // 用户名设置
-    m_usernameEdit = new QLineEdit();
+    m_usernameEdit = new QLineEdit(this);
     m_usernameEdit->setPlaceholderText(tr("请输入用户名（默认为本机名称）"));
 
     // 网络名称设置
-    m_networkNameEdit = new QLineEdit();
+    m_networkNameEdit = new QLineEdit(this);
     m_networkNameEdit->setPlaceholderText(tr("请输入网络名称"));
 
     // 密码设置
-    m_passwordEdit = new QLineEdit();
+    m_passwordEdit = new QLineEdit(this);
     m_passwordEdit->setPlaceholderText(tr("请输入密码"));
     m_passwordEdit->setEchoMode(QLineEdit::Password);
 
     // 密码小眼睛按钮
-    m_togglePasswordBtn = new QPushButton();
+    m_togglePasswordBtn = new QPushButton(this);
     m_togglePasswordBtn->setCheckable(true);
     m_togglePasswordBtn->setIcon(QIcon(":/icons/eye-slash.svg"));
     m_togglePasswordBtn->setIconSize(QSize(20, 20));
@@ -164,11 +182,11 @@ void NetPage::initNetworkSettings()
     m_togglePasswordBtn->setStyleSheet("background-color: #66ccff; border: none; border-radius: 5px; margin-left: 5px;");
 
     // DHCP设置，默认勾选
-    m_dhcpCheckBox = new QCheckBox(tr("启用DHCP"));
+    m_dhcpCheckBox = new QCheckBox(tr("启用DHCP"), this);
     m_dhcpCheckBox->setChecked(true);
 
     // IP地址设置
-    m_ipEdit = new QLineEdit();
+    m_ipEdit = new QLineEdit(this);
     m_ipEdit->setPlaceholderText(tr("请输入IPv4地址"));
 
     // 设置IP地址验证器
@@ -177,11 +195,11 @@ void NetPage::initNetworkSettings()
     m_ipEdit->setValidator(ipValidator);
 
     // 低延迟优先选项
-    m_lowLatencyCheckBox = new QCheckBox(tr("低延迟优先"));
+    m_lowLatencyCheckBox = new QCheckBox(tr("低延迟优先"), this);
     m_lowLatencyCheckBox->setChecked(false);
 
     // 私有模式选项
-    m_privateModeCheckBox = new QCheckBox(tr("私有模式"));
+    m_privateModeCheckBox = new QCheckBox(tr("私有模式"), this);
     m_privateModeCheckBox->setChecked(true);
 
     // 连接信号槽 - 使用新的checkStateChanged信号
@@ -195,19 +213,19 @@ void NetPage::initNetworkSettings()
 void NetPage::initServerManagement()
 {
     // 服务器地址输入框
-    m_serverEdit = new QLineEdit();
+    m_serverEdit = new QLineEdit(this);
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
 
     // 添加服务器按钮
-    m_addServerBtn = new QPushButton(tr("添加"));
+    m_addServerBtn = new QPushButton(tr("添加"), this);
     m_addServerBtn->setMinimumWidth(80);
 
     // 已添加服务器列表
-    m_serverListWidget = new QListWidget();
+    m_serverListWidget = new QListWidget(this);
     m_serverListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
     // 删除服务器按钮
-    m_removeServerBtn = new QPushButton(tr("删除"));
+    m_removeServerBtn = new QPushButton(tr("删除"), this);
     m_removeServerBtn->setMinimumWidth(80);
     m_removeServerBtn->setEnabled(false);
 
@@ -318,59 +336,59 @@ QStringList NetPage::getServerList() const
 void NetPage::initAdvancedSettings()
 {
     // 初始化高级设置组件
-    m_kcpProxyCheckBox = new QCheckBox(tr("启用 KCP 代理"));
+    m_kcpProxyCheckBox = new QCheckBox(tr("启用 KCP 代理"), this);
     m_kcpProxyCheckBox->setChecked(true);
 
-    m_quicInputDisableCheckBox = new QCheckBox(tr("禁用 QUIC 输入"));
+    m_quicInputDisableCheckBox = new QCheckBox(tr("禁用 QUIC 输入"), this);
     m_quicInputDisableCheckBox->setChecked(false);
 
-    m_noTunModeCheckBox = new QCheckBox(tr("无 TUN 模式"));
+    m_noTunModeCheckBox = new QCheckBox(tr("无 TUN 模式"), this);
     m_noTunModeCheckBox->setChecked(false);
 
-    m_multithreadCheckBox = new QCheckBox(tr("启用多线程"));
+    m_multithreadCheckBox = new QCheckBox(tr("启用多线程"), this);
     m_multithreadCheckBox->setChecked(true);
 
-    m_udpHolePunchingDisableCheckBox = new QCheckBox(tr("禁用 UDP 打洞"));
+    m_udpHolePunchingDisableCheckBox = new QCheckBox(tr("禁用 UDP 打洞"), this);
     m_udpHolePunchingDisableCheckBox->setChecked(true);
 
-    m_userModeStackCheckBox = new QCheckBox(tr("使用用户态协议栈"));
+    m_userModeStackCheckBox = new QCheckBox(tr("使用用户态协议栈"), this);
     m_userModeStackCheckBox->setChecked(false);
 
-    m_kcpInputDisableCheckBox = new QCheckBox(tr("禁用 KCP 输入"));
+    m_kcpInputDisableCheckBox = new QCheckBox(tr("禁用 KCP 输入"), this);
     m_kcpInputDisableCheckBox->setChecked(false);
 
-    m_p2pDisableCheckBox = new QCheckBox(tr("禁用 P2P"));
+    m_p2pDisableCheckBox = new QCheckBox(tr("禁用 P2P"), this);
     m_p2pDisableCheckBox->setChecked(false);
 
-    m_exitNodeCheckBox = new QCheckBox(tr("启用出口节点"));
+    m_exitNodeCheckBox = new QCheckBox(tr("启用出口节点"), this);
     m_exitNodeCheckBox->setChecked(false);
 
-    m_systemForwardingCheckBox = new QCheckBox(tr("系统转发"));
+    m_systemForwardingCheckBox = new QCheckBox(tr("系统转发"), this);
     m_systemForwardingCheckBox->setChecked(false);
 
-    m_symmetricNatHolePunchingDisableCheckBox = new QCheckBox(tr("禁用对称 NAT 打洞"));
+    m_symmetricNatHolePunchingDisableCheckBox = new QCheckBox(tr("禁用对称 NAT 打洞"), this);
     m_symmetricNatHolePunchingDisableCheckBox->setChecked(true);
 
-    m_ipv6DisableCheckBox = new QCheckBox(tr("禁用 IPv6"));
+    m_ipv6DisableCheckBox = new QCheckBox(tr("禁用 IPv6"), this);
     m_ipv6DisableCheckBox->setChecked(false);
 
-    m_quicProxyCheckBox = new QCheckBox(tr("启用 QUIC 代理"));
+    m_quicProxyCheckBox = new QCheckBox(tr("启用 QUIC 代理"), this);
     m_quicProxyCheckBox->setChecked(true);
 
-    m_onlyPhysicalNicCheckBox = new QCheckBox(tr("仅使用物理网卡"));
+    m_onlyPhysicalNicCheckBox = new QCheckBox(tr("仅使用物理网卡"), this);
     m_onlyPhysicalNicCheckBox->setChecked(true);
 
-    m_rpcPacketForwardingCheckBox = new QCheckBox(tr("转发 RPC 包"));
+    m_rpcPacketForwardingCheckBox = new QCheckBox(tr("转发 RPC 包"), this);
     m_rpcPacketForwardingCheckBox->setChecked(false);
 
-    m_encryptionDisableCheckBox = new QCheckBox(tr("禁用加密"));
+    m_encryptionDisableCheckBox = new QCheckBox(tr("禁用加密"), this);
     m_encryptionDisableCheckBox->setChecked(false);
 
-    m_magicDnsCheckBox = new QCheckBox(tr("启用魔法 DNS"));
+    m_magicDnsCheckBox = new QCheckBox(tr("启用魔法 DNS"), this);
     m_magicDnsCheckBox->setChecked(false);
 
     // 初始化RPC端口输入框
-    m_rpcPortEdit = new QLineEdit();
+    m_rpcPortEdit = new QLineEdit(this);
     m_rpcPortEdit->setPlaceholderText(tr("请输入RPC端口号"));
     m_rpcPortEdit->setText("0"); // 默认值设为0
     m_rpcPortEdit->setValidator(new QIntValidator(0, 65535, m_rpcPortEdit)); // 限制输入0-65535的端口号
@@ -386,19 +404,19 @@ void NetPage::initAdvancedSettings()
 void NetPage::initListenAddrManagement()
 {
     // 监听地址输入框
-    m_listenAddrEdit = new QLineEdit();
+    m_listenAddrEdit = new QLineEdit(this);
     m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址"));
 
     // 添加监听地址按钮
-    m_addListenAddrBtn = new QPushButton(tr("添加"));
+    m_addListenAddrBtn = new QPushButton(tr("添加"), this);
     m_addListenAddrBtn->setMinimumWidth(80);
 
     // 已添加监听地址列表
-    m_listenAddrListWidget = new QListWidget();
+    m_listenAddrListWidget = new QListWidget(this);
     m_listenAddrListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
     // 删除监听地址按钮
-    m_removeListenAddrBtn = new QPushButton(tr("删除"));
+    m_removeListenAddrBtn = new QPushButton(tr("删除"), this);
     m_removeListenAddrBtn->setMinimumWidth(80);
     m_removeListenAddrBtn->setEnabled(false);
 
@@ -417,19 +435,19 @@ void NetPage::initListenAddrManagement()
 void NetPage::initCidrManagement()
 {
     // 子网代理CIDR输入框
-    m_cidrEdit = new QLineEdit();
+    m_cidrEdit = new QLineEdit(this);
     m_cidrEdit->setPlaceholderText(tr("请输入子网代理CIDR"));
 
     // 添加子网代理CIDR按钮
-    m_addCidrBtn = new QPushButton(tr("添加"));
+    m_addCidrBtn = new QPushButton(tr("添加"), this);
     m_addCidrBtn->setMinimumWidth(80);
 
     // 已添加子网代理CIDR列表
-    m_cidrListWidget = new QListWidget();
+    m_cidrListWidget = new QListWidget(this);
     m_cidrListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
     // 删除子网代理CIDR按钮
-    m_removeCidrBtn = new QPushButton(tr("删除"));
+    m_removeCidrBtn = new QPushButton(tr("删除"), this);
     m_removeCidrBtn->setMinimumWidth(80);
     m_removeCidrBtn->setEnabled(false);
 
@@ -461,7 +479,7 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     scrollLayout->setSpacing(8);
 
     // 创建功能开关标题
-    QLabel *functionTitle = new QLabel(tr("功能开关"));
+    QLabel *functionTitle = new QLabel(tr("功能开关"), this);
     functionTitle->setStyleSheet("font-size: 16px; font-weight: bold;");
     scrollLayout->addWidget(functionTitle);
 
@@ -499,7 +517,7 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QWidget *rpcPortWidget = new QWidget(scrollContent);
     QVBoxLayout *rpcPortLayout = new QVBoxLayout(rpcPortWidget);
     rpcPortLayout->setContentsMargins(15, 15, 15, 15);
-// 添加RPC端口输入框
+    // 添加RPC端口输入框
     QHBoxLayout *rpcPortInputLayout = new QHBoxLayout(rpcPortWidget);
     QLabel *rpcPortLabel = new QLabel(tr("RPC端口号:"), rpcPortWidget);
     rpcPortInputLayout->addWidget(rpcPortLabel);
@@ -521,17 +539,17 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     listenAddrLayout->setContentsMargins(15, 15, 15, 15);
 
     // 添加监听地址管理标题
-    QLabel *listenAddrTitle = new QLabel(tr("监听地址:"));
+    QLabel *listenAddrTitle = new QLabel(tr("监听地址:"), listenAddrWidget);
     listenAddrTitle->setStyleSheet("font-size: 12px;");
     listenAddrLayout->addWidget(listenAddrTitle);
     // 添加监听地址输入和按钮
-    QHBoxLayout *addListenAddrLayout = new QHBoxLayout();
+    QHBoxLayout *addListenAddrLayout = new QHBoxLayout(listenAddrWidget);
     addListenAddrLayout->addWidget(m_listenAddrEdit, 1);
     addListenAddrLayout->addWidget(m_addListenAddrBtn);
     listenAddrLayout->addLayout(addListenAddrLayout);
 
     // 添加已添加监听地址列表和删除按钮
-    QHBoxLayout *listenAddrListLayout = new QHBoxLayout();
+    QHBoxLayout *listenAddrListLayout = new QHBoxLayout(listenAddrWidget);
     listenAddrListLayout->addWidget(m_listenAddrListWidget, 1);
     listenAddrListLayout->addWidget(m_removeListenAddrBtn);
     listenAddrLayout->addLayout(listenAddrListLayout);
@@ -545,17 +563,17 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     cidrLayout->setContentsMargins(15, 15, 15, 15);
 
     // 添加子网代理CIDR管理标题
-    QLabel *cidrTitle = new QLabel(tr("子网代理CIDR:"));
+    QLabel *cidrTitle = new QLabel(tr("子网代理CIDR:"), cidrWidget);
     cidrTitle->setStyleSheet("font-size: 12px;");
     cidrLayout->addWidget(cidrTitle);
     // 添加子网代理CIDR输入和按钮
-    QHBoxLayout *addCidrLayout = new QHBoxLayout();
+    QHBoxLayout *addCidrLayout = new QHBoxLayout(cidrWidget);
     addCidrLayout->addWidget(m_cidrEdit, 1);
     addCidrLayout->addWidget(m_addCidrBtn);
     cidrLayout->addLayout(addCidrLayout);
 
     // 添加已添加子网代理CIDR列表和删除按钮
-    QHBoxLayout *cidrListLayout = new QHBoxLayout();
+    QHBoxLayout *cidrListLayout = new QHBoxLayout(cidrWidget);
     cidrListLayout->addWidget(m_cidrListWidget, 1);
     cidrListLayout->addWidget(m_removeCidrBtn);
     cidrLayout->addLayout(cidrListLayout);
@@ -685,10 +703,12 @@ void NetPage::onAddListenAddr()
 
 void NetPage::onRemoveListenAddr()
 {
+    // 1. 获取当前选中项，先判空避免无效操作
     QListWidgetItem *selectedItem = m_listenAddrListWidget->currentItem();
-    if (selectedItem) {
-        delete selectedItem;
+    if (selectedItem == nullptr) {
+        return;
     }
+    delete selectedItem;
 }
 
 QStringList NetPage::getListenAddrList() const
@@ -777,7 +797,7 @@ void NetPage::onRpcPortTextChanged(const QString &text)
 void NetPage::initRunningLogWindow()
 {
     // 创建日志文本框
-    m_logTextEdit = new QPlainTextEdit();
+    m_logTextEdit = new QPlainTextEdit(ui->runningLog);
     m_logTextEdit->setReadOnly(true);
     //m_logTextEdit->setFont(QFont("Consolas", 9));
     //m_logTextEdit->setStyleSheet("background-color: #1e1e1e; color: #d4d4d4;");
@@ -806,7 +826,7 @@ void NetPage::onRunNetwork()
                 m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
             }
 
-            resetRunButtonState();  // 更新UI状态
+            resetStateDisplay();  // 更新UI状态
             // 清理进程对象
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
@@ -829,7 +849,7 @@ void NetPage::onRunNetwork()
     QFileInfo fileInfo(easytierPath);
     if (!fileInfo.exists()) {
         m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
-        resetRunButtonState();
+        resetStateDisplay();
         return;
     }
 
@@ -886,7 +906,7 @@ void NetPage::onRunNetwork()
 
         // 等待进程启动（最多3秒）
         if (!m_easytierProcess->waitForStarted(3000)) {
-            resetRunButtonState();
+            resetStateDisplay();
             processLogTextEdit->appendPlainText("进程启动超时");
             throw std::runtime_error("进程启动超时");
         }
@@ -899,19 +919,23 @@ void NetPage::onRunNetwork()
         ui->pushButton->setStyleSheet("color: green; font-weight: bold;");
         m_isRunning = true;
 
+        // 更新运行状态标签, 显示节点表格
+        m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
+        m_peerTable->show();
+
         processLogTextEdit->appendPlainText("EasyTier进程启动成功");
     } catch (const std::exception& e) {
         m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
 
         QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
-        resetRunButtonState();
+        resetStateDisplay();
         if (m_easytierProcess) {
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
         }
     }
     // 定时器延时一秒关闭对话框
-    QTimer::singleShot(1000, dialog, &QDialog::deleteLater);
+    QTimer::singleShot(800, dialog, &QDialog::deleteLater);
 }
 
 // 进程输出处理
@@ -940,7 +964,7 @@ void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
     } else {
         m_logTextEdit->appendPlainText("EasyTier异常终止");
     }
-    resetRunButtonState();
+    resetStateDisplay();
     if (m_easytierProcess) {
         m_easytierProcess->deleteLater();
         m_easytierProcess = nullptr;
@@ -949,8 +973,13 @@ void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 }
 
 // 重置运行按钮状态的方法
-void NetPage::resetRunButtonState()
+void NetPage::resetStateDisplay()
 {
+    // 重置运行状态页面
+    m_runningStatusLabel->setText("EasyTier实例未运行，请先点击运行网络");
+    m_peerTable->hide();
+
+    // 重置按钮样式
     ui->pushButton->setStyleSheet("");
     ui->pushButton->setText("运行网络");
     m_isRunning = false;
@@ -990,57 +1019,58 @@ void NetPage::initRunningStatePage()
     layout->addWidget(m_runningStatusLabel);
     layout->addWidget(m_peerTable);
 
+    // 移除这行代码：m_asyncProcess = nullptr;  // 初始化异步进程对象
+    m_peerTable->hide();       // 初始隐藏表格（当网络未运行时）
+
     // 设置定时器，定期更新节点信息
     m_peerUpdateTimer = new QTimer(this);
     connect(m_peerUpdateTimer, &QTimer::timeout, this, &NetPage::updatePeerInfo);
     m_peerUpdateTimer->start(2000); // 每2秒更新一次
-
-    // 初始隐藏表格（当网络未运行时）
-    m_peerTable->hide();
 }
 
 // 更新节点信息
-void NetPage::updatePeerInfo()
-{
+void NetPage::updatePeerInfo() {
+    // 如果网络未运行，不执行更新
     if (!m_isRunning) {
-        m_runningStatusLabel->setText("EasyTier实例未运行，请先点击运行网络");
-        m_peerTable->hide();
         return;
     }
 
-    m_runningStatusLabel->setText("正在运行");
-    m_peerTable->show();
+    // 如果异步进程为nullptr，创建新的进程
+    if (!m_asyncProcess) {
+        std::cerr << "严重错误：监测进程未被正确创建" << std::endl;
+        std::exit(1);
+    }
 
-    // 获取当前程序目录
-    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    QString cliPath = appDir + "/easytier-cli.exe";
-
-    // 检查CLI程序是否存在
-    QFileInfo fileInfo(cliPath);
-    if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
+    // 如果检测进程还在运行则终止并报错
+    if (m_asyncProcess->state() == QProcess::Running) {
+        m_asyncProcess->kill();
+        m_logTextEdit->appendPlainText(tr("警告: 获取节点信息超时, CLI进程可能出错"));
         return;
     }
 
-    // 创建临时进程获取节点信息
-    QProcess process;
-    process.setWorkingDirectory(appDir);
-    process.start(cliPath, QStringList() <<"-p"<<"127.0.0.1:"+QString::number(realRpcPort)<< "-o" << "json" << "peer");
-
-    if (!process.waitForFinished(2000)) { // 2秒超时
-        m_logTextEdit->appendPlainText("错误: 获取节点信息超时");
-        return;
-    }
-
-    QByteArray output = process.readAllStandardOutput();
-    QString errorOutput = process.readAllStandardError();
+    QByteArray output = m_asyncProcess->readAllStandardOutput();
+    QString errorOutput = m_asyncProcess->readAllStandardError();
 
     if (!errorOutput.isEmpty()) {
         m_logTextEdit->appendPlainText("错误输出: " + errorOutput);
         return;
     }
 
-    parseAndDisplayPeerInfo(output);
+    if (!output.isEmpty()) {
+        parseAndDisplayPeerInfo(output);
+    }
+
+    // 再次运行CLI进程
+    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    QString cliPath = appDir + "/easytier-cli.exe";
+    // 检查CLI程序是否存在
+    QFileInfo fileInfo(cliPath);
+    if (!fileInfo.exists()) {
+        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
+        return;
+    }
+    m_asyncProcess->setWorkingDirectory(appDir);
+    m_asyncProcess->start(cliPath, QStringList() <<"-p"<<"127.0.0.1:"+QString::number(realRpcPort)<< "-o" << "json" << "peer");
 }
 
 // 解析并显示节点信息
@@ -1151,7 +1181,7 @@ QJsonObject NetPage::getNetworkConfig() const
     return config;
 }
 
-// 设置网络配置
+// 从文件中读取并设置网络配置
 void NetPage::setNetworkConfig(const QJsonObject &config)
 {
     // 基础设置

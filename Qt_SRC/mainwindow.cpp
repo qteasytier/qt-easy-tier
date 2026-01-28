@@ -149,7 +149,7 @@ void MainWindow::onDeleteNetwork()
     if (reply == QMessageBox::Yes) {
         __changeWidget(ui->homePage);
         // 删除对应的NetPage实例
-        delete m_netpages[index];
+        m_netpages[index]->deleteLater();
         m_netpages.remove(index);
 
         // 删除列表项
