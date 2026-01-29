@@ -78,8 +78,9 @@ public:
     QJsonObject getNetworkConfig() const;  // 获取当前网络配置
     void setNetworkConfig(const QJsonObject &config);  // 设置网络配置
 
-    // ===============运行检测相关===============
+    // ===============运行与检测相关===============
     int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
+    void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
     // ===============网络设置相关===============

@@ -282,6 +282,7 @@ void MainWindow::loadNetworkConfig() {
     QJsonArray networks = rootObj["networks"].toArray();
 
     // 加载网络配置
+    auto tmpSet = new setting(); // 创建一次设置栏使其加载配置
     for (int i = 0; i < networks.size(); ++i) {
         QJsonValue networkValue = networks[i];
         if (!networkValue.isObject()) continue;
@@ -301,12 +302,15 @@ void MainWindow::loadNetworkConfig() {
         // 应用配置
         netPage->setNetworkConfig(networkObj);
 
-        // 如果网络是活跃的，尝试重新启动它（这需要额外的逻辑）
+        // 如果网络是活跃的，尝试重新启动它
         if (networkObj.contains("isActive") && networkObj["isActive"].toBool()) {
-            // 注意：这里不能立即启动网络，因为可能依赖的服务还没准备好
-            // 可以设置标志位，在适当的时机再启动
+            // 从settings文件加载autoRun设置
+            if (g_autoRun) {
+                netPage->runNetworkOnAutoStart();
+            }
         }
     }
+    tmpSet->deleteLater();
 
     // 选中第一个网络
     if (ui->netListWidget->count() > 0) {

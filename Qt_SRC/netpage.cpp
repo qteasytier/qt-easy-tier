@@ -1403,3 +1403,67 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
         }
     }
 }
+
+// ===================== 开机自动运行相关 =====================
+void NetPage::runNetworkOnAutoStart() {
+    m_logTextEdit->clear();
+    m_logTextEdit->appendPlainText("正在启动EasyTier网络（自启动）...");
+
+    // 获取当前程序目录
+    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    QString easytierPath = appDir + "/easytier-core.exe";
+
+    // 检查程序是否存在
+    QFileInfo fileInfo(easytierPath);
+    if (!fileInfo.exists()) {
+        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
+        resetStateDisplay();
+        return;
+    }
+
+    // 创建并配置进程
+    m_easytierProcess = new QProcess(this);
+    m_easytierProcess->setWorkingDirectory(appDir);
+
+    // 连接信号槽，实时获取进程输出
+    connect(m_easytierProcess, &QProcess::readyReadStandardOutput,
+            this, &NetPage::onProcessOutputReady);
+    connect(m_easytierProcess, &QProcess::readyReadStandardError,
+            this, &NetPage::onProcessErrorReady);
+    // 连接进程完成信号（发生错误）
+    connect(m_easytierProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &NetPage::onProcessFinished);
+
+    try {
+
+        QApplication::processEvents();
+        QStringList arguments = generateConfCommand(this);
+        QApplication::processEvents();
+        m_easytierProcess->start(easytierPath, arguments);
+
+        // 等待进程启动
+        if (!m_easytierProcess->waitForStarted(3000)) {
+            resetStateDisplay();
+            throw std::runtime_error("进程启动超时");
+        }
+
+        m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
+        m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
+
+        // 更新按钮状态
+        ui->pushButton->setText("运行中");
+        ui->pushButton->setStyleSheet("color: green; font-weight: bold;");
+        m_isRunning = true;
+
+        // 更新运行状态标签, 显示节点表格
+        m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
+        m_peerTable->show();
+    } catch (const std::exception& e) {
+        m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
+        resetStateDisplay();
+        if (m_easytierProcess) {
+            m_easytierProcess->deleteLater();
+            m_easytierProcess = nullptr;
+        }
+    }
+}

@@ -5,10 +5,31 @@
 #include <QProcess>
 #include <QSettings>
 #include <QJsonObject>
+#include <QThread>
 
 namespace Ui {
     class setting;
 }
+
+// 版本检测工作类
+class VersionDetectionWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit VersionDetectionWorker(QObject *parent = nullptr);
+
+public slots:
+    void detectVersions();
+
+    signals:
+    void coreVersionDetected(const QString &version);
+    void cliVersionDetected(const QString &version);
+    void detectionFinished();
+
+private:
+    QString getExecutableVersion(const QString &executablePath);
+};
 
 class setting : public QDialog
 {
@@ -30,13 +51,16 @@ private slots:
     // 取消按钮点击事件
     void on_buttonBox_rejected();
 
+    // 版本检测结果处理
+    void onCoreVersionDetected(const QString &version);
+    void onCliVersionDetected(const QString &version);
+
 private:
     Ui::setting *ui;
 
-    // 检测EasyTier版本
-    void detectEasyTierVersions();
-    // 获取可执行文件版本
-    QString getExecutableVersion(const QString &executablePath);
+    // 启动版本检测线程
+    void startVersionDetection();
+
     // 加载设置
     void loadSettings();
     // 保存设置
@@ -45,8 +69,20 @@ private:
     void setAutoStart(bool enable);
 
     // 设置项
-    bool m_autoRun; // 自动运行上次关闭前没退出的网络
     bool m_autoStart; // 是否开机自启
+
+    // 线程相关
+    QThread *m_versionThread;
+    VersionDetectionWorker *m_versionWorker;
+
+protected:
+    void showEvent(QShowEvent *event) override
+    {
+        QDialog::showEvent(event);
+        // 当窗口被打开的时候，启动版本检测线程
+        startVersionDetection();
+    }
 };
+inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
 
 #endif // SETTING_H
