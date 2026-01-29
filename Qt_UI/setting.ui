@@ -6,35 +6,58 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>509</width>
-    <height>334</height>
+    <width>500</width>
+    <height>300</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>500</width>
+    <height>300</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>设置</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="../Qt_QRC/icons.qrc">
+    <normaloff>:/icons/icon.ico</normaloff>:/icons/icon.ico</iconset>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <item alignment="Qt::AlignmentFlag::AlignTop">
-    <widget class="QLabel" name="label">
+   <item>
+    <widget class="QLabel" name="label_6">
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>35</height>
+       <height>25</height>
       </size>
      </property>
      <property name="maximumSize">
       <size>
        <width>16777215</width>
-       <height>35</height>
+       <height>25</height>
       </size>
      </property>
      <property name="font">
       <font>
-       <pointsize>14</pointsize>
+       <pointsize>16</pointsize>
       </font>
      </property>
      <property name="text">
-      <string>设置项（还未实现敬请期待）</string>
+      <string>设置项</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_7">
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>15</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>配置文件保存在：~AppDataLocalQtEasyTier (Windows)</string>
      </property>
     </widget>
    </item>
@@ -45,32 +68,129 @@
        <pointsize>12</pointsize>
       </font>
      </property>
-     <layout class="QFormLayout" name="formLayout">
-      <item row="0" column="1">
-       <widget class="QLabel" name="label_2">
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="5" column="2">
+       <widget class="QPushButton" name="newVerPushButton">
         <property name="text">
-         <string>2.4.5</string>
+         <string>检查更新</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_3">
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
+        </property>
         <property name="text">
-         <string>EasyTier Core 版本：</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;EasyTier Cli 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="detAgainPushButton">
+        <property name="text">
+         <string>重新检测</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;软件版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="label_3">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>检测中......</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="autoStartCheckBox">
+        <property name="text">
+         <string>是否开机自启</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1" colspan="2">
+       <widget class="QCheckBox" name="autoRuncheckBox">
+        <property name="text">
+         <string>自动运行上次关闭前没退出的网络</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="pushButton_2">
+        <property name="text">
+         <string>打开核心目录</string>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="label_4">
+       <widget class="QLabel" name="label">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+          <hintingpreference>PreferDefaultHinting</hintingpreference>
+         </font>
+        </property>
         <property name="text">
-         <string>EasyTier Cli 版本：</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;EasyTier Core 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
+       <widget class="QLabel" name="coreVerLabel">
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+          <hintingpreference>PreferDefaultHinting</hintingpreference>
+         </font>
+        </property>
+        <property name="text">
+         <string>检测中......</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
        <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>2.4.5</string>
+         <string>v1.0beta</string>
         </property>
        </widget>
       </item>
@@ -89,7 +209,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../Qt_QRC/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

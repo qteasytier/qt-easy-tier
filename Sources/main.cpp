@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 
 #include <iostream>
+#include <thread>
+#include <chrono>
 #include <QApplication>
 #include <QStyleFactory>
 #include <QFile>
@@ -8,6 +10,7 @@
 
 int main(int argc, char *argv[])
 {
+
     QApplication app(argc, argv);
 
     // 使用Breeze主题
@@ -27,6 +30,17 @@ int main(int argc, char *argv[])
 #endif
 
     MainWindow w;
-    w.show();
+
+    bool autoStart = false;
+    for (int i = 0; i < argc; ++i) {
+        if (QString(argv[i]) == "--auto-start") {
+            autoStart = true;
+            break;
+        }
+    }
+
+    if (!autoStart) {
+        w.show();
+    }
     return app.exec();
 }

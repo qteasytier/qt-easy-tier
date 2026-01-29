@@ -223,7 +223,7 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
 void MainWindow::loadNetworkConfig() {
     // 创建配置目录
     QDir configDir;
-    QString configPath = QCoreApplication::applicationDirPath() + "/config";
+    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     if (!configDir.exists(configPath)) {
         configDir.mkpath(configPath);
     }
@@ -321,7 +321,7 @@ void MainWindow::loadNetworkConfig() {
 void MainWindow::saveNetworkConfig() {
     // 创建配置目录
     QDir configDir;
-    QString configPath = QCoreApplication::applicationDirPath() + "/config";
+    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     if (!configDir.exists(configPath)) {
         configDir.mkpath(configPath);
     }
