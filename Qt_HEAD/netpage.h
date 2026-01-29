@@ -13,6 +13,8 @@
 #include <QLabel>
 #include <QTimer>
 #include <QJsonObject>  // 添加JSON支持
+#include <QCompleter>
+#include <QStringListModel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -89,10 +91,14 @@ private slots:
     void onAddServer();
     // 删除服务器
     void onRemoveServer();
+    // 服务器地址补全数据更新
+    void onServerEditCompleterChanged();
     // 添加监听地址
     void onAddListenAddr();
     // 删除监听地址
     void onRemoveListenAddr();
+    // 监听地址补全数据更新
+    void onListenAddrEditCompleterChanged();
     // 添加子网代理CIDR
     void onAddCidr();
     // 删除子网代理CIDR
@@ -132,6 +138,8 @@ private:
     QPushButton *m_addServerBtn;
     QListWidget *m_serverListWidget;
     QPushButton *m_removeServerBtn;
+    QCompleter *m_serverEditCompleter;        // 用于服务器地址补全
+    QStringListModel *m_serverListEditModel;  // 补全器的模型
 
     // 高级设置组件
     QCheckBox *m_kcpProxyCheckBox;        // 启用 KCP 代理
@@ -160,6 +168,8 @@ private:
     QPushButton *m_addListenAddrBtn;
     QListWidget *m_listenAddrListWidget;
     QPushButton *m_removeListenAddrBtn;
+    QCompleter *m_listenAddrEditCompleter;        // 用于监听地址补全
+    QStringListModel *m_listenAddrListEditModel;  // 补全器的模型
 
     // 子网代理CIDR管理组件
     QLineEdit *m_cidrEdit;

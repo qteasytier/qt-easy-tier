@@ -126,7 +126,7 @@ void NetPage::createScrollArea()
     // 创建服务器管理分组
     QWidget *serverWidget = new QWidget(scrollContent);
     QVBoxLayout *serverLayout = new QVBoxLayout(serverWidget);
-    serverLayout->setContentsMargins(15, 15, 15, 15);
+    serverLayout->setContentsMargins(15, 6, 15, 15);
 
     // 添加服务器管理标题
     QLabel *serverTitle = new QLabel(tr("服务器:"), serverWidget);
@@ -216,6 +216,15 @@ void NetPage::initServerManagement()
     m_serverEdit = new QLineEdit(this);
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
 
+    // 服务器地址补全
+    m_serverEditCompleter = new QCompleter(this);
+    m_serverListEditModel = new QStringListModel(this);
+    m_serverEditCompleter->setModel(m_serverListEditModel);
+    m_serverEditCompleter->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
+    m_serverEdit->setCompleter(m_serverEditCompleter);
+    //当输入内容发生变化时，更新补全列表
+    connect(m_serverEdit, &QLineEdit::textChanged, this, &NetPage::onServerEditCompleterChanged);
+
     // 添加服务器按钮
     m_addServerBtn = new QPushButton(tr("添加"), this);
     m_addServerBtn->setMinimumWidth(80);
@@ -272,6 +281,9 @@ void NetPage::onAddServer()
         }
     }
 
+    // 把中文冒号替换为英文冒号
+    serverAddress.replace("：", ":");
+
     // 添加服务器到列表
     m_serverListWidget->addItem(serverAddress);
     m_serverEdit->clear();
@@ -284,6 +296,39 @@ void NetPage::onRemoveServer()
         delete selectedItem;
         //m_removeServerBtn->setEnabled(false);
     }
+}
+
+// 服务器地址补全数据更新
+void NetPage::onServerEditCompleterChanged()
+{
+    QString input = m_serverEdit->text();
+    // 如果输入为空或者满足完整的地址格式(xx://xxx:xxx),用正则表达式匹配
+    static const QRegularExpression serverRegex("^[a-zA-Z0-9+.-]+://.+:\\d+$");
+    if (input.isEmpty() || serverRegex.match(input).hasMatch()) {
+        return;
+    }
+    // 如果输入缺少协议和端口（不含冒号）
+    if (!input.contains(":")) {
+        QStringList temp;
+        temp << "tcp://" + input + ":11010"
+             << "udp://" + input + ":11010"
+             << "ws://"  + input + ":11011"
+             << "wg://"  + input + ":11011";
+        m_serverListEditModel->setStringList(temp);
+        return;
+    }
+    //如果缺少协议（不含://）
+    if (!input.contains("://")) {
+        QStringList temp;
+        temp << "tcp://" + input << "udp://" + input
+             << "ws://"  + input << "wg://"  + input;
+        m_serverListEditModel->setStringList(temp);
+        return;
+    }
+    // 剩下的是缺少端口号
+    QStringList temp;
+    temp << input+":11010" << input+":11011";
+    m_serverListEditModel->setStringList(temp);
 }
 
 QString NetPage::getUsername() const
@@ -311,7 +356,7 @@ bool NetPage::isDhcpEnabled() const
     return m_dhcpCheckBox->isChecked();
 }
 
-// 新增：获取低延迟优先和私有模式设置
+// 获取低延迟优先和私有模式设置
 bool NetPage::isLowLatencyPriority() const
 {
     return m_lowLatencyCheckBox->isChecked();
@@ -349,7 +394,7 @@ void NetPage::initAdvancedSettings()
     m_multithreadCheckBox->setChecked(true);
 
     m_udpHolePunchingDisableCheckBox = new QCheckBox(tr("禁用 UDP 打洞"), this);
-    m_udpHolePunchingDisableCheckBox->setChecked(true);
+    m_udpHolePunchingDisableCheckBox->setChecked(false);
 
     m_userModeStackCheckBox = new QCheckBox(tr("使用用户态协议栈"), this);
     m_userModeStackCheckBox->setChecked(false);
@@ -367,13 +412,13 @@ void NetPage::initAdvancedSettings()
     m_systemForwardingCheckBox->setChecked(false);
 
     m_symmetricNatHolePunchingDisableCheckBox = new QCheckBox(tr("禁用对称 NAT 打洞"), this);
-    m_symmetricNatHolePunchingDisableCheckBox->setChecked(true);
+    m_symmetricNatHolePunchingDisableCheckBox->setChecked(false);
 
     m_ipv6DisableCheckBox = new QCheckBox(tr("禁用 IPv6"), this);
     m_ipv6DisableCheckBox->setChecked(false);
 
     m_quicProxyCheckBox = new QCheckBox(tr("启用 QUIC 代理"), this);
-    m_quicProxyCheckBox->setChecked(true);
+    m_quicProxyCheckBox->setChecked(false);
 
     m_onlyPhysicalNicCheckBox = new QCheckBox(tr("仅使用物理网卡"), this);
     m_onlyPhysicalNicCheckBox->setChecked(true);
@@ -406,6 +451,15 @@ void NetPage::initListenAddrManagement()
     // 监听地址输入框
     m_listenAddrEdit = new QLineEdit(this);
     m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址"));
+
+    // 监听地址补全组件
+    m_listenAddrEditCompleter = new QCompleter(this);
+    m_listenAddrListEditModel = new QStringListModel(this);
+    m_listenAddrEditCompleter->setModel(m_listenAddrListEditModel);
+    m_listenAddrEditCompleter->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
+    m_listenAddrEdit->setCompleter(m_listenAddrEditCompleter);
+    //当输入内容发生变化时，更新补全列表
+    connect(m_listenAddrEdit, &QLineEdit::textChanged, this, &NetPage::onListenAddrEditCompleterChanged);
 
     // 添加监听地址按钮
     m_addListenAddrBtn = new QPushButton(tr("添加"), this);
@@ -471,7 +525,7 @@ void NetPage::createAdvancedSetPage()
 
     // 创建滚动区内容部件
     QWidget *scrollContent = new QWidget(scrollArea);
-scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     // 创建垂直布局
     QVBoxLayout *scrollLayout = new QVBoxLayout(scrollContent);
@@ -491,24 +545,28 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     // 添加功能开关到网格布局
     functionGridLayout->addWidget(m_kcpProxyCheckBox, 0, 0);
-    functionGridLayout->addWidget(m_quicInputDisableCheckBox, 0, 1);
+    functionGridLayout->addWidget(m_kcpInputDisableCheckBox, 0, 1);
     functionGridLayout->addWidget(m_noTunModeCheckBox, 0, 2);
-    functionGridLayout->addWidget(m_multithreadCheckBox, 1, 0);
-    functionGridLayout->addWidget(m_udpHolePunchingDisableCheckBox, 1, 1);
 
-    functionGridLayout->addWidget(m_userModeStackCheckBox, 2, 0);
-    functionGridLayout->addWidget(m_kcpInputDisableCheckBox, 2, 1);
-    functionGridLayout->addWidget(m_p2pDisableCheckBox, 2, 2);
-    functionGridLayout->addWidget(m_exitNodeCheckBox, 3, 0);
-    functionGridLayout->addWidget(m_systemForwardingCheckBox, 3, 1);
-    functionGridLayout->addWidget(m_symmetricNatHolePunchingDisableCheckBox, 3, 2);
+    functionGridLayout->addWidget(m_quicProxyCheckBox, 1, 0);
+    functionGridLayout->addWidget(m_quicInputDisableCheckBox, 1, 1);
+    functionGridLayout->addWidget(m_udpHolePunchingDisableCheckBox, 1, 2);
 
-    functionGridLayout->addWidget(m_ipv6DisableCheckBox, 4, 0);
-    functionGridLayout->addWidget(m_quicProxyCheckBox, 4, 1);
-    functionGridLayout->addWidget(m_onlyPhysicalNicCheckBox, 4, 2);
-    functionGridLayout->addWidget(m_rpcPacketForwardingCheckBox, 5, 0);
-    functionGridLayout->addWidget(m_encryptionDisableCheckBox, 5, 1);
-    functionGridLayout->addWidget(m_magicDnsCheckBox, 5, 2);
+    functionGridLayout->addWidget(m_multithreadCheckBox, 2, 0);
+    functionGridLayout->addWidget(m_userModeStackCheckBox, 2, 1);
+    functionGridLayout->addWidget(m_onlyPhysicalNicCheckBox, 2, 2);
+
+
+    functionGridLayout->addWidget(m_p2pDisableCheckBox, 3, 0);
+    functionGridLayout->addWidget(m_exitNodeCheckBox, 3, 1);
+    functionGridLayout->addWidget(m_systemForwardingCheckBox, 3, 2);
+
+    functionGridLayout->addWidget(m_symmetricNatHolePunchingDisableCheckBox, 4, 0);
+    functionGridLayout->addWidget(m_ipv6DisableCheckBox, 4, 1);
+    functionGridLayout->addWidget(m_rpcPacketForwardingCheckBox, 4, 2);
+
+    functionGridLayout->addWidget(m_encryptionDisableCheckBox, 5, 0);
+    functionGridLayout->addWidget(m_magicDnsCheckBox, 5, 1);
 
     // 将功能开关部件添加到滚动布局
     scrollLayout->addWidget(functionWidget);
@@ -516,7 +574,7 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     // 创建RPC端口设置分组（放在监听地址之前）
     QWidget *rpcPortWidget = new QWidget(scrollContent);
     QVBoxLayout *rpcPortLayout = new QVBoxLayout(rpcPortWidget);
-    rpcPortLayout->setContentsMargins(15, 15, 15, 15);
+    rpcPortLayout->setContentsMargins(15, 5, 15, 0);
     // 添加RPC端口输入框
     QHBoxLayout *rpcPortInputLayout = new QHBoxLayout(rpcPortWidget);
     QLabel *rpcPortLabel = new QLabel(tr("RPC端口号:"), rpcPortWidget);
@@ -536,7 +594,7 @@ scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     // 创建监听地址管理分组
     QWidget *listenAddrWidget = new QWidget(scrollContent);
     QVBoxLayout *listenAddrLayout = new QVBoxLayout(listenAddrWidget);
-    listenAddrLayout->setContentsMargins(15, 15, 15, 15);
+    listenAddrLayout->setContentsMargins(15, 5, 15, 0);
 
     // 添加监听地址管理标题
     QLabel *listenAddrTitle = new QLabel(tr("监听地址:"), listenAddrWidget);
@@ -696,6 +754,9 @@ void NetPage::onAddListenAddr()
         }
     }
 
+    // 将中文冒号替换为英文冒号
+    listenAddr.replace("：", ":");
+
     // 添加监听地址到列表
     m_listenAddrListWidget->addItem(listenAddr);
     m_listenAddrEdit->clear();
@@ -720,6 +781,41 @@ QStringList NetPage::getListenAddrList() const
     return listenAddrList;
 }
 
+// 监听地址补全数据更新
+void NetPage::onListenAddrEditCompleterChanged()
+{
+    QString input = m_listenAddrEdit->text();
+    // 如果输入为空或者满足完整的地址格式(xx://xxx:xxx),用正则表达式匹配
+    static const QRegularExpression listenerRegex("^[a-zA-Z0-9+.-]+://.+:\\d+$");
+    if (input.isEmpty() || listenerRegex.match(input).hasMatch()) {
+        return;
+    }
+    // 如果输入缺少协议和端口（不含冒号）
+    if (!input.contains(":")) {
+        QStringList temp;
+        temp << "tcp://" + input + ":11010"
+             << "udp://" + input + ":11010"
+             << "ws://"  + input + ":11011"
+             << "wg://"  + input + ":11011";
+        m_listenAddrListEditModel->setStringList(temp);
+        return;
+    }
+    //如果缺少协议（不含://）
+    if (!input.contains("://")) {
+        QStringList temp;
+        temp << "tcp://" + input << "udp://" + input
+             << "ws://"  + input << "wg://"  + input;
+        m_listenAddrListEditModel->setStringList(temp);
+        return;
+    }
+    // 剩下的是缺少端口号
+    QStringList temp;
+    temp << input+":11010" << input+":11011";
+    m_listenAddrListEditModel->setStringList(temp);
+}
+
+//
+
 // 子网代理CIDR列表相关方法
 void NetPage::onAddCidr()
 {
@@ -736,6 +832,9 @@ void NetPage::onAddCidr()
             return;
         }
     }
+
+    // 将中文冒号替换为英文冒号
+    cidr.replace("：", ":");
 
     // 添加子网代理CIDR到列表
     m_cidrListWidget->addItem(cidr);
