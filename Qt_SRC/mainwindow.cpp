@@ -64,6 +64,11 @@ MainWindow::MainWindow(QWidget *parent)
         settingsWindow->exec();
     });
 
+    // 点击赞助按钮时跳转到赞助网页
+    connect(ui->donatePushButton, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/assets/donate.md"));
+    });
+
     // 点击etPushButton时，打开et官网
     connect(ui->etPushButton, &QPushButton::clicked, this, [=, this]() {
         QDesktopServices::openUrl(QUrl("https://easytier.cn"));
