@@ -81,9 +81,21 @@ MainWindow::MainWindow(QWidget *parent)
         // 将新的NetPage实例添加到列表中
         m_netpages.append(newNetPage);
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
-        item->setText("Network " + QString::number(m_netpages.size())); // 默认网络名称设置
+        item->setText("Network " + QString::number(m_netpages.size())); // 默认名称设置
         ui->netListWidget->addItem(item);
         item->setSelected(true);
+        item->setIcon(QIcon(":/icons/network.svg"));
+
+        // 连接网络启动与关闭信号设置列表字体颜色
+        connect(newNetPage, &NetPage::networkStarted, this, [=, this]() {
+            item->setIcon(QIcon(":/icons/network-running.svg"));
+        });
+
+        connect(newNetPage, &NetPage::networkFinished, this, [=, this]() {
+            item->setIcon(QIcon(":/icons/network.svg")); // 设置图标颜色为默认值
+        });
+
+
         // 调用__changeWidget函数将新的NetPage实例显示在主窗口右侧
         __changeWidget(newNetPage);
     });
@@ -226,6 +238,17 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
 
 // 加载网络配置
 void MainWindow::loadNetworkConfig() {
+    QWidget loadingMessage ;
+    loadingMessage.setWindowTitle("QtEasyTier");
+    loadingMessage.resize(300, 100);
+    loadingMessage.setWindowIcon(QIcon(":/icons/icon.ico"));
+    QHBoxLayout *layout = new QHBoxLayout(&loadingMessage);
+    QLabel loadingLabel("正在加载网络配置, 请稍后...", &loadingMessage);
+    loadingLabel.setStyleSheet("font-size: 14px;");
+    loadingLabel.setAlignment(Qt::AlignCenter);
+    layout->addWidget(&loadingLabel);
+    loadingMessage.show();
+
     // 创建配置目录
     QDir configDir;
     QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
@@ -302,6 +325,15 @@ void MainWindow::loadNetworkConfig() {
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
         QString name = networkObj.contains("name") ? networkObj["name"].toString() : ("Network " + QString::number(i + 1));
         item->setText(name);
+        item->setIcon(QIcon(":/icons/network.svg"));
+
+        // 连接网络启动与关闭信号设置列表字体颜色
+        connect(netPage, &NetPage::networkStarted, this, [=]() {
+            item->setIcon(QIcon(":/icons/network-running.svg"));
+        });
+        connect(netPage, &NetPage::networkFinished, this, [=]() {
+            item->setIcon(QIcon(":/icons/network.svg")); // 设置图标颜色为默认值
+        });
         ui->netListWidget->addItem(item);
 
         // 应用配置
@@ -316,14 +348,6 @@ void MainWindow::loadNetworkConfig() {
         }
     }
     tmpSet->deleteLater();
-
-    // 选中第一个网络
-    if (ui->netListWidget->count() > 0) {
-        ui->netListWidget->item(0)->setSelected(true);
-        if (!m_netpages.isEmpty()) {
-            __changeWidget(m_netpages[0]);
-        }
-    }
 }
 
 // 保存网络配置

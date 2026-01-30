@@ -22,7 +22,7 @@ public:
 public slots:
     void detectVersions();
 
-    signals:
+signals:
     void coreVersionDetected(const QString &version);
     void cliVersionDetected(const QString &version);
     void detectionFinished();

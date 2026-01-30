@@ -1,4 +1,4 @@
-<RCC>
+ <RCC>
     <qresource prefix="/icons">
         <file>home.svg</file>
         <file>plus.svg</file>
@@ -8,5 +8,7 @@
         <file>eye.svg</file>
         <file>eye-slash.svg</file>
         <file>icon.ico</file>
+        <file>network.svg</file>
+        <file>network-running.svg</file>
     </qresource>
 </RCC>

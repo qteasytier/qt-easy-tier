@@ -1,5 +1,5 @@
 # 设置最低CMake版本要求
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 set(ProjectName QtEasyTier)
 

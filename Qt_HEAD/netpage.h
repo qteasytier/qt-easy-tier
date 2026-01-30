@@ -80,6 +80,7 @@ public:
 
     // ===============运行与检测相关===============
     int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
+    bool isRunning() const { return m_isRunning; }
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
@@ -214,6 +215,9 @@ private:
     // 解析并显示节点信息
     void parseAndDisplayPeerInfo(const QByteArray &jsonData);
 
+signals:
+    void networkStarted();    // 网络启动信号
+    void networkFinished();   // 网络停止信号
 };
 
 #endif // NETPAGE_H

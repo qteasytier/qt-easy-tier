@@ -269,6 +269,8 @@ void NetPage::onTogglePasswordVisibility()
 void NetPage::onAddServer()
 {
     QString serverAddress = m_serverEdit->text().trimmed();
+    // 删除所有空格
+    serverAddress.remove(' ');
     if (serverAddress.isEmpty()) {
         QMessageBox::warning(this, tr("警告"), tr("服务器地址不能为空！"));
         return;
@@ -752,6 +754,8 @@ bool NetPage::isMagicDnsEnabled() const
 void NetPage::onAddListenAddr()
 {
     QString listenAddr = m_listenAddrEdit->text().trimmed();
+    // 删除所有空格
+    listenAddr.remove(' ');
     if (listenAddr.isEmpty()) {
         QMessageBox::warning(this, tr("警告"), tr("监听地址不能为空！"));
         return;
@@ -831,6 +835,7 @@ void NetPage::onListenAddrEditCompleterChanged()
 void NetPage::onAddCidr()
 {
     QString cidr = m_cidrEdit->text().trimmed();
+    cidr.remove(' ');  // 删除所有空格
     if (cidr.isEmpty()) {
         QMessageBox::warning(this, tr("警告"), tr("子网代理CIDR不能为空！"));
         return;
@@ -936,7 +941,8 @@ void NetPage::onRunNetwork()
                 m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
             }
 
-            resetStateDisplay();  // 更新UI状态
+            emit networkFinished(); // 发送网络停止信号
+            resetStateDisplay();    // 更新UI状态
             // 清理进程对象
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
@@ -1033,6 +1039,7 @@ void NetPage::onRunNetwork()
         m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
         m_peerTable->show();
 
+        emit networkStarted();  // 发送网络启动信号
         processLogTextEdit->appendPlainText("EasyTier进程启动成功");
     } catch (const std::exception& e) {
         m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
@@ -1040,6 +1047,7 @@ void NetPage::onRunNetwork()
         QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
         resetStateDisplay();
         if (m_easytierProcess) {
+            emit networkFinished(); // 发送网络停止信号
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
         }
@@ -1079,6 +1087,7 @@ void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
         m_easytierProcess->deleteLater();
         m_easytierProcess = nullptr;
     }
+    emit networkFinished(); // 发送网络停止信号
     QMessageBox::warning(this, "警告", "EasyTier进程异常终止，请前往日志查看详细信息");
 }
 
@@ -1469,10 +1478,12 @@ void NetPage::runNetworkOnAutoStart() {
         // 更新运行状态标签, 显示节点表格
         m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
         m_peerTable->show();
+        emit networkStarted();  // 发送网络启动信号
     } catch (const std::exception& e) {
         m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
         resetStateDisplay();
         if (m_easytierProcess) {
+            emit networkFinished(); // 发送网络停止信号
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
         }
