@@ -1,7 +1,6 @@
 #include "netpage.h"
 #include "ui_netpage.h"
 #include "generateconf.h"
-#include "cidrcalculator.h"
 
 #include <QScrollArea>
 #include <QLabel>
@@ -518,9 +517,20 @@ void NetPage::initCidrManagement()
     connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, [this]() {
         m_removeCidrBtn->setEnabled(m_cidrListWidget->selectedItems().count() > 0);
     });
-    connect(m_calculateCidrBtn, &QPushButton::clicked, this, [] {
-        auto cidrCalc = new CIDRCalculator(nullptr);
-        cidrCalc->show();
+    connect(m_calculateCidrBtn, &QPushButton::clicked, this, [=,  this] {
+        // 检测CidrCalculator.exe是否存在
+            // 获取当前程序目录
+       const QString calculatorDir = QCoreApplication::applicationDirPath() + "/CIDRCalculator.exe";
+
+       // 检查程序是否存在
+       QFileInfo fileInfo(calculatorDir);
+       if (!fileInfo.exists()) {
+           m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir));
+           QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
+           return;
+       }
+        // 打开目录下的CidrCalculator.exe
+        QProcess::startDetached(calculatorDir);
     });
 }
 

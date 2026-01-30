@@ -35,18 +35,10 @@ file(GLOB_RECURSE QT_UI "Qt_UI/*.ui")
 file(GLOB_RECURSE QT_RESOURCES "Qt_QRC/*.qrc")
 set(ALL_SOURCES ${SOURCES} ${QT_SOURCES} ${QT_HEAD} ${QT_UI} ${QT_RESOURCES})
 
-# 设置CMke模块搜索路径
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+# 添加子目录（CIDR计算器）
+add_subdirectory(CDIRCalculator)
 
-
-# ===================================构建项目====================================
-
-# 设置Debug构建时启用O2优化
-#if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-#endif()
-
-# 设置程序输出路径
+# 设置程序输出路径（统一构建输出目录）
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Windows系统下自动生成rc文件并嵌入manifest
@@ -87,36 +79,15 @@ endif()
 # 链接Qt库
 target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-    set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.${ProjectName}.)
-endif()
-
 # 设置目标属性，包括Bundle ID、版本号、短版本号、是否为Bundle、是否为Win32可执行文件
 set_target_properties(${ProjectName} PROPERTIES
         ${BUNDLE_ID_OPTION}
-        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-        MACOSX_BUNDLE TRUE
         WIN32_EXECUTABLE true
 )
 
 # Windows下复制相关文件
 if(WIN32)
     set(WINDEPLOYQT_EXECUTABLE "windeployqt.exe")
-
-    # 构建后执行windeployqt
-    #add_custom_command(TARGET ${ProjectName} POST_BUILD
-    #        COMMAND ${WINDEPLOYQT_EXECUTABLE}
-    #        --verbose 1
-    #        --no-translations
-    #        --no-compiler-runtime
-    #        --no-system-d3d-compiler
-    #        "$<TARGET_FILE:${ProjectName}>"
-    #        COMMENT "对 ${ProjectName} 执行 windeployqt..."
-    #)
 
     # 复制BreezeStyle文件夹中的内容到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
@@ -132,6 +103,14 @@ if(WIN32)
             ${CMAKE_SOURCE_DIR}/EasyTier
             $<TARGET_FILE_DIR:${ProjectName}>/etcore
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
+    )
+
+    # 复制CIDR计算器到主程序目录
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:CIDRCalculator>
+            $<TARGET_FILE_DIR:${ProjectName}>
+            COMMENT "复制CIDR计算器到主程序目录..."
     )
 endif()
 
@@ -179,7 +158,3 @@ endif()
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(${ProjectName})
 endif()
-
-
-
-
