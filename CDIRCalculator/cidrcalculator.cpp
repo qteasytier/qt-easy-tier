@@ -1,11 +1,8 @@
-//
-// Created by YMHuang on 2026/1/30.
-//
-
 #include "cidrcalculator.h"
+#include <iostream>
 
 CIDRCalculator::CIDRCalculator(QWidget *parent)
-    : QDialog(parent)
+    : QMainWindow(parent)
 {
     // 设置窗口属性
     setWindowTitle("CIDR计算器");
@@ -13,10 +10,14 @@ CIDRCalculator::CIDRCalculator(QWidget *parent)
     setAttribute(Qt::WA_DeleteOnClose); // 关闭即销毁
     setWindowIcon(QIcon(":/icons/icon.ico"));
 
+    // 设置中央部件
+    QWidget *centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+
     // 创建UI
     setupUI();
 
-    // 设置输入验证
+    // 设置输入验证 - 移到这里，在UI组件创建之后
     QString ipPattern = "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$";
     QRegularExpression ipRegex(ipPattern);
     QRegularExpressionValidator *ipValidator = new QRegularExpressionValidator(ipRegex, this);
@@ -33,16 +34,20 @@ CIDRCalculator::CIDRCalculator(QWidget *parent)
     connect(rangeEndInput, &QLineEdit::textChanged, this, &CIDRCalculator::validateIPInput);
 }
 
-CIDRCalculator::~CIDRCalculator()
-= default;
+CIDRCalculator::~CIDRCalculator() {
+
+}
 
 void CIDRCalculator::setupUI()
 {
+    // 获取中央部件
+    QWidget *centralWidget = this->centralWidget();
+
     // 创建主布局
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
     // 创建TabWidget
-    tabWidget = new QTabWidget(this);
+    tabWidget = new QTabWidget();
 
     // ========== 第一页：CIDR到范围 ==========
     cidrToRangeTab = new QWidget();
@@ -109,7 +114,8 @@ void CIDRCalculator::setupUI()
     QGroupBox *rangeOutputGroup = new QGroupBox("CIDR结果");
     QVBoxLayout *rangeOutputLayout = new QVBoxLayout(rangeOutputGroup);
 
-    cidrResultsOutput = new QLabel();
+    cidrResultsOutput = new QLineEdit();
+    cidrResultsOutput->setReadOnly(true);
     cidrResultsOutput->setStyleSheet("font-size: 12px; color: #66ccff; padding: 5px; border: 1px solid #66ccff;");
     cidrResultsOutput->setText("CIDR计算结果将显示在这里...");
     rangeOutputLayout->addWidget(cidrResultsOutput);
@@ -180,7 +186,7 @@ QString CIDRCalculator::intToIP(quint32 ip)
         result.append(QString::number(octet));
         if (i > 0) result.append('.');
     }
-    return result;
+    return result.trimmed();
 }
 
 quint32 CIDRCalculator::getNetworkAddress(quint32 ip, int prefix)
@@ -313,19 +319,18 @@ void CIDRCalculator::calculateFromRange()
     }
 
     try {
-        QString cidr = rangeToCIDR(startIP, endIP);
-        cidrResultsOutput->setText(cidr);
+        QString cidrResults = rangeToCIDR(startIP, endIP);
+        cidrResultsOutput->setText(cidrResults);
     } catch (...) {
         QMessageBox::critical(this, "计算错误", "IP范围计算过程中发生错误！");
     }
 }
-
 void CIDRCalculator::copyCIDRResults()
 {
-    QString text = cidrResultsOutput->text();
-    if (!text.isEmpty()) {
-        QApplication::clipboard()->setText(text);
-        QMessageBox::information(this, "复制成功", "CIDR列表已复制到剪贴板！");
+    QString cidrResults = cidrResultsOutput->text().trimmed();
+    if (!cidrResults.isEmpty()) {
+        QApplication::clipboard()->setText(cidrResults);
+        QMessageBox::information(this, "复制成功", QApplication::clipboard()->text() + "已复制！");
     } else {
         QMessageBox::warning(this, "复制失败", "没有内容可复制！");
     }

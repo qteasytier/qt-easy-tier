@@ -1,11 +1,7 @@
-//
-// Created by YMHuang on 2026/1/30.
-//
-
 #ifndef CIDRCALCULATOR_H
 #define CIDRCALCULATOR_H
 
-#include <QDialog>
+#include <QMainWindow>
 #include <QTabWidget>
 #include <QLineEdit>
 #include <QPushButton>
@@ -23,7 +19,7 @@
 #include <QDebug>
 #include <vector>
 
-class CIDRCalculator : public QDialog
+class CIDRCalculator : public QMainWindow
 {
     Q_OBJECT
 
@@ -71,7 +67,7 @@ private:
     QLineEdit *rangeStartInput;
     QLineEdit *rangeEndInput;
     QPushButton *rangeCalculateBtn;
-    QLabel *cidrResultsOutput;
+    QLineEdit *cidrResultsOutput;
     QPushButton *copyCIDRBtn;
 };
 
