@@ -1431,7 +1431,17 @@ void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
 
         // 按顺序设置各列数据
         m_peerTable->setItem(row, 0, new QTableWidgetItem(peerObj.value("hostname").toString()));
-        m_peerTable->setItem(row, 1, new QTableWidgetItem(peerObj.value("ipv4").toString()));
+
+        // 虚拟IPV4处添加服务器显示逻辑
+        QString ipv4 = peerObj.value("ipv4").toString();
+        if ( ipv4.isEmpty() ) {
+            if (peerObj.value("hostname").toString().contains("PublicServer")) {
+                ipv4 = tr("公共服务器");
+            } else {
+                ipv4 = tr("服务器");
+            }
+        }
+        m_peerTable->setItem(row, 1, new QTableWidgetItem(ipv4));
         m_peerTable->setItem(row, 2, new QTableWidgetItem(peerObj.value("cost").toString()));
         m_peerTable->setItem(row, 3, new QTableWidgetItem(peerObj.value("tunnel_proto").toString()));
         m_peerTable->setItem(row, 4, new QTableWidgetItem(peerObj.value("lat_ms").toString()));
