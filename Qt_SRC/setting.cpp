@@ -218,7 +218,7 @@ void setting::detectSoftwareVersion(bool isFromBtn)
                 if (ret == QMessageBox::Yes) {
                     QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
                 }
-            } else {
+            } else if (isFromBtn) {
                 QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
             }
         } else {

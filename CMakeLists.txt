@@ -136,15 +136,27 @@ install(TARGETS ${ProjectName}
 
 # Windows下添加安装后部署
 if(WIN32)
-    # 部署Qt运行时
-    qt_generate_deploy_app_script(
-        TARGET ${ProjectName}
-        OUTPUT_SCRIPT deploy_script
-        NO_UNSUPPORTED_PLATFORM_ERROR
+    # 直接调用windeployqt，不复制系统自带的库和D3D编译器
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS ${QT_HOST_PATH}/bin ${QT6_HOST_PATH}/bin ${QT5_HOST_PATH}/bin)
 
-    )
-    # 安装时执行部署脚本
-    install(SCRIPT ${deploy_script})
+    if(WINDEPLOYQT_EXECUTABLE)
+        install(CODE "
+            message(STATUS \"使用windeployqt部署Qt运行时...\")
+            execute_process(
+                COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
+                    --no-system-d3d-compiler
+                    --no-translations
+                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${ProjectName}.exe\"
+                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+                RESULT_VARIABLE deploy_result
+            )
+            if(NOT deploy_result EQUAL 0)
+                message(WARNING \"windeployqt执行失败，返回码: \${deploy_result}\")
+            endif()
+        ")
+    else()
+        message(WARNING "未找到windeployqt工具，跳过Qt运行时部署")
+    endif()
 
     # 安装BreezeStyle目录
     install(CODE "
