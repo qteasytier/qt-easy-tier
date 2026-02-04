@@ -291,7 +291,15 @@ void NetPage::onOpenPublicServerList() {
     const QStringList serverList = publicServer->getSelectedServers();
     // 添加到服务器列表
     for (auto &addr : serverList) {
-        m_serverListWidget->addItem(addr);
+        //检查是否重复
+        bool isDuplicate = false;
+        for (auto &item : getServerList()) {
+            if (item == addr) {
+                isDuplicate = true;
+                break;
+            }
+        }
+        if (!isDuplicate) m_serverListWidget->addItem(addr);
     }
     publicServer->deleteLater();
 }
@@ -1303,15 +1311,15 @@ void NetPage::initRunningStatePage()
     m_peerTable = new QTableWidget(ui->runningState);
     m_peerTable->setColumnCount(9); // 根据JSON数据字段数量设定列数
     m_peerTable->setHorizontalHeaderLabels({
-        tr("主机名"), tr("虚拟IPv4"), tr("连接方式"),
+        tr("用户名"), tr("虚拟IPv4"), tr("连接方式"),
         tr("协议"), tr("延迟(ms)"), tr("丢包率"),
         tr("接收字节"), tr("发送字节"), tr("CIDR")
     });
 
     // 设置列宽策略，每列最小宽度为100
     QHeaderView *header = m_peerTable->horizontalHeader();
-    header->setMinimumSectionSize(100); // 设置最小列宽
-    header->setDefaultSectionSize(100); // 设置默认列宽
+    header->setMinimumSectionSize(110); // 设置最小列宽
+    header->setDefaultSectionSize(110); // 设置默认列宽
     m_peerTable->verticalHeader()->setDefaultSectionSize(40); // 设置行高为40
     m_peerTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
@@ -1330,7 +1338,12 @@ void NetPage::initRunningStatePage()
     // 设置定时器，定期更新节点信息
     m_peerUpdateTimer = new QTimer(this);
     connect(m_peerUpdateTimer, &QTimer::timeout, this, &NetPage::updatePeerInfo);
-    m_peerUpdateTimer->start(2000); // 每2秒更新一次
+    connect(this, &NetPage::networkStarted, this, [=, this] {
+        m_peerUpdateTimer->start(2000);
+    });
+    connect(this, &NetPage::networkFinished, this, [=, this] {
+        m_peerUpdateTimer->stop();
+    });
 }
 
 // 更新节点信息
@@ -1343,12 +1356,17 @@ void NetPage::updatePeerInfo() {
         }
         return;
     }
+    // 如果检测进程还在运行则终止并报错
+    if (m_asyncProcess && m_asyncProcess->state() == QProcess::Running) {
+        m_asyncProcess->kill();
+        m_logTextEdit->appendPlainText(tr("警告: 获取节点信息超时, CLI进程可能出错"));
+    }
 
     // et-cli 命令路径信息
     QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
     QString cliPath = appDir + "/easytier-cli.exe";
 
-    // 如果异步进程为nullptr，创建新的进程并结束本次函数
+    // 如果异步进程为nullptr，创建新的进程
     if (!m_asyncProcess) {
         std::clog << "et已运行，创建异步cli进程"<< std::endl;
         m_asyncProcess = new QProcess(this);
@@ -1361,26 +1379,20 @@ void NetPage::updatePeerInfo() {
         }
         m_asyncProcess->setWorkingDirectory(appDir);
 
-        return;
-    }
+        //连接进程完成信号
+        connect(m_asyncProcess, &QProcess::finished, this, [=, this] {
+            QByteArray output = m_asyncProcess->readAllStandardOutput();
+            QString errorOutput = m_asyncProcess->readAllStandardError();
 
-    // 如果检测进程还在运行则终止并报错
-    if (m_asyncProcess->state() == QProcess::Running) {
-        m_asyncProcess->kill();
-        m_logTextEdit->appendPlainText(tr("警告: 获取节点信息超时, CLI进程可能出错"));
-        return;
-    }
+            if (!errorOutput.isEmpty()) {
+                m_logTextEdit->appendPlainText("错误输出: " + errorOutput);
+                return;
+            }
 
-    QByteArray output = m_asyncProcess->readAllStandardOutput();
-    QString errorOutput = m_asyncProcess->readAllStandardError();
-
-    if (!errorOutput.isEmpty()) {
-        m_logTextEdit->appendPlainText("错误输出: " + errorOutput);
-        return;
-    }
-
-    if (!output.isEmpty()) {
-        parseAndDisplayPeerInfo(output);
+            if (!output.isEmpty()) {
+                parseAndDisplayPeerInfo(output);
+            }
+        });
     }
 
     // 再次运行CLI进程
@@ -1782,6 +1794,8 @@ void NetPage::onExportConfigClicked()
 {
     // 获取当前配置
     QJsonObject config = getNetworkConfig();
+    // 删除用户名
+    config.remove("username");
 
     // 弹出文件保存对话框
     QString fileName = QFileDialog::getSaveFileName(
