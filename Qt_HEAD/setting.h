@@ -85,7 +85,7 @@ private:
 
     // 设置项
     bool m_autoStart; // 是否开机自启
-    QString m_softwareVer = "1.0.4";
+    QString m_softwareVer = PROJECT_VERSION;
 
     // 线程相关
     QThread *m_versionThread;

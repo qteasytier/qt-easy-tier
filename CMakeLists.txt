@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 1.0 LANGUAGES CXX)
+project(${ProjectName} VERSION 1.0.4 LANGUAGES CXX)
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
@@ -75,6 +75,10 @@ else()
             ${QT_RESOURCES}
     )
 endif()
+
+# =============== 设置版本号 ===============
+target_compile_definitions(${ProjectName} PRIVATE PROJECT_VERSION="${PROJECT_VERSION}")
+# ==========================================
 
 # 链接Qt库
 target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
