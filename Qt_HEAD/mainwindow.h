@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "netpage.h"
+#include "setting.h"
 #include "oneclick.h"
 
 #include <QMainWindow>
@@ -47,6 +48,7 @@ private:
     // 界面组件
     QVector<NetPage*> m_netpages;
     OneClick *m_oneClick;
+    setting *m_settingsWindow;
 
     // 系统托盘相关
     QSystemTrayIcon *trayIcon;

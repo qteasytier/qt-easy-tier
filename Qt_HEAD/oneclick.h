@@ -113,6 +113,18 @@ private:
 
     // 解析CLI输出获取房主IP
     void parseHostIpAddress(const QByteArray& jsonData);
+
+signals:
+    void isNotRunning();  // 未运行任何角色
+
+protected:
+    // 重写窗口隐藏事件
+    void hideEvent(QHideEvent *event) override {
+        QWidget::hideEvent(event);
+        if (!(m_coreProcess && m_coreProcess->state() == QProcess::Running)) {
+            emit isNotRunning();
+        }
+    };
 };
 
 #endif // ONECLICK_H

@@ -41,13 +41,10 @@ public:
     explicit setting(QWidget *parent = nullptr);
     ~setting();
 
-    ///@brief 外部调用检查版本更新
-    static void detectSoftWareVersionExternal() {
-        auto *tmp = new setting();
-        tmp->detectSoftwareVersion();
-    }
-
-    QString getSoftwareVersion() { return m_softwareVer; }
+    /// @brief 检测软件版本
+    /// @param isFromInternal 是否来自内部调用
+    /// @warning 外部调用时，检测完成后会自动delete该setting对象，无需再次释放
+    void detectSoftwareVersion(const bool &isFromInternal =  false);
 
 private slots:
     // 重新检测版本按钮点击事件
@@ -60,11 +57,6 @@ private slots:
     void on_buttonBox_rejected();
     // 检查更新按钮点击事件
     void on_newVerPushButton_clicked();
-
-    ///@brief 检查软件版本
-    ///@param isFromBtn 是否来自按钮点击
-    ///@warning 值为false时，检查完毕后会自动销毁setting对象
-    void detectSoftwareVersion(bool isFromBtn =  false);
 
     // 版本检测结果处理
     void onCoreVersionDetected(const QString &version);

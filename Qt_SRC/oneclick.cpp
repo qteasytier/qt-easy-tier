@@ -43,10 +43,6 @@ OneClick::OneClick(QWidget *parent)
 
     // 连接Tab切换信号
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, &OneClick::onTabChanged);
-
-    // 初始化房主IP更新定时器
-    m_hostIpUpdateTimer = new QTimer(this);
-    connect(m_hostIpUpdateTimer, &QTimer::timeout, this, &OneClick::updateHostIpAddress);
 }
 
 OneClick::~OneClick()
@@ -58,12 +54,6 @@ OneClick::~OneClick()
     if (m_hostIpUpdateTimer) {
         m_hostIpUpdateTimer->stop();
         m_hostIpUpdateTimer->deleteLater();
-    }
-    if (m_cliProcess) {
-        if (m_cliProcess->state() == QProcess::Running) {
-            m_cliProcess->kill();
-        }
-        m_cliProcess->deleteLater();
     }
 
     delete ui;
@@ -103,6 +93,7 @@ void OneClick::createProcessDialog(const QString& title) {
 // 关闭启动过程对话框
 void OneClick::closeProcessDialog() {
     if (m_processDialog) {
+        m_processDialog->disconnect();
         m_processDialog->deleteLater();
         m_processDialog = nullptr;
         m_processLogTextEdit = nullptr;
@@ -145,6 +136,10 @@ void OneClick::initGuestComponents() {
 
     // 设置房主虚拟ip框为只读
     m_guestIpLineEdit->setReadOnly(true);
+
+    // 初始化房主IP更新定时器
+    m_hostIpUpdateTimer = new QTimer(this);
+    connect(m_hostIpUpdateTimer, &QTimer::timeout, this, &OneClick::updateHostIpAddress);
 }
 
 void OneClick::setupServerList() {
@@ -218,7 +213,7 @@ bool OneClick::startEasyTierProcess(const QStringList& arguments, const QString&
 // 停止当前运行的进程
 void OneClick::stopCurrentProcess() {
     if (m_coreProcess) {
-        disconnect(m_coreProcess, nullptr, this, nullptr);
+        m_coreProcess->disconnect();
         if (m_coreProcess->state() == QProcess::Running) {
             m_coreProcess->kill();
             if (m_coreProcess->waitForFinished(1000)) {
@@ -238,6 +233,7 @@ void OneClick::stopCurrentProcess() {
 
     // 停止并清理IP查询进程
     if (m_cliProcess) {
+        m_cliProcess->disconnect();
         if (m_cliProcess->state() == QProcess::Running) {
             m_cliProcess->kill();
         }

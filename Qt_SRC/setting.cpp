@@ -94,41 +94,102 @@ setting::setting(QWidget *parent)
     ui->autoRuncheckBox->setChecked(g_autoRun);
     ui->autoStartCheckBox->setChecked(m_autoStart);
     ui->versionLabel->setText(m_softwareVer);
+
+    // 创建版本检测线程
+    m_versionThread = new QThread(this);
 }
 
 setting::~setting()
 {
-    if (m_versionThread && m_versionThread->isRunning()) {
-        m_versionThread->quit();
-        m_versionThread->wait(3000); // 等待最多3秒
+    // 第一步：立即断开所有信号槽连接，防止后续调用
+    this->disconnect();
+
+    // 断开与worker相关的所有连接
+    if (m_versionWorker) {
+        m_versionWorker->disconnect();
     }
 
-    delete m_versionWorker;
-    delete m_versionThread;
+    // 断开与线程相关的所有连接
+    if (m_versionThread) {
+        m_versionThread->disconnect();
+    }
+
+    // 第二步：停止并等待线程安全退出
+    if (m_versionThread && m_versionThread->isRunning()) {
+        // 请求线程退出
+        m_versionThread->quit();
+
+        // 等待线程退出，设置合理的超时时间
+        if (!m_versionThread->wait(5000)) {  // 增加到5秒超时
+            // 如果线程仍未退出，强制终止
+            m_versionThread->terminate();
+            m_versionThread->wait(2000);  // 增加等待时间
+        }
+    }
+
+    // 第三步：按正确顺序销毁对象
+    // 先销毁worker对象（同步销毁）
+    if (m_versionWorker) {
+        // 在销毁前确保worker不在任何线程中运行
+        if (m_versionWorker->thread() != QThread::currentThread()) {
+            m_versionWorker->moveToThread(QThread::currentThread());
+        }
+        delete m_versionWorker;
+        m_versionWorker = nullptr;
+    }
+
+    // 再销毁线程对象（同步销毁）
+    if (m_versionThread) {
+        delete m_versionThread;
+        m_versionThread = nullptr;
+    }
+
+    // 最后销毁UI
     delete ui;
 }
 
 // 启动版本检测线程
 void setting::startVersionDetection()
 {
-    // 如果已有线程在运行，先停止它
+    // 如果已有线程在运行，直接返回，避免重复启动
     if (m_versionThread && m_versionThread->isRunning()) {
         return;
     }
 
-    // 创建工作对象和线程
-    m_versionWorker = new VersionDetectionWorker;
-    m_versionThread = new QThread(this);
+    // 清理之前的worker对象（如果存在）
+    if (m_versionWorker) {
+        // 确保worker在正确的线程中
+        if (m_versionWorker->thread() != QThread::currentThread()) {
+            m_versionWorker->moveToThread(QThread::currentThread());
+        }
+        delete m_versionWorker;
+        m_versionWorker = nullptr;
+    }
+
+    // 重新创建线程（如果需要）
+    if (!m_versionThread) {
+        m_versionThread = new QThread(this);
+    }
+
+    // 创建新的工作对象
+    m_versionWorker = new VersionDetectionWorker(nullptr);  // 不设置父对象
 
     // 将工作对象移动到线程
     m_versionWorker->moveToThread(m_versionThread);
 
     // 连接信号和槽
-    connect(m_versionThread, &QThread::started, m_versionWorker, &VersionDetectionWorker::detectVersions);
-    connect(m_versionWorker, &VersionDetectionWorker::coreVersionDetected, this, &setting::onCoreVersionDetected);
-    connect(m_versionWorker, &VersionDetectionWorker::cliVersionDetected, this, &setting::onCliVersionDetected);
-    connect(m_versionWorker, &VersionDetectionWorker::detectionFinished, m_versionThread, &QThread::quit); // 退出线程
-    connect(m_versionThread, &QThread::finished, m_versionWorker, &VersionDetectionWorker::deleteLater);
+    connect(m_versionThread, &QThread::started, m_versionWorker, &VersionDetectionWorker::detectVersions, Qt::DirectConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::coreVersionDetected, this, &setting::onCoreVersionDetected, Qt::QueuedConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::cliVersionDetected, this, &setting::onCliVersionDetected, Qt::QueuedConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::detectionFinished, m_versionThread, &QThread::quit, Qt::DirectConnection);
+
+    // 线程结束后清理worker对象
+    connect(m_versionThread, &QThread::finished, this, [this]() {
+        if (m_versionWorker) {
+            m_versionWorker->deleteLater();
+            m_versionWorker = nullptr;
+        }
+    }, Qt::DirectConnection);
 
     // 启动线程
     m_versionThread->start();
@@ -180,18 +241,17 @@ void setting::on_pushButton_2_clicked()
 }
 
 // 检查更新按钮点击事件
-// 检查更新按钮点击事件
 void setting::on_newVerPushButton_clicked()
 {
     detectSoftwareVersion(true);
 }
 
-void setting::detectSoftwareVersion(bool isFromBtn)
+void setting::detectSoftwareVersion(const bool &isFromInternal)
 {
     const QString &currentVersion = m_softwareVer;
 
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
+    auto *manager = new QNetworkAccessManager(this);
+    const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
 
     // 发送 GET 请求
     QNetworkReply *reply = manager->get(QNetworkRequest(url));
@@ -218,7 +278,7 @@ void setting::detectSoftwareVersion(bool isFromBtn)
                 if (ret == QMessageBox::Yes) {
                     QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
                 }
-            } else if (isFromBtn) {
+            } else if (isFromInternal) {
                 QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
             }
         } else {
@@ -228,10 +288,12 @@ void setting::detectSoftwareVersion(bool isFromBtn)
         }
 
         reply->deleteLater();
-        manager->deleteLater();
+
         // 外部调用完毕后自动删除setting
-        if (!isFromBtn) {
+        if (!isFromInternal) {
             this->deleteLater();
+        } else {
+            manager->deleteLater();
         }
     });
 }

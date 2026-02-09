@@ -190,7 +190,7 @@
       <item row="5" column="1">
        <widget class="QLabel" name="versionLabel">
         <property name="text">
-         <string>v1.0beta</string>
+         <string>v114514</string>
         </property>
        </widget>
       </item>

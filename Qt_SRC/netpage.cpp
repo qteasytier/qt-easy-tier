@@ -53,12 +53,6 @@ NetPage::~NetPage()
 {
     // 清理所有进程
     stopCurrentNetwork();
-    if (m_cliProcess) {
-        disconnect(m_cliProcess, nullptr, this, nullptr);
-        m_cliProcess->kill();
-        m_cliProcess->deleteLater();
-        m_cliProcess = nullptr;
-    }
 
     // 关闭日志文件
     closeLogFile();
@@ -299,6 +293,7 @@ void NetPage::onOpenPublicServerList() {
         if (!isDuplicate) m_serverListWidget->addItem(addr);
     }
     publicServer->deleteLater();
+    publicServer = nullptr;
 }
 void NetPage::onAddServer()
 {
@@ -1208,7 +1203,7 @@ void NetPage::onRunNetwork()
 void NetPage::stopCurrentNetwork()
 {
     if (m_easytierProcess) {
-        disconnect(m_easytierProcess, nullptr, this, nullptr);
+        m_easytierProcess->disconnect();
         m_logTextEdit->appendPlainText("正在终止EasyTier进程...");
         m_easytierProcess->kill();
 
@@ -1228,6 +1223,14 @@ void NetPage::stopCurrentNetwork()
     if (m_easytierProcess) {
         m_easytierProcess->deleteLater();
         m_easytierProcess = nullptr;
+    }
+
+    // 停止cli进程
+    if (m_cliProcess) {
+        m_cliProcess->disconnect();
+        m_cliProcess->kill();
+        m_cliProcess->deleteLater();
+        m_cliProcess = nullptr;
     }
 }
 
@@ -1730,12 +1733,12 @@ QJsonObject NetPage::getNetworkConfig() const
     advancedSettings["cidrList"] = cidrList;
 
     config["advancedSettings"] = advancedSettings;
-    config["isActive"] = m_easytierProcess->state() == QProcess::Running; // 记录当前是否处于激活运行状态
+    config["isActive"] = isRunning(); // 记录当前是否处于激活运行状态
 
     return config;
 }
 
-// 从文件中读取并设置网络配置
+// 设置网络配置
 void NetPage::setNetworkConfig(const QJsonObject &config)
 {
     // 基础设置
@@ -1962,7 +1965,7 @@ void NetPage::onImportConfigClicked()
     }
 
     // 停止当前运行的网络（如果正在运行）
-    if (m_easytierProcess || m_easytierProcess->state() == QProcess::Running) {
+    if (isRunning()) {
         QMessageBox::StandardButton ret = QMessageBox::question(
             this,
             tr("确认"),
@@ -1975,20 +1978,7 @@ void NetPage::onImportConfigClicked()
 
         // 停止正在运行的网络
         if (m_easytierProcess) {
-            disconnect(m_easytierProcess, nullptr, this, nullptr);
-            m_logTextEdit->appendPlainText("正在停止当前网络以导入新配置...");
-            m_easytierProcess->kill();
-
-            if (m_easytierProcess->waitForFinished(1000)) {
-                m_logTextEdit->appendPlainText("当前网络已停止");
-            } else {
-                m_logTextEdit->appendPlainText("警告：当前网络可能未完全停止");
-            }
-
-            emit networkFinished(); // 发送网络停止信号
-            updateUIState(false);;    // 更新UI状态
-            m_easytierProcess->deleteLater();
-            m_easytierProcess = nullptr;
+            stopCurrentNetwork();
         }
     }
 

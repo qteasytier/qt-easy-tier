@@ -2,6 +2,7 @@
 #include "netpage.h"
 #include "about.h"
 #include "setting.h"
+#include "oneclick.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -27,6 +28,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_oneClick(nullptr)
+    , m_settingsWindow(nullptr)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -61,8 +63,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 点击设置按钮时打开设置窗口
     connect(ui->setPushButton, &QPushButton::clicked, this, [=, this]() {
-        setting *settingsWindow = new setting(this);
-        settingsWindow->exec();
+        m_settingsWindow = new setting(this);
+        m_settingsWindow->exec();
+        m_settingsWindow->deleteLater();
     });
 
     // 点击赞助按钮时跳转到赞助网页
@@ -227,7 +230,10 @@ void MainWindow::onDeleteNetwork()
 void MainWindow::onClickOneClickBtn() {
     if (!m_oneClick) {
         m_oneClick = new OneClick(this);
-        // 连接窗口隐藏信号
+        connect(m_oneClick, &OneClick::isNotRunning, this, [=, this]() {
+            m_oneClick->deleteLater();
+            m_oneClick = nullptr;
+        });
     }
     __changeWidget(m_oneClick);
 }
@@ -337,7 +343,7 @@ void MainWindow::loadNetworkConfig() {
     QJsonArray networks = rootObj["networks"].toArray();
 
     // 加载网络配置
-    auto tmpSet = new setting(); // 创建一次设置栏使其加载配置
+    m_settingsWindow = new setting(); // 创建一次设置栏使其加载配置
     for (int i = 0; i < networks.size(); ++i) {
         QJsonValue networkValue = networks[i];
         if (!networkValue.isObject()) continue;
@@ -374,7 +380,7 @@ void MainWindow::loadNetworkConfig() {
             }
         }
     }
-    tmpSet->deleteLater();
+    m_settingsWindow->detectSoftwareVersion();
 }
 
 // 保存网络配置

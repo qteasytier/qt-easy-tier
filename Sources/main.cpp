@@ -49,8 +49,6 @@ int main(int argc, char *argv[])
     if (!autoStart) {
         w.show();
     }
-    // 检查更新
-    setting::detectSoftWareVersionExternal();
 
     return app.exec();
 }
