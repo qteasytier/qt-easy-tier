@@ -56,7 +56,7 @@ private:
     QAction *showAction;
     QAction *exitAction;
 
-    void __changeWidget(QWidget *newWidget) const;
+    void __changeWidget(QWidget *newWidget);
     void setupContextMenu();
     void createTrayIcon();  // 创建系统托盘
 };

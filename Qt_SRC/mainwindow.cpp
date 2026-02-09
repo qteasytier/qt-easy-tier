@@ -230,12 +230,6 @@ void MainWindow::onDeleteNetwork()
 void MainWindow::onClickOneClickBtn() {
     if (!m_oneClick) {
         m_oneClick = new OneClick(this);
-        connect(m_oneClick, &OneClick::isNotRunning, this, [=, this]() {
-            if (this->isVisible()) {
-                m_oneClick->deleteLater();
-                m_oneClick = nullptr;
-            }
-        });
     }
     __changeWidget(m_oneClick);
 }
@@ -245,7 +239,7 @@ void MainWindow::onClickOneClickBtn() {
 ///
 /// @note 该函数用于替换主窗口右侧的页面为首页或者network页面
 /// @warning 该函数的设计初衷是为了主窗口右侧的界面，并没有考虑其他使用情况，不要乱用
-void MainWindow::__changeWidget(QWidget *newWidget) const {
+void MainWindow::__changeWidget(QWidget *newWidget) {
     // 获取centralWidget的box布局
     QBoxLayout *boxLayout = qobject_cast<QBoxLayout*>(ui->centralwidget->layout());
     if (!boxLayout) {
@@ -263,6 +257,14 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
         if (oldWidget) {
             boxLayout->removeWidget(oldWidget);
             oldWidget->hide();
+
+            // 如果未运行则删除OneClick实例
+            if (oldWidget == m_oneClick) {
+                if (!m_oneClick->isRunning()) {
+                    m_oneClick->deleteLater();
+                    m_oneClick = nullptr;
+                }
+            }
         }
     }
 
