@@ -11,6 +11,7 @@
 #include <QHostAddress>
 #include <QAbstractSocket>
 #include <random>
+#include <QCryptographicHash>
 
 /// @brief 生成随机端口号
 int getRandomPort()
@@ -229,4 +230,144 @@ bool isRpcPortOccupied(const int &port)
 
     std::clog << "[RpcDetect] RPC port " << port << " is occupied:"<< std::endl;
     return true;
+}
+
+// =================== Base32 编码/解码相关函数 ===================
+
+const QString BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/// @brief Base32编码
+/// @param data: 需要编码的字节数组
+QString base32Encode(const QByteArray& data) {
+    QString result;
+    int buffer = 0;
+    int bitsLeft = 0;
+
+    for (int i = 0; i < data.size(); ++i) {
+        buffer = (buffer << 8) | static_cast<unsigned char>(data[i]);
+        bitsLeft += 8;
+
+        while (bitsLeft >= 5) {
+            result += BASE32_CHARS[(buffer >> (bitsLeft - 5)) & 0x1F];
+            bitsLeft -= 5;
+        }
+    }
+
+    if (bitsLeft > 0) {
+        result += BASE32_CHARS[(buffer << (5 - bitsLeft)) & 0x1F];
+    }
+
+    // 补齐到4的倍数
+    while (result.length() % 8 != 0) {
+        result += '=';
+    }
+
+    return result;
+}
+
+/// @brief Base32解码
+/// @param encoded: Base32编码字符串
+QByteArray base32Decode(const QString& encoded) {
+    QByteArray result;
+    int buffer = 0;
+    int bitsLeft = 0;
+
+    for (int i = 0; i < encoded.length(); ++i) {
+        QChar ch = encoded[i];
+        if (ch == '=') continue;
+
+        int val = BASE32_CHARS.indexOf(ch.toUpper());
+        if (val == -1) continue;
+
+        buffer = (buffer << 5) | val;
+        bitsLeft += 5;
+
+        if (bitsLeft >= 8) {
+            result.append(static_cast<char>((buffer >> (bitsLeft - 8)) & 0xFF));
+            bitsLeft -= 8;
+        }
+    }
+
+    return result;
+}
+
+/// @brief 生成房间凭证
+/// @return 返回房间凭证(房间号，密码)
+QPair<QString, QString> generateRoomCredentials() {
+    std::string str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*&#$!";  //字符集
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 56); // ASCII可打印字符范围 32-126
+
+    // 生成5字节的原始网络号数据（对应Base32编码8字符）
+    QByteArray networkIdRaw(5, 0);
+    for (int i = 0; i < 5; ++i) {
+        networkIdRaw[i] = str[dis(gen)];
+    }
+
+    // 生成5字节的原始密码数据（对应Base32编码8字符）
+    QByteArray passwordRaw(5, 0);
+    for (int i = 0; i < 5; ++i) {
+        passwordRaw[i] = str[dis(gen)];
+    }
+
+    // 将原始数据转换为ASCII字符串作为实际使用的网络号和密码
+    QString networkId = "QtET-OneClick-" + QString::fromLatin1(networkIdRaw);
+    QString password = QString::fromLatin1(passwordRaw);
+
+    return qMakePair(networkId, password);
+}
+
+/// @brief 生成连接码（Base32）
+QString encodeConnectionCode(const QString& networkId, const QString& password) {
+
+    QString networkPureId = networkId; // 删除 "QtET-OneClick-" 前缀
+    networkPureId.remove("QtET-OneClick-");
+    // 将ASCII字符串转换回二进制数据
+    QByteArray networkIdData = networkPureId.toLatin1();
+    QByteArray passwordData = password.toLatin1();
+
+    // 使用Base32编码
+    QString encodedNetworkId = base32Encode(networkIdData);
+    QString encodedPassword = base32Encode(passwordData);
+
+    // 确保长度正确（5字节数据Base32编码后正好8个字符）
+    if (encodedNetworkId.length() != 8 || encodedPassword.length() != 8) {
+        return ""; // 返回空字符串表示错误
+    }
+
+    // 组合成格式：XXXX-XXXX-XXXX-XXXX
+    QString code = encodedNetworkId.left(4) + "-" +
+                   encodedNetworkId.mid(4, 4) + "-" +
+                   encodedPassword.left(4) + "-" +
+                   encodedPassword.mid(4, 4);
+
+    return code.toUpper();
+}
+
+QPair<QString, QString> decodeConnectionCode(const QString& code) {
+    // 移除所有非Base32字符并转为大写
+    QString cleanCode = code;
+    const static QRegularExpression re("[^A-Za-z2-7]");
+    cleanCode.remove(re);
+    cleanCode = cleanCode.toUpper();
+
+    // 检查长度是否正确（应该是16个Base32字符）
+    if (cleanCode.length() != 16) {
+        return qMakePair(QString(), QString()); // 返回空pair表示错误
+    }
+
+    // 分离网络号和密码的Base32编码（各8个字符）
+    QString encodedNetworkId = cleanCode.left(8);
+    QString encodedPassword = cleanCode.mid(8, 8);
+
+    // Base32解码（5字节数据编码后正好8字符，不需要额外填充）
+    QByteArray networkIdData = base32Decode(encodedNetworkId);
+    QByteArray passwordData = base32Decode(encodedPassword);
+
+    // 转换为ASCII字符串
+    QString networkPureId = QString::fromLatin1(networkIdData);
+    QString password = QString::fromLatin1(passwordData);
+
+    return qMakePair("QtET-OneClick-" + networkPureId, password);
 }

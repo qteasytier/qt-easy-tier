@@ -10,5 +10,6 @@
         <file>icon.ico</file>
         <file>network.svg</file>
         <file>network-running.svg</file>
+        <file>one-click.svg</file>
     </qresource>
 </RCC>

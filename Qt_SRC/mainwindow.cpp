@@ -26,6 +26,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , m_oneClick(nullptr)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -111,6 +112,9 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    // 点击一键联机按钮时
+    connect(ui->oneClickBtn, &QPushButton::clicked, this, &MainWindow::onClickOneClickBtn);
+
     // 设置右键菜单和双击事件
     setupContextMenu();
 
@@ -120,6 +124,26 @@ MainWindow::MainWindow(QWidget *parent)
     // 创建系统托盘
     createTrayIcon();
 }
+
+MainWindow::~MainWindow()
+{
+    // 关闭应用前保存配置
+    saveNetworkConfig();
+
+    // 杀死所有easytier-core进程
+    QProcess process;
+#ifdef Q_OS_WIN
+    process.start("taskkill /F /IM easytier-core.exe");
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    process.start("pkill easytier-core");
+#endif
+    process.waitForFinished(5000);
+
+    delete ui;
+}
+
+
+// ==========================主界面控件相关===========================
 
 void MainWindow::setupContextMenu()
 {
@@ -200,21 +224,12 @@ void MainWindow::onDeleteNetwork()
     }
 }
 
-MainWindow::~MainWindow()
-{
-    // 关闭应用前保存配置
-    saveNetworkConfig();
-
-    // 杀死所有easytier-core进程
-    QProcess process;
-#ifdef Q_OS_WIN
-    process.start("taskkill /F /IM easytier-core.exe");
-#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    process.start("pkill easytier-core");
-#endif
-    process.waitForFinished(5000);
-
-    delete ui;
+void MainWindow::onClickOneClickBtn() {
+    if (!m_oneClick) {
+        m_oneClick = new OneClick(this);
+        // 连接窗口隐藏信号
+    }
+    __changeWidget(m_oneClick);
 }
 
 /// @brief 页面替换函数
@@ -243,6 +258,10 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
     boxLayout->insertWidget(1, newWidget);
     newWidget->show();
 }
+
+
+// ======================== 配置文件加载相关 ===========================
+
 
 // 加载网络配置
 void MainWindow::loadNetworkConfig() {
@@ -416,6 +435,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
         trayIcon->showMessage("QtEasyTier", "程序已隐藏到系统托盘", QSystemTrayIcon::Information, 2000);
     }
 }
+
+// ============================系统托盘相关=============================
 
 // 创建系统托盘
 void MainWindow::createTrayIcon()

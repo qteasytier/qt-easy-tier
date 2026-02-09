@@ -47,10 +47,16 @@
        </property>
        <item alignment="Qt::AlignmentFlag::AlignHCenter">
         <widget class="QPushButton" name="homeButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="minimumSize">
           <size>
            <width>200</width>
-           <height>50</height>
+           <height>45</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -68,7 +74,7 @@
           <string notr="true">QPushButton {
     /* 基础样式：固定尺寸+圆角+背景色+字体 */
     width: 225px;               /* 固定宽度 */
-    height: 45px;               /* 固定高度 */
+    height: 40px;               /* 固定高度 */
     border-radius: 8px;         /* 圆角8px */
     background-color: #66ccff;  /* 主背景色 */
     color: #000000;             /* 文字白色（增强对比度） */
@@ -133,7 +139,7 @@ QPushButton:disabled {
         <widget class="QListWidget" name="netListWidget">
          <property name="minimumSize">
           <size>
-           <width>200</width>
+           <width>180</width>
            <height>0</height>
           </size>
          </property>
@@ -172,6 +178,76 @@ QListWidget::item {
          </property>
          <property name="sizeType">
           <enum>QSizePolicy::Policy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>8</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item alignment="Qt::AlignmentFlag::AlignHCenter">
+        <widget class="QPushButton" name="oneClickBtn">
+         <property name="minimumSize">
+          <size>
+           <width>192</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    /* 基础样式：固定尺寸+圆角+背景色+字体 */
+    width: 160px;               /* 固定宽度 */
+    height: 35px;               /* 固定高度 */
+    border-radius: 8px;         /* 圆角8px */
+    background-color: #66ccff;  /* 主背景色 */
+    color: #000000;             /* 文字白色（增强对比度） */
+    font-size: 20px;            /* 字体大小16 */
+    text-align: center;         /* 文字居中 */
+    border: none;               /* 移除默认边框 */
+    padding: 0;                 /* 清除默认内边距，避免尺寸偏差 */
+    /* 禁用默认焦点框（可选，提升美观度） */
+    outline: none;
+}
+
+QPushButton:hover {
+    /* 悬停效果：轻微加深背景色，提升交互感 */
+    background-color: #5bc0f8;
+}
+
+QPushButton:pressed {
+    /* 点击效果：颜色加深+文字轻微位移+背景进一步加深 */
+    background-color: #4bb3ee;  /* 比悬停更深的蓝色 */
+    padding-left: 2px;          /* 文字右移2px（视觉上的按下位移） */
+    padding-top: 2px;           /* 文字下移2px */
+}
+
+/* 可选：禁用状态样式（增强鲁棒性） */
+QPushButton:disabled {
+    background-color: #b3d9ff;
+    color: #e6e6e6;
+}</string>
+         </property>
+         <property name="text">
+          <string>一键联机</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../Qt_QRC/icons.qrc">
+           <normaloff>:/icons/one-click.svg</normaloff>:/icons/one-click.svg</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>26</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>

@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "netpage.h"
+#include "oneclick.h"
 
 #include <QMainWindow>
 #include <QVector>
@@ -35,6 +36,7 @@ private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);  // 系统托盘激活事件
     void onShowWindow();  // 显示主窗口
     void onExitApp();     // 退出应用程序
+    void onClickOneClickBtn(); // 当点击一键联机按钮时
 
 protected:
     void closeEvent(QCloseEvent *event) override;  // 重写关闭事件
@@ -44,6 +46,7 @@ private:
 
     // 界面组件
     QVector<NetPage*> m_netpages;
+    OneClick *m_oneClick;
 
     // 系统托盘相关
     QSystemTrayIcon *trayIcon;
