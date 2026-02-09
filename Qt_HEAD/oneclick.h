@@ -124,7 +124,7 @@ protected:
         if (!(m_coreProcess && m_coreProcess->state() == QProcess::Running)) {
             emit isNotRunning();
         }
-    };
+    }
 };
 
 #endif // ONECLICK_H

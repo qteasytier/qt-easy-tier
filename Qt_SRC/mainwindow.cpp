@@ -231,8 +231,10 @@ void MainWindow::onClickOneClickBtn() {
     if (!m_oneClick) {
         m_oneClick = new OneClick(this);
         connect(m_oneClick, &OneClick::isNotRunning, this, [=, this]() {
-            m_oneClick->deleteLater();
-            m_oneClick = nullptr;
+            if (this->isVisible()) {
+                m_oneClick->deleteLater();
+                m_oneClick = nullptr;
+            }
         });
     }
     __changeWidget(m_oneClick);
@@ -254,6 +256,10 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
     // 移除旧的Widget
     if (boxLayout->count() > 0) {
         QWidget *oldWidget = boxLayout->itemAt(1)->widget();
+        if (oldWidget == newWidget) {
+            std::clog << "界面没有任何更改" << std::endl;
+            return;
+        }
         if (oldWidget) {
             boxLayout->removeWidget(oldWidget);
             oldWidget->hide();
