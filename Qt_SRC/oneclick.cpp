@@ -1,4 +1,5 @@
 #include "oneclick.h"
+#include "generateconf.h"
 #include "ui_oneclick.h"
 #include "generateconf.h"
 #include "publicserver.h"
@@ -81,7 +82,7 @@ void OneClick::initHostComponents() {
     m_publicServerBtn = ui->publicServerBtn;
     m_hostStartBtn = ui->hostStartBtn;  // 开始联机按钮
     m_serverListWidget = ui->serverListWidget;
-    m_playerNumEdit = ui->playerNumEdit;
+    m_playerCountEdit = ui->playerCountEdit;
 
     // 连接信号槽
     connect(m_addServerBtn, &QPushButton::clicked, this, &OneClick::onAddServerClicked);
@@ -90,9 +91,12 @@ void OneClick::initHostComponents() {
     connect(m_hostStartBtn, &QPushButton::clicked, this, &OneClick::onHostStartClicked);
 
     // 默认添加EasyTier公共服务器
-    m_serverListWidget->addItem("tcp://public.easytier.top:11010");
     m_serverListWidget->addItem("txt://qtet-public.070219.xyz");
+    m_serverListWidget->addItem("tcp://public.easytier.top:11010");
+    m_serverListWidget->addItem("tcp://public2.easytier.cn:54321");
     m_serverListWidget->addItem("https://et-public.lctn.site");
+    m_serverListWidget->addItem("tcp://et.sbgov.cn:11010");
+    m_serverListWidget->addItem("tcp://turn.js.629957.xyz:11012");
 }
 
 void OneClick::initGuestComponents() {
@@ -230,11 +234,11 @@ void OneClick::updateInterfaceState(UserRole role) {
         m_hostStartBtn->setStyleSheet("");
         m_guestStartBtn->setText("开始联机");
         m_guestStartBtn->setStyleSheet("");
-        m_hostCodeLineEdit->setReadOnly(false);
+        m_hostCodeLineEdit->setToolTip("");
         m_hostCodeLineEdit->clear();
         m_guestIpLineEdit->clear();
         m_lastHostIp.clear();
-        m_playerNumEdit->clear();
+        m_playerCountEdit->clear();
         break;
 
     case UserRole::Host:
@@ -375,6 +379,12 @@ void OneClick::onHostStartClicked() {
             throw std::runtime_error("无法生成房间凭证");
         }
 
+        // 检测端口占用
+        if (isPortOccupied(55666)) {
+            QMessageBox::warning(this, "Error", "端口55666被占用，请检查是否其他程序正在使用。");
+            return;
+        }
+
         QStringList arguments;
         arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
                   << "--dhcp" << "false" << "--hostname" << "host"
@@ -407,6 +417,10 @@ void OneClick::onHostStartClicked() {
 
             // 更新状态
             updateInterfaceState(UserRole::Host);
+
+            //鼠标放上去显示原始账密
+            m_hostCodeLineEdit->setToolTip(QString(tr("如需使用其他EasyTier工具联机请使用以下信息"
+                "\n网络号: %1\n密码: %2").arg(m_currentNetworkId, m_currentPassword)));
 
             // 初始化定时器
             if (m_cliUpdateTimer) {
@@ -470,6 +484,12 @@ void OneClick::onGuestStartClicked() {
 
     // 创建启动过程对话框
     createProcessDialog("启动EasyTier中。。。");
+
+    // 检测端口占用
+    if (isPortOccupied(55666)) {
+        QMessageBox::warning(this, "Error", "端口55666被占用，请检查是否其他程序正在使用。");
+        return;
+    }
 
     // 构造房客启动参数
     QStringList arguments {"--dhcp"};
@@ -593,7 +613,7 @@ void OneClick::parsePlayerNum(const QByteArray& jsonData) {
         count++;
     }
 
-    m_playerNumEdit->setText(QString::number(count));
+    m_playerCountEdit->setText(QString::number(count));
 }
 
 // 更新房主IP地址(房客)

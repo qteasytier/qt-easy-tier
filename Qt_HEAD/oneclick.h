@@ -52,7 +52,7 @@ private:
     // 房主界面组件
     QLineEdit *m_hostCodeLineEdit = nullptr;
     QLineEdit *m_serverAddrEdit = nullptr;
-    QLineEdit *m_playerNumEdit = nullptr;
+    QLineEdit *m_playerCountEdit = nullptr;
     QPushButton *m_addServerBtn = nullptr;
     QPushButton *m_removeServerBtn = nullptr;
     QPushButton *m_publicServerBtn = nullptr;

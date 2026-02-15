@@ -17,8 +17,7 @@ PublicServer::PublicServer(QWidget *parent)
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows); // 设置整行选择
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true); // 最后一列自动扩展
     // 设置列宽
-    ui->tableWidget->setColumnWidth(0, 50);
-    ui->tableWidget->setColumnWidth(1, 250);
+    ui->tableWidget->setColumnWidth(0, 300);
 
     // 连接信号槽
     connect(ui->tableWidget, &QTableWidget::cellClicked,
@@ -76,11 +75,11 @@ void PublicServer::populateTable()
         QJsonValue serverValue = serverData[i];
         QJsonObject serverObj = serverValue.toObject();
 
-        QTableWidgetItem *propertyItem = new QTableWidgetItem(serverObj["property"].toString());
+        //QTableWidgetItem *propertyItem = new QTableWidgetItem(serverObj["property"].toString());
         QTableWidgetItem *urlItem = new QTableWidgetItem(serverObj["url"].toString());
         QTableWidgetItem *contributorItem = new QTableWidgetItem(serverObj["contributor"].toString());
 
-        propertyItem->setTextAlignment(Qt::AlignCenter);
+        //propertyItem->setTextAlignment(Qt::AlignCenter);
         contributorItem->setTextAlignment(Qt::AlignCenter);
 
         // 检查此URL是否已被选中
@@ -89,16 +88,16 @@ void PublicServer::populateTable()
             urlItem->setForeground(QBrush(QColor(0, 128, 0))); // 绿色
         }
 
-        ui->tableWidget->setItem(i, 0, propertyItem);
-        ui->tableWidget->setItem(i, 1, urlItem);
-        ui->tableWidget->setItem(i, 2, contributorItem);
+        //ui->tableWidget->setItem(i, 0, propertyItem);
+        ui->tableWidget->setItem(i, 0, urlItem);
+        ui->tableWidget->setItem(i, 1, contributorItem);
     }
 }
 
 void PublicServer::onTableCellClicked(int row, int column)
 {
     // 只处理网址列的点击
-    if (column == 1) {
+    if (column == 0) {
         QTableWidgetItem *item = ui->tableWidget->item(row, column);
         QString url = item->text();
 

@@ -33,6 +33,21 @@ NetPage::NetPage(QWidget *parent)
     initRunningLogWindow();      // 初始化运行日志窗口
     initRunningStatePage();      // 初始化运行状态页面
 
+    ui->useWebBtn->setToolTip(tr("使用Web控制台管理该进程，请先前往首页打开Web控制台\n"
+                    "警告：只应有一个进程被 Web 控制台管理，否则可能会导致奇怪的问题。"));
+    connect(ui->useWebBtn, &QPushButton::clicked, this, [this]() {
+        if (ui->useWebBtn->isChecked()) {
+            // 不允许使用设置界面和运行状态页面
+            ui->primerSet->setEnabled(false);
+            ui->advancedSet->setEnabled(false);
+            ui->runningState->setEnabled(false);
+        } else {
+            ui->primerSet->setEnabled(true);
+            ui->advancedSet->setEnabled(true);
+            ui->runningState->setEnabled(true);
+        }
+    });
+
     // 连接运行网络按钮的点击事件
     connect(ui->startPushButton, &QPushButton::clicked, this, &NetPage::onRunNetwork);
     // 连接导入和导出配置按钮的点击事件
@@ -615,10 +630,7 @@ void NetPage::createAdvancedSetPage()
     scrollLayout->setContentsMargins(20, 20, 20, 20);
     scrollLayout->setSpacing(8);
 
-    // 创建功能开关标题
-    QLabel *functionTitle = new QLabel(tr("功能开关"), this);
-    functionTitle->setStyleSheet("font-size: 16px; font-weight: bold;");
-    scrollLayout->addWidget(functionTitle);
+    //
 
     // 创建网格布局来放置功能开关，3列布局
     QWidget *functionWidget = new QWidget(scrollContent);
@@ -1185,14 +1197,18 @@ void NetPage::onRunNetwork()
     try {
         if (m_processLogTextEdit) {
             m_processLogTextEdit->appendPlainText(tr("生成启动配置..."));
-            m_processLogTextEdit->appendPlainText(tr("正在检测RPC端口..."));
             QApplication::processEvents();
         }
 
-        QStringList arguments = generateConfCommand(this);
+        QStringList arguments;
+        if (ui->useWebBtn->isChecked()) {
+            arguments << "-w" << "udp://127.0.0.1:55668/admin";
+        } else {
+            arguments = generateConfCommand(this);
+        }
 
         if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(tr("检测到可用端口: ") + QString::number(realRpcPort));
+            m_processLogTextEdit->appendPlainText(tr("检测到可用RPC端口: ") + QString::number(realRpcPort));
             m_processLogTextEdit->appendPlainText(tr("启动配置已生成: ") + arguments.join(" "));
             m_processLogTextEdit->appendPlainText(tr("正在传入参数并启动EasyTier进程..."));
             QApplication::processEvents();
@@ -1221,7 +1237,6 @@ void NetPage::onRunNetwork()
         QTimer::singleShot(1600, this, &NetPage::closeProcessDialog);
         handleProcessStartResult(false);
     }
-
     //closeLogFile();
 }
 
@@ -1552,7 +1567,7 @@ void NetPage::initRunningStatePage()
     m_peerUpdateTimer = new QTimer(this);
     connect(m_peerUpdateTimer, &QTimer::timeout, this, &NetPage::updatePeerInfo);
     connect(this, &NetPage::networkStarted, this, [=, this] {
-        m_peerUpdateTimer->start(2000);
+        if (!ui->useWebBtn->isChecked()) m_peerUpdateTimer->start(2000);
     });
     connect(this, &NetPage::networkFinished, this, [=, this] {
         m_peerUpdateTimer->stop();

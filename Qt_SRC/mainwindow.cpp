@@ -1,8 +1,8 @@
 #include "mainwindow.h"
 #include "netpage.h"
-#include "about.h"
 #include "setting.h"
 #include "oneclick.h"
+#include "generateconf.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -29,13 +29,17 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->webDashboardBtn->setToolTip(tr("Web控制台需要占用55667(API)、55668(配置下发)端口\n"
+        "启动后，会自动打开网页，请使用名为admin的账户登录，默认密码是admin\n"
+        "然后就可以新建一个网络配置，勾选使用Web控制台管理后启动即可"
+    ));
 
     // 设置窗口图标
     setWindowIcon(QIcon(":/icons/icon.ico"));
 
-    // 当点击千万别点按钮时候, 使用浏览器打开《诈骗小曲》
+    // 当点击千万别点按钮时候, 使用浏览器打开《恭喜发财》（新春特别版）
     connect(ui->dontClick, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://www.bilibili.com/video/BV1UT42167xb/"));
+        QDesktopServices::openUrl(QUrl("https://www.bilibili.com/video/BV1ad4y1V7wb/"));
     });
 
     connect(ui->gitPushButton, &QPushButton::clicked, this, []() {
@@ -49,13 +53,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 点击关于按钮时，打开关于对话框
     connect(ui->aboutPushButton, &QPushButton::clicked, this, [=, this]() {
-        About *aboutDialog = new About(this);
-        aboutDialog->exec();
+        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz"));
     });
 
     // 点击帮助按钮时，打开URL
     connect(ui->helpPushButton, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/docs/help.md"));
+        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/docs-home"));
     });
 
     // 点击设置按钮时打开设置窗口
@@ -68,7 +71,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 点击赞助按钮时跳转到赞助网页
     connect(ui->donatePushButton, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/docs/donate.md"));
+        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/other/donate/"));
     });
 
     // 点击etPushButton时，打开et官网
@@ -116,6 +119,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 点击一键联机按钮时
     connect(ui->oneClickBtn, &QPushButton::clicked, this, &MainWindow::onClickOneClickBtn);
 
+    // 当点击Web控制台按钮时
+    connect(ui->webDashboardBtn, &QPushButton::clicked, this, &MainWindow::onClickWebDashboardBtn);
+
     // 设置右键菜单和双击事件
     setupContextMenu();
 
@@ -130,6 +136,18 @@ MainWindow::~MainWindow()
 {
     // 关闭应用前保存配置
     saveNetworkConfig();
+
+    if (m_webDashboardProcess) {
+        m_webDashboardProcess->disconnect();
+        m_webDashboardProcess->kill();
+        if (m_webDashboardProcess->waitForFinished(1000)) {
+            std::clog << "成功终止Web进程" << std::endl;
+        } else {
+            std::cerr << "可能无法终止Web进程" << std::endl;
+        }
+        m_webDashboardProcess->deleteLater();
+        m_webDashboardProcess = nullptr;
+    }
 
     // 杀死所有easytier-core进程
     QProcess process;
@@ -230,6 +248,64 @@ void MainWindow::onClickOneClickBtn() {
         m_oneClick = new OneClick(this);
     }
     _changeWidget(m_oneClick);
+}
+
+void MainWindow::onClickWebDashboardBtn() {
+    if (m_webDashboardProcess) {
+        m_webDashboardProcess->disconnect();
+        m_webDashboardProcess->kill();
+
+        // 等待强制终止完成
+        if (m_webDashboardProcess->waitForFinished(1000)) {
+            std::clog << "成功终止Web进程" << std::endl;
+        } else {
+            QMessageBox::warning(this, "警告", "终止Web进程可能失败");
+        }
+
+        m_webDashboardProcess->deleteLater();
+        m_webDashboardProcess = nullptr;
+        ui->webDashboardBtn->setText("启动 Web 控制台");
+        ui->webDashboardBtn->setStyleSheet("");
+
+        return;
+    }
+    // 启动web控制台
+    const QString &appDir = QCoreApplication::applicationDirPath()+"/etcore";
+    const QString &appFile = appDir + "/easytier-web-embed.exe";
+
+    // 检查appFile是否存在
+    if (!QFile::exists(appFile)) {
+        QMessageBox::critical(this, "错误", "找不到easytier-web-embed.exe");
+        return;
+    }
+
+    // 检测55667、55668端口占用情况
+    if (isPortOccupied(55667) || isPortOccupied(55668)) {
+        QMessageBox::critical(this, "错误", "55667或55668端口被占用");
+        return;
+    }
+
+    //构建启动命令
+    QStringList args {"--api-server-port", "55667",
+                  "--api-host", "http://127.0.0.1:55667",
+                  "--config-server-port", "55668",
+                  "--config-server-protocol", "udp"
+                     };
+
+    m_webDashboardProcess = new QProcess(this);
+    m_webDashboardProcess->start(appFile, args);
+    ui->webDashboardBtn->setText("Web 控制台已启动");
+    ui->webDashboardBtn->setStyleSheet("color: #66ccff; gridline-color: #66ccff");
+
+    // 等待一秒打开浏览器
+    QTimer::singleShot(1000, [=, this]() {
+        if (m_webDashboardProcess && m_webDashboardProcess->state() == QProcess::Running) {
+            QDesktopServices::openUrl(QUrl("http://127.0.0.1:55667"));
+        } else {
+            QMessageBox::warning(this, "警告", "Web控制台可能启动失败");
+        }
+
+    });
 }
 
 /// @brief 页面替换函数

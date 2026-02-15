@@ -53,17 +53,6 @@
      <row/>
      <column>
       <property name="text">
-       <string>属性</string>
-      </property>
-      <property name="font">
-       <font>
-        <bold>true</bold>
-        <hintingpreference>PreferFullHinting</hintingpreference>
-       </font>
-      </property>
-     </column>
-     <column>
-      <property name="text">
        <string>网址</string>
       </property>
       <property name="font">
@@ -85,18 +74,10 @@
      </column>
      <item row="0" column="0">
       <property name="text">
-       <string>仅连接</string>
-      </property>
-      <property name="textAlignment">
-       <set>AlignCenter</set>
-      </property>
-     </item>
-     <item row="0" column="1">
-      <property name="text">
        <string>txt://qtet-public.070219.xyz</string>
       </property>
      </item>
-     <item row="0" column="2">
+     <item row="0" column="1">
       <property name="text">
        <string>QtEasyTier</string>
       </property>

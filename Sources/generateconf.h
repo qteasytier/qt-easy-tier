@@ -21,6 +21,13 @@
  */
 QStringList generateConfCommand(NetPage *netPage);
 
+/// @brief: 检测端口是否被占用
+/// @param port: 端口号
+/// @return: 如果端口被占用则返回true，否则返回false
+///
+/// @note: 该函数用于检测指定端口是否被其他进程占用
+bool isPortOccupied(const int &port);
+
 /**
  * @brief: Base32编码函数
  * @param data: 要编码的数据

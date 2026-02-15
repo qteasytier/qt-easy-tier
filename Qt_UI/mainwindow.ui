@@ -696,7 +696,7 @@ font-size: 8</string>
         </widget>
        </item>
        <item alignment="Qt::AlignmentFlag::AlignHCenter">
-        <widget class="QPushButton" name="dontClick">
+        <widget class="QPushButton" name="webDashboardBtn">
          <property name="minimumSize">
           <size>
            <width>130</width>
@@ -704,7 +704,29 @@ font-size: 8</string>
           </size>
          </property>
          <property name="text">
-          <string>千万别点</string>
+          <string>启用 Web 控制台</string>
+         </property>
+        </widget>
+       </item>
+       <item alignment="Qt::AlignmentFlag::AlignHCenter">
+        <widget class="QPushButton" name="dontClick">
+         <property name="minimumSize">
+          <size>
+           <width>130</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">color: rgb(237, 56, 25);
+gridline-color: rgb(255, 55, 14);</string>
+         </property>
+         <property name="text">
+          <string>快来点我</string>
          </property>
         </widget>
        </item>

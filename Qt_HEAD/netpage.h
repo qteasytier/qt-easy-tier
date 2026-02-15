@@ -211,6 +211,9 @@ private:
     QPushButton *m_removeCidrBtn =  nullptr;
     QPushButton *m_calculateCidrBtn =  nullptr;
 
+    // 使用Web管理开关
+
+
     // 运行et相关
     QPlainTextEdit *m_logTextEdit =  nullptr;
     QProcess *m_easytierProcess =  nullptr;

@@ -121,7 +121,7 @@
           </widget>
          </item>
          <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight">
-          <widget class="QLineEdit" name="playerNumEdit">
+          <widget class="QLineEdit" name="playerCountEdit">
            <property name="minimumSize">
             <size>
              <width>100</width>
@@ -229,7 +229,7 @@
           </font>
          </property>
          <property name="text">
-          <string>默认只添加EasyTier官方以及明确支持QtEasyTier项目的服务器，但您也可以自行添加</string>
+          <string>默认添加EasyTier官方以及近期测试比较稳定的服务器，您也可以自行添加</string>
          </property>
         </widget>
        </item>
@@ -483,7 +483,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;2. 【可选】你也可以修改服务器列表，可以点击&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;服务器列表&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;按钮查看并添加本软件收录的一些公共服务器，也可以自己输入添加。&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;3. 点击&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;开始联机&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;按钮，程序会自动生成随机的&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;房间号&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;并实时显示联机人数。&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;4. 将房间号发给你的好友，他人可通过&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;房间号&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;加入房间。&lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;5. 【可选】你可以为你的房客编号（数字为&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;1-253&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;，自行约定，不可重复），房客使用固定的编号加入组网会获得固定的IP地址，以适配部分依赖客户端IP的联机游戏或Mod&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;5. 【可选】你可以为你的房客编号（数字为&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;1-253&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;，自行约定，不可重复），房客使用固定的编号加入组网会获得固定的IP地址，以适配部分依赖客户端IP的联机游戏或 Mod 。&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;6. 【可选】如需让使用其他 EasyTier 工具的节点加入联机网络，请运行后将鼠标放在房间号显示框中查看原始网络号和密码数据，如需指定IP地址请使用 &lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;11.45.14.0/24&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt; 范围内的地址（&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;11.45.14.1 不可用&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;）。&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:12pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;房客操作&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;1. 点击&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;我是房客&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;页面，输入房主给你的&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;房间号&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;，点击开始&lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;联机按钮&lt;/span&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;即可联机。&lt;/span&gt;&lt;/p&gt;

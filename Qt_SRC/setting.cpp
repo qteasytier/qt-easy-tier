@@ -323,7 +323,7 @@ void setting::onButtonBoxAccepted()
     m_isHideOnTray = ui->hideOnTrayBox->isChecked();
 
     // 设置开机自启
-    if (m_autoRun != ui->autoStartCheckBox->isChecked()) {
+    if (m_autoStart != ui->autoStartCheckBox->isChecked()) {
         m_autoStart = ui->autoStartCheckBox->isChecked();
         setAutoStart(m_autoStart);
     }

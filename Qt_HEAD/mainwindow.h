@@ -39,6 +39,7 @@ private slots:
     void onShowWindow();  // 显示主窗口
     void onExitApp();     // 退出应用程序
     void onClickOneClickBtn(); // 当点击一键联机按钮时
+    void onClickWebDashboardBtn(); // 当点击Web控制台按钮时
 
 protected:
     void closeEvent(QCloseEvent *event) override;  // 重写关闭事件
@@ -57,6 +58,9 @@ private:
     QAction *showAction = nullptr;
     QAction *exitAction = nullptr;
     bool m_isHideOnTray =  true;
+
+    // Web控制台
+    QProcess *m_webDashboardProcess = nullptr;
 
     // 配置保存路径
 #if SAVE_CONF_IN_APP_DIR == true
