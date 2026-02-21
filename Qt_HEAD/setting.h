@@ -54,8 +54,15 @@ public:
     /// @brief 是否隐藏到系统托盘
     bool isHideOnTray() const { return m_isHideOnTray; }
 
+    /// @brief 是否自动检查更新
+    bool isAutoUpdate() const { return m_autoUpdate; }
+
     /// @brief 获取配置保存路径
     QString getConfigPath() {return m_configPath;};
+
+    /// @brief 是否应该弹出赞助窗口
+    /// @return 当启动次数达到50次且未弹出过赞助窗口时返回true
+    bool shouldShowDonate() const { return m_shouldShowDonate; }
 
 private slots:
     // 重新检测版本按钮点击事件
@@ -93,11 +100,21 @@ private:
     // 设置开机自启
     void setAutoStart(bool enable);
 
+    // 增加启动计数（上限50）
+    void incrementLaunchCount();
+    // 标记赞助窗口已弹出
+    void markDonateShown();
+
     // 设置项
     bool m_autoRun = false;   // 自动回连
     bool m_autoStart = false; // 是否开机自启
     bool m_isHideOnTray = true; //是否藏窗口到系统托盘
+    bool m_autoUpdate = true; // 是否自动检查更新
     QString m_softwareVer = PROJECT_VERSION;
+
+    // 启动计数相关
+    int m_launchCount = 0;      // 启动次数计数
+    bool m_shouldShowDonate = false; // 是否应该弹出赞助窗口
 
     // 线程相关
     QThread *m_versionThread =  nullptr;
@@ -110,7 +127,9 @@ protected:
         // 当窗口被打开的时候，启动版本检测线程
         startVersionDetection();
     }
+
+signals:
+    void finishDetectUpdate();
 };
-//inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
 
 #endif // SETTING_H
