@@ -19,9 +19,6 @@ int main(int argc, char *argv[])
     } else {
         std::clog << "Breeze 样式不可用，使用默认样式" << std::endl;
     }
-#elif __linux__
-    QStyle *breezeStyle = QStyleFactory::create("Breeze");
-    app.setStyle(breezeStyle);
 #endif
 
     CIDRCalculator calculator;
