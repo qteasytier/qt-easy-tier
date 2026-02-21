@@ -220,10 +220,7 @@ void Settings::setupUi()
     ui->hideOnTrayBox->setChecked(m_isHideOnTray);
     ui->autoStartCheckBox->setChecked(m_autoStart);
     ui->autoUpdateCheckBox->setChecked(m_autoUpdate);
-
-#if SAVE_CONF_IN_APP_DIR == true
     ui->autoStartCheckBox->setEnabled(false);
-#endif
 }
 
 void Settings::setupWebConfigUi()
@@ -634,8 +631,11 @@ void Settings::incrementLaunchCount()
 void Settings::setAutoStart(bool enable)
 {
 #if SAVE_CONF_IN_APP_DIR == true
-    // 便携模式禁用开机自启
-    return;
+    int ret = QMessageBox::information(this, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
+                                       QMessageBox::Yes | QMessageBox::No);
+    if (ret != QMessageBox::Yes) {
+        return;
+    }
 #endif
 
 #ifdef WIN32
