@@ -23,7 +23,7 @@ PublicServer::PublicServer(QWidget *parent)
     connect(ui->tableWidget, &QTableWidget::cellClicked,
             this, &PublicServer::onTableCellClicked);
     connect(ui->disclaimerBtn, &QPushButton::clicked, this, [] {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/docs/disclaimer.md"));
+        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/other/disclaimer/"));
     });
     // 加载服务器数据
     loadServerData();

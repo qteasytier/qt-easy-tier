@@ -1,29 +1,32 @@
 #ifndef NETPAGE_H
 #define NETPAGE_H
 
+#include "easytierworker.h"
+
 #include <QGroupBox>
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QPushButton>
 #include <QListWidget>
 #include <QPlainTextEdit>
-#include <QProcess>
 #include <QDir>
 #include <QTableWidget>
 #include <QLabel>
-#include <QTimer>
-#include <QJsonObject>  // 添加JSON支持
+#include <QJsonObject>
 #include <QCompleter>
 #include <QStringListModel>
 #include <QDialog>
-#include <QFile>
-#include <QTextStream>
+#include <QProgressBar>
+#include <QThread>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
     class NetPage;
 }
 QT_END_NAMESPACE
+
+// 前向声明
+class EasyTierWorker;
 
 class NetPage : public QGroupBox
 {
@@ -87,7 +90,7 @@ public:
 
     // ===============运行与检测相关===============
     int realRpcPort = 0;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
-    bool isRunning() const { return m_easytierProcess && (QProcess::Running == m_easytierProcess->state()); }
+    bool isRunning() const;
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
@@ -128,12 +131,20 @@ private slots:
     // ===============运行状态页面相关===============
     // 运行网络
     void onRunNetwork();
-    // 进程输出处理
-    void onProcessOutputReady();
-    // 进程错误处理
-    void onProcessErrorReady();
-    // 进程完成处理
-    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    // 停止网络
+    void onStopNetwork();
+
+    // ===============EasyTierWorker信号处理===============
+    // 处理进程启动结果
+    void onWorkerProcessStarted(bool success, const QString& errorMessage);
+    // 处理进程停止结果
+    void onWorkerProcessStopped(bool success);
+    // 处理日志输出
+    void onWorkerLogOutput(const QString& logText, bool isError);
+    // 处理节点信息更新
+    void onWorkerPeerInfoUpdated(const QJsonArray& peers);
+    // 处理进程崩溃
+    void onWorkerProcessCrashed(int exitCode);
 
     // ===============配置导入导出相关===============
     void onImportConfigClicked();
@@ -211,29 +222,21 @@ private:
     QPushButton *m_removeCidrBtn =  nullptr;
     QPushButton *m_calculateCidrBtn =  nullptr;
 
-    // 使用Web管理开关
-
-
-    // 运行et相关
-    QPlainTextEdit *m_logTextEdit =  nullptr;
-    QProcess *m_easytierProcess =  nullptr;
-
     // 运行状态页面相关
-    QProcess *m_cliProcess =  nullptr;     // 执行cli异步获取节点信息
+    QPlainTextEdit *m_logTextEdit =  nullptr;
     QLabel *m_runningStatusLabel =  nullptr;
     QTableWidget *m_peerTable =  nullptr;
-    QTimer *m_peerUpdateTimer =  nullptr;
     QCheckBox *m_isHideServersBox =  nullptr;  //是否隐藏服务器的信息
+    QPushButton *m_openLogFileBtn =  nullptr;
+
+    // EasyTierWorker相关（线程和工作对象）
+    QThread* m_workerThread = nullptr;
+    EasyTierWorker* m_worker = nullptr;
 
     // 启动过程对话框相关
-    QDialog *m_processDialog =  nullptr;
-    QPlainTextEdit *m_processLogTextEdit =  nullptr;
-
-    // 日志文件相关
-    QFile *m_logFile =  nullptr;
-    QTextStream *m_logStream =  nullptr;
-    QString m_currentLogFileName =  "";
-    QPushButton *m_openLogFileBtn =  nullptr;
+    QDialog* m_processDialog = nullptr;
+    QProgressBar* m_progressBar = nullptr;
+    QLabel* m_progressLabel = nullptr;
 
 // ============== 网络设置相关===============
 
@@ -258,38 +261,22 @@ private:
 
 // ============== 运行状态相关===============
 
-    // 更新节点信息
-    void updatePeerInfo();
-    // 解析并显示节点信息
-    void parseAndDisplayPeerInfo(const QByteArray &jsonData);
-
-// ===============运行EasyTier与日志相关===============
-
     // 检查并准备EasyTier程序
     bool prepareEasyTierProgram(QString& appDir, QString& easytierPath);
-    // 创建并配置进程
-    void setupProcessConnections();
-    // 启动EasyTier进程
-    bool startEasyTierProcess(const QStringList& arguments, const QString& appDir, const QString& easytierPath);
-    // 处理进程启动结果
-    void handleProcessStartResult(bool success, const QString& errorMessage = "");
     // 更新UI状态
     void updateUIState(bool isRunning);
+    // 显示启动过程对话框（无限进度条）
+    void showProcessDialog();
     // 关闭启动过程对话框
     void closeProcessDialog();
     // 限制日志行数
-    void limitLogLines(int maxLines = 1000);
-    // 初始化日志文件
-    bool initLogFile();
-    // 关闭日志文件
-    void closeLogFile();
-    // 停止当前网络
-    void stopCurrentNetwork();
+    void limitLogLines(int maxLines = MAX_LOG_LINES);
     // 初始化运行日志窗口
     void initRunningLogWindow();
-    // 保存日志到文件
-    void saveLogToFile(const QString& text);
-
+    // 初始化Worker线程
+    void initWorkerThread();
+    // 清理Worker线程
+    void cleanupWorkerThread();
 
 signals:
     void networkStarted();    // 网络启动信号

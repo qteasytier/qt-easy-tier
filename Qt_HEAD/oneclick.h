@@ -1,12 +1,13 @@
 #ifndef ONECLICK_H
 #define ONECLICK_H
 
+#include "easytierworker.h"
+
 #include <QWidget>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QListWidget>
 #include <QMessageBox>
-#include <QProcess>
 #include <QString>
 #include <QTabWidget>
 #include <QPlainTextEdit>
@@ -15,6 +16,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QThread>
+#include <QProgressBar>
 
 namespace Ui {
 class OneClick;
@@ -28,7 +31,7 @@ public:
     explicit OneClick(QWidget *parent = nullptr);
     ~OneClick();
 
-    bool isRunning() const { return m_coreProcess && m_coreProcess->state() == QProcess::Running; }
+    bool isRunning() const;
 
 private slots:
     // 房主相关槽函数
@@ -36,15 +39,19 @@ private slots:
     void onAddServerClicked();
     void onRemoveServerClicked();
     void onPublicServerClicked();
-    void onFinishedCore(int exitCode, QProcess::ExitStatus exitStatus);
+
     // 房客相关槽函数
     void onGuestStartClicked();
+
     // Tab切换处理
     void onTabChanged(int index);
-    // 更新运行cli获取信息
-    void updateHostIpAddress();
-    // 更新联机人数
-    void updatePlayerNum();
+
+    // EasyTierWorker信号处理
+    void onWorkerProcessStarted(bool success, const QString& errorMessage);
+    void onWorkerProcessStopped(bool success);
+    void onWorkerLogOutput(const QString& logText, bool isError);
+    void onWorkerPeerInfoUpdated(const QJsonArray& peers);
+    void onWorkerProcessCrashed(int exitCode);
 
 private:
     Ui::OneClick *ui;
@@ -68,16 +75,16 @@ private:
     QString m_currentNetworkId = "";
     QString m_currentPassword = "";
 
-    // ET进程相关
-    QProcess *m_coreProcess = nullptr;
-    QProcess *m_cliProcess = nullptr;
+    // EasyTierWorker相关（线程和工作对象）
+    QThread* m_workerThread = nullptr;
+    EasyTierWorker* m_worker = nullptr;
 
     // 启动过程对话框
-    QDialog *m_processDialog = nullptr;
-    QPlainTextEdit *m_processLogTextEdit = nullptr;
+    QDialog* m_processDialog = nullptr;
+    QProgressBar* m_progressBar = nullptr;
+    QLabel* m_progressLabel = nullptr;
 
     // 房主IP地址更新相关
-    QTimer *m_cliUpdateTimer =  nullptr;
     QString m_lastHostIp = "";
 
     // 身份状态管理
@@ -94,21 +101,28 @@ private:
 
     // 服务器管理相关
     void setupServerList();
-    // 核心启动逻辑（提取的公共函数）
-    bool startEasyTierProcess(const QStringList& arguments, const QString& windowTitle);
+
+    // 初始化Worker线程
+    void initWorkerThread();
+    // 清理Worker线程
+    void cleanupWorkerThread();
+
     // 停止当前运行的进程
     void stopCurrentProcess();
+
     // 更新界面状态
     void updateInterfaceState(UserRole role);
+
     // 验证Tab切换是否允许
     bool canSwitchToTab(int tabIndex);
-    // 创建或重建启动过程对话框
-    void createProcessDialog(const QString& title);
+
+    // 显示启动过程对话框（无限进度条）
+    void showProcessDialog(const QString& title);
     // 关闭启动过程对话框
     void closeProcessDialog();
-    // 解析CLI输出获取房主IP
-    void parseHostIpAddress(const QByteArray& jsonData);
-    void parsePlayerNum(const QByteArray& jsonData);
+
+    // 解析节点信息更新房主IP和联机人数
+    void parsePeerInfo(const QJsonArray& peers);
 };
 
 #endif // ONECLICK_H

@@ -1,6 +1,7 @@
 #include "netpage.h"
 #include "ui_netpage.h"
 #include "generateconf.h"
+#include "easytierworker.h"
 #include "publicserver.h"
 
 #include <QScrollArea>
@@ -20,8 +21,7 @@
 #include <QDialog>
 #include <QFileDialog>
 #include <QDesktopServices>
-#include <QDateTime>
-#include <iostream>
+#include <QProgressBar>
 
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
@@ -32,6 +32,7 @@ NetPage::NetPage(QWidget *parent)
     createAdvancedSetPage();     // 初始化高级设置页面
     initRunningLogWindow();      // 初始化运行日志窗口
     initRunningStatePage();      // 初始化运行状态页面
+    initWorkerThread();          // 初始化Worker线程
 
     ui->useWebBtn->setToolTip(tr("使用Web控制台管理该进程，请先前往首页打开Web控制台\n"
                     "警告：只应有一个进程被 Web 控制台管理，否则可能会导致奇怪的问题。"));
@@ -57,24 +58,13 @@ NetPage::NetPage(QWidget *parent)
 
 NetPage::~NetPage()
 {
-    // 清理所有进程
-    stopCurrentNetwork();
-
-    // 关闭日志文件
-    closeLogFile();
-
-    // 清理定时器
-    if (m_peerUpdateTimer) {
-        m_peerUpdateTimer->stop();
-        m_peerUpdateTimer->deleteLater();
-        m_peerUpdateTimer = nullptr;
-    }
+    // 清理Worker线程
+    cleanupWorkerThread();
 
     // 清理启动过程对话框
     if (m_processDialog) {
         m_processDialog->deleteLater();
         m_processDialog = nullptr;
-        m_processLogTextEdit = nullptr;
     }
 
     delete ui;
@@ -265,7 +255,7 @@ void NetPage::initServerManagement()
     });
     // 连接信号槽: 点击服务器帮助按钮
     connect(m_serverHelpBtn, &QPushButton::clicked, []() {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/docs/server.md"));
+        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/servers/server-instruction/"));
     });
 }
 
@@ -1111,7 +1101,60 @@ void NetPage::onClickCidrCalculator() {
 }
 
 
-// =====================运行EasyTier相关=======================
+// =====================EasyTierWorker线程管理===================
+
+void NetPage::initWorkerThread()
+{
+    // 创建工作线程
+    m_workerThread = new QThread(this);
+    m_workerThread->setObjectName("EasyTierWorkerThread");
+
+    // 创建工作对象（不指定父对象，因为要移动到线程）
+    m_worker = new EasyTierWorker();
+
+    // 将工作对象移动到线程
+    m_worker->moveToThread(m_workerThread);
+
+    // 连接信号槽（使用Qt::QueuedConnection确保线程安全）
+    connect(m_worker, &EasyTierWorker::processStarted,
+            this, &NetPage::onWorkerProcessStarted, Qt::QueuedConnection);
+    connect(m_worker, &EasyTierWorker::processStopped,
+            this, &NetPage::onWorkerProcessStopped, Qt::QueuedConnection);
+    connect(m_worker, &EasyTierWorker::logOutput,
+            this, &NetPage::onWorkerLogOutput, Qt::QueuedConnection);
+    connect(m_worker, &EasyTierWorker::peerInfoUpdated,
+            this, &NetPage::onWorkerPeerInfoUpdated, Qt::QueuedConnection);
+    connect(m_worker, &EasyTierWorker::processCrashed,
+            this, &NetPage::onWorkerProcessCrashed, Qt::QueuedConnection);
+
+    // 线程结束时清理工作对象
+    connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+
+    // 启动线程
+    m_workerThread->start();
+}
+
+void NetPage::cleanupWorkerThread()
+{
+    if (m_workerThread) {
+        // 先停止工作
+        if (m_worker && m_worker->isRunning()) {
+            // 同步调用stopEasyTier
+            QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::BlockingQueuedConnection);
+        }
+
+        // 停止线程
+        m_workerThread->quit();
+        m_workerThread->wait();
+
+        m_workerThread->deleteLater();
+        m_workerThread = nullptr;
+        m_worker = nullptr;  // 已由finished信号deleteLater
+    }
+}
+
+
+// =====================运行EasyTier相关===================
 
 // 添加初始化运行日志窗口的方法
 void NetPage::initRunningLogWindow()
@@ -1124,8 +1167,6 @@ void NetPage::initRunningLogWindow()
     // 创建日志文本框
     m_logTextEdit = new QPlainTextEdit(ui->runningLog);
     m_logTextEdit->setReadOnly(true);
-    //m_logTextEdit->setFont(QFont("Consolas", 9));
-    //m_logTextEdit->setStyleSheet("background-color: #1e1e1e; color: #d4d4d4;");
 
     // 创建打开日志文件按钮
     m_openLogFileBtn = new QPushButton(tr("打开日志文件查看完整日志"), ui->runningLog);
@@ -1141,381 +1182,6 @@ void NetPage::initRunningLogWindow()
     connect(m_openLogFileBtn, &QPushButton::clicked, this, &NetPage::onOpenLogFileClicked);
 }
 
-
-// EasyTier按键运行方法 - 重构版本
-void NetPage::onRunNetwork()
-{
-    // 如果网络正在运行，则停止它
-    if (m_easytierProcess && m_easytierProcess->state() == QProcess::Running) {
-        stopCurrentNetwork();
-        return;
-    }
-
-    // 跳转到运行状态窗口
-    ui->netTabWidget->setCurrentWidget(ui->runningState);
-
-    // 清理之前的日志并初始化新日志文件
-    m_logTextEdit->clear();
-    m_logTextEdit->appendPlainText("正在启动EasyTier网络...");
-
-    // 初始化日志文件
-    if (!initLogFile()) {
-        m_logTextEdit->appendPlainText("警告: 日志文件初始化失败，将继续运行但不会保存日志");
-    }
-
-    // 准备EasyTier程序
-    QString appDir, easytierPath;
-    if (!prepareEasyTierProgram(appDir, easytierPath)) {
-        closeLogFile();
-        updateUIState(false);;
-        return;
-    }
-
-    // 创建启动过程对话框
-    closeProcessDialog();  // 如果已有对话框，先删除
-    // 创建新的对话框
-    m_processDialog = new QDialog(this);
-    auto *dialogLayout = new QVBoxLayout(m_processDialog);
-    auto *dialogTitleLabel = new QLabel("启动日志", m_processDialog);
-    m_processLogTextEdit = new QPlainTextEdit(m_processDialog);
-
-    m_processDialog->setWindowTitle(tr("启动EasyTier中。。。"));
-    m_processDialog->setModal(true);
-    dialogLayout->setContentsMargins(20, 20, 20, 20);
-    m_processDialog->setMinimumSize(400, 300);
-    dialogTitleLabel->setStyleSheet("font-size: 14px; font-weight: bold;");
-    dialogLayout->addWidget(dialogTitleLabel);
-    m_processLogTextEdit->setReadOnly(true);
-    m_processLogTextEdit->setFont(QFont("Consolas", 12));
-    dialogLayout->addWidget(m_processLogTextEdit);
-    m_processDialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
-    m_processDialog->show();
-
-    m_processLogTextEdit->appendPlainText(tr("启动EasyTier进程..."));
-    QApplication::processEvents();
-
-    try {
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(tr("生成启动配置..."));
-            QApplication::processEvents();
-        }
-
-        QStringList arguments;
-        if (ui->useWebBtn->isChecked()) {
-            arguments << "-w" << "udp://127.0.0.1:55668/admin";
-        } else {
-            arguments = generateConfCommand(this);
-        }
-
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(tr("检测到可用RPC端口: ") + QString::number(realRpcPort));
-            m_processLogTextEdit->appendPlainText(tr("启动配置已生成: ") + arguments.join(" "));
-            m_processLogTextEdit->appendPlainText(tr("正在传入参数并启动EasyTier进程..."));
-            QApplication::processEvents();
-        }
-
-        // 启动进程
-
-        if (startEasyTierProcess(arguments, appDir, easytierPath)) {
-            m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
-            m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
-
-            // 更新状态
-            updateUIState(true);
-            handleProcessStartResult(true);
-
-            QTimer::singleShot(800, this, &NetPage::closeProcessDialog);
-        } else {
-            QTimer::singleShot(1600, this, &NetPage::closeProcessDialog);
-            handleProcessStartResult(false);
-        }
-    } catch (const std::exception& e) {
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
-        }
-        QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
-        QTimer::singleShot(1600, this, &NetPage::closeProcessDialog);
-        handleProcessStartResult(false);
-    }
-    //closeLogFile();
-}
-
-// 停止当前网络的统一方法
-void NetPage::stopCurrentNetwork()
-{
-    if (m_easytierProcess) {
-        m_easytierProcess->disconnect();
-        m_logTextEdit->appendPlainText("正在终止EasyTier进程...");
-        m_easytierProcess->kill();
-
-        // 等待强制终止完成
-        if (m_easytierProcess->waitForFinished(60000)) {
-            m_logTextEdit->appendPlainText("EasyTier进程终止成功");
-            emit networkFinished(); // 发送网络停止信号
-            updateUIState(false);;    // 更新UI状态
-            m_easytierProcess->deleteLater();
-            m_easytierProcess = nullptr;
-        } else {
-            m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
-            QMessageBox::warning(this, "警告", "强制终止EasyTier进程失败");
-            return;
-        }
-    }
-
-    // 停止cli进程
-    if (m_cliProcess) {
-        m_cliProcess->disconnect();
-        m_cliProcess->kill();
-        m_cliProcess->deleteLater();
-        m_cliProcess = nullptr;
-    }
-    closeLogFile();
-
-    // 清理节点列表
-    //m_peerTable->clear();
-}
-
-// 检查并准备EasyTier程序
-bool NetPage::prepareEasyTierProgram(QString& appDir, QString& easytierPath)
-{
-    appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    easytierPath = appDir + "/easytier-core.exe";
-
-    QFileInfo fileInfo(easytierPath);
-    if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
-        QMessageBox::critical(this, "错误", "找不到EasyTier程序");
-        return false;
-    }
-    return true;
-}
-
-// 启动EasyTier进程 - 重构版本
-bool NetPage::startEasyTierProcess(const QStringList& arguments, const QString& appDir, const QString& easytierPath)
-{
-    try {
-        // 创建并配置进程
-        m_easytierProcess = new QProcess(this);
-        m_easytierProcess->setWorkingDirectory(appDir);
-
-        setupProcessConnections();
-
-        // 启动进程
-        m_easytierProcess->start(easytierPath, arguments);
-
-        // 等待进程启动（最多3秒）
-        if (!m_easytierProcess->waitForStarted(3000)) {
-            if (m_processLogTextEdit) {
-                m_processLogTextEdit->appendPlainText("进程启动超时");
-            }
-            m_easytierProcess->kill();
-            throw std::runtime_error("进程启动超时");
-        }
-
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText("EasyTier进程启动成功");
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
-        }
-        QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
-        return false;
-    }
-}
-
-// 创建并配置进程连接
-void NetPage::setupProcessConnections()
-{
-    if (!m_easytierProcess) return;
-
-    // 连接信号槽，实时获取进程输出
-    connect(m_easytierProcess, &QProcess::readyReadStandardOutput,
-            this, &NetPage::onProcessOutputReady);
-    connect(m_easytierProcess, &QProcess::readyReadStandardError,
-            this, &NetPage::onProcessErrorReady);
-    // 连接进程完成信号（发生错误）
-    connect(m_easytierProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &NetPage::onProcessFinished);
-}
-
-// 处理进程启动结果
-void NetPage::handleProcessStartResult(bool success, const QString& errorMessage)
-{
-    if (success) {
-        updateUIState(true);
-        emit networkStarted();  // 发送网络启动信号
-    } else {
-        updateUIState(false);
-        if (m_easytierProcess) {
-            emit networkFinished(); // 发送网络停止信号
-            m_easytierProcess->deleteLater();
-            m_easytierProcess = nullptr;
-        }
-    }
-}
-
-// 更新UI状态
-void NetPage::updateUIState(bool isRunning)
-{
-    if (isRunning) {
-        ui->startPushButton->setText("运行中");
-        ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
-        m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
-    } else {
-        ui->startPushButton->setStyleSheet("");
-        ui->startPushButton->setText("运行网络");
-        m_runningStatusLabel->setText("EasyTier实例未运行，请先点击运行网络");
-    }
-}
-
-// 关闭启动过程对话框
-void NetPage::closeProcessDialog()
-{
-    if (m_processDialog) {
-        m_processDialog->disconnect();
-        m_processDialog->deleteLater();
-        m_processDialog = nullptr;
-        m_processLogTextEdit = nullptr;
-        QApplication::processEvents();
-    }
-}
-
-// 限制日志行数
-void NetPage::limitLogLines(int maxLines)
-{
-    if (!m_logTextEdit) return;
-
-    QTextDocument *doc = m_logTextEdit->document();
-    int lineCount = doc->blockCount();
-
-    if (lineCount > maxLines) {
-        QTextCursor cursor(doc);
-        cursor.movePosition(QTextCursor::Start);
-        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, lineCount - maxLines);
-        cursor.removeSelectedText();
-    }
-}
-
-// 初始化日志文件
-bool NetPage::initLogFile()
-{
-    // 创建log文件夹
-    QString logDirPath = QCoreApplication::applicationDirPath() + "/log";
-    QDir logDir(logDirPath);
-    if (!logDir.exists()) {
-        if (!logDir.mkpath(".")) {
-            m_logTextEdit->appendPlainText("警告: 无法创建日志目录");
-            return false;
-        }
-    }
-
-    // 生成日志文件名
-    QString networkName = getNetworkName();
-    if (networkName.isEmpty()) {
-        networkName = "default";
-    }
-    //QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss");
-    m_currentLogFileName = QString("%1/%2.log").arg(logDirPath, networkName);
-
-    // 打开日志文件
-    m_logFile = new QFile(m_currentLogFileName);
-    if (!m_logFile->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        m_logTextEdit->appendPlainText(QString("警告: 无法打开日志文件 %1").arg(m_currentLogFileName));
-        delete m_logFile;
-        m_logFile = nullptr;
-        return false;
-    }
-
-    m_logStream = new QTextStream(m_logFile);
-    return true;
-}
-
-// 关闭日志文件
-void NetPage::closeLogFile()
-{
-    if (m_logStream) {
-        delete m_logStream;
-        m_logStream = nullptr;
-    }
-    if (m_logFile) {
-        m_logFile->close();
-        delete m_logFile;
-        m_logFile = nullptr;
-    }
-}
-
-// 保存日志到文件
-void NetPage::saveLogToFile(const QString& text)
-{
-    if (m_logStream) {
-        *m_logStream << text << Qt::endl;
-        m_logStream->flush();
-    }
-}
-
-// 打开日志文件
-void NetPage::onOpenLogFileClicked()
-{
-    if (m_currentLogFileName.isEmpty()) {
-        QMessageBox::information(this, tr("提示"), tr("暂无日志文件"));
-        return;
-    }
-
-    QFileInfo fileInfo(m_currentLogFileName);
-    if (!fileInfo.exists()) {
-        QMessageBox::warning(this, tr("警告"), tr("日志文件不存在"));
-        return;
-    }
-
-    // 使用系统默认程序打开日志文件
-    QDesktopServices::openUrl(QUrl::fromLocalFile(m_currentLogFileName));
-}
-
-
-// 进程输出处理
-void NetPage::onProcessOutputReady()
-{
-    if (m_easytierProcess) {
-        QString output = m_easytierProcess->readAllStandardOutput();
-        m_logTextEdit->appendPlainText(output);
-        saveLogToFile(output);
-        limitLogLines(1000);  // 限制显示1000行
-    }
-}
-
-// 进程错误处理
-void NetPage::onProcessErrorReady()
-{
-    if (m_easytierProcess) {
-        QString error = m_easytierProcess->readAllStandardError();
-        QString errorText = "错误: " + error;
-        m_logTextEdit->appendPlainText(errorText);
-        saveLogToFile(errorText);
-        limitLogLines(1000);  // 限制显示1000行
-    }
-}
-
-// 进程完成处理(Et进程自动退出代表发生错误)
-void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
-{
-    if (exitStatus == QProcess::NormalExit) {
-        m_logTextEdit->appendPlainText(QString("EasyTier已停止，退出码: %1").arg(exitCode));
-    } else {
-        m_logTextEdit->appendPlainText("EasyTier异常终止");
-    }
-    updateUIState(false);;
-    if (m_easytierProcess) {
-        m_easytierProcess->deleteLater();
-        m_easytierProcess = nullptr;
-    }
-    emit networkFinished(); // 发送网络停止信号
-    QMessageBox::warning(this, "警告", "EasyTier进程异常终止，请前往日志查看详细信息");
-}
-
-// ===================运行状态监测相关===================
 // 初始化运行状态页面
 void NetPage::initRunningStatePage()
 {
@@ -1562,89 +1228,227 @@ void NetPage::initRunningStatePage()
     layout->addWidget(infoWidget);
     layout->addWidget(m_peerTable);
     layout->setAlignment(Qt::AlignTop);
-
-    // 设置定时器，定期更新节点信息
-    m_peerUpdateTimer = new QTimer(this);
-    connect(m_peerUpdateTimer, &QTimer::timeout, this, &NetPage::updatePeerInfo);
-    connect(this, &NetPage::networkStarted, this, [=, this] {
-        if (!ui->useWebBtn->isChecked()) m_peerUpdateTimer->start(2000);
-    });
-    connect(this, &NetPage::networkFinished, this, [=, this] {
-        m_peerUpdateTimer->stop();
-    });
 }
 
-// 更新节点信息
-void NetPage::updatePeerInfo() {
-    // 如果网络未运行，不执行更新并删除异步进程
-    if (m_easytierProcess == nullptr || m_easytierProcess->state() != QProcess::Running) {
-        if (m_cliProcess) {
-            m_cliProcess->deleteLater();
-            m_cliProcess = nullptr;
-        }
-        return;
-    }
-    // 如果检测进程还在运行则终止并报错
-    if (m_cliProcess && m_cliProcess->state() == QProcess::Running) {
-        m_cliProcess->kill();
-        m_logTextEdit->appendPlainText(tr("警告: 获取节点信息超时, CLI进程可能出错"));
-    }
-
-    // et-cli 命令路径信息
-    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    QString cliPath = appDir + "/easytier-cli.exe";
-
-    // 如果异步进程为nullptr，创建新的进程
-    if (!m_cliProcess) {
-        std::clog << "et已运行，创建异步cli进程"<< std::endl;
-        m_cliProcess = new QProcess(this);
-
-        // 检查CLI程序是否存在
-        QFileInfo fileInfo(cliPath);
-        if (!fileInfo.exists()) {
-            m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
-            return;
-        }
-        m_cliProcess->setWorkingDirectory(appDir);
-
-        //连接进程完成信号
-        connect(m_cliProcess, &QProcess::finished, m_cliProcess, [=, this] {
-            QByteArray output = m_cliProcess->readAllStandardOutput();
-            QString errorOutput = m_cliProcess->readAllStandardError();
-
-            if (!errorOutput.isEmpty()) {
-                m_logTextEdit->appendPlainText("错误输出: " + errorOutput);
-                return;
-            }
-
-            if (!output.isEmpty()) {
-                parseAndDisplayPeerInfo(output);
-            }
-        });
-    }
-
-    // 再次运行CLI进程
-    m_cliProcess->start(cliPath, QStringList() <<"-p"<<"127.0.0.1:"+QString::number(realRpcPort)<< "-o" << "json" << "peer");
-}
-
-// 解析并显示节点信息
-void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
+// EasyTier按键运行方法
+void NetPage::onRunNetwork()
 {
-    QJsonParseError jsonError;
-    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &jsonError);
-
-    if (jsonError.error != QJsonParseError::NoError) {
-        m_logTextEdit->appendPlainText("JSON解析错误: " + jsonError.errorString());
+    // 如果网络正在运行，则停止它
+    if (isRunning()) {
+        onStopNetwork();
         return;
     }
 
-    if (!doc.isArray()) {
-        m_logTextEdit->appendPlainText("JSON数据格式错误: 应为数组格式");
+    // 显示启动过程对话框（无限进度条）
+    showProcessDialog();
+
+    // 跳转到运行状态窗口
+    ui->netTabWidget->setCurrentWidget(ui->runningState);
+
+    // 清理之前的日志
+    m_logTextEdit->clear();
+    m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络..."));
+
+    // 准备EasyTier程序
+    QString appDir, easytierPath;
+    if (!prepareEasyTierProgram(appDir, easytierPath)) {
+        updateUIState(false);
         return;
     }
 
-    QJsonArray peers = doc.array();
+    try {
+        QStringList arguments;
+        if (ui->useWebBtn->isChecked()) {
+            arguments << "-w" << "udp://127.0.0.1:55668/admin";
+        } else {
+            arguments = generateConfCommand(this);
+        }
 
+        m_logTextEdit->appendPlainText(tr("检测到可用RPC端口: ") + QString::number(realRpcPort));
+        m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
+
+        // 通过信号槽调用Worker的startEasyTier方法
+        QMetaObject::invokeMethod(m_worker, "startEasyTier",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(QString, getNetworkName()),
+                                  Q_ARG(QStringList, arguments),
+                                  Q_ARG(QString, appDir),
+                                  Q_ARG(QString, easytierPath),
+                                  Q_ARG(int, realRpcPort));
+
+    } catch (const std::exception& e) {
+        closeProcessDialog();
+        m_logTextEdit->appendPlainText(tr("启动异常: %1").arg(e.what()));
+        QMessageBox::warning(this, tr("警告"), tr("启动异常: %1").arg(e.what()));
+        updateUIState(false);
+    }
+}
+
+// 停止网络
+void NetPage::onStopNetwork()
+{
+    if (!m_worker || !m_worker->isRunning()) {
+        return;
+    }
+
+    m_logTextEdit->appendPlainText(tr("正在停止EasyTier进程..."));
+
+    // 通过信号槽调用Worker的stopEasyTier方法
+    QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::QueuedConnection);
+}
+
+// 检查并准备EasyTier程序
+bool NetPage::prepareEasyTierProgram(QString& appDir, QString& easytierPath)
+{
+    appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    easytierPath = appDir + "/easytier-core.exe";
+
+    QFileInfo fileInfo(easytierPath);
+    if (!fileInfo.exists()) {
+        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
+        QMessageBox::critical(this, tr("错误"), tr("找不到EasyTier程序"));
+        return false;
+    }
+    return true;
+}
+
+// 检查是否正在运行
+bool NetPage::isRunning() const
+{
+    return m_worker && m_worker->isRunning();
+}
+
+// 更新UI状态
+void NetPage::updateUIState(bool isRunning)
+{
+    if (isRunning) {
+        ui->startPushButton->setText(tr("运行中"));
+        ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
+        m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
+    } else {
+        ui->startPushButton->setStyleSheet("");
+        ui->startPushButton->setText(tr("运行网络"));
+        m_runningStatusLabel->setText(tr("EasyTier实例未运行，请先点击运行网络"));
+    }
+}
+
+// 显示启动过程对话框（无限进度条）
+void NetPage::showProcessDialog()
+{
+    if (m_processDialog) {
+        m_processDialog->deleteLater();
+    }
+
+    m_processDialog = new QDialog(this);
+    m_processDialog->setWindowTitle(tr("启动EasyTier中..."));
+    m_processDialog->setModal(true);
+    m_processDialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
+    m_processDialog->setMinimumWidth(300);
+
+    QVBoxLayout* layout = new QVBoxLayout(m_processDialog);
+    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setSpacing(15);
+
+    // 标签
+    m_progressLabel = new QLabel(tr("正在启动EasyTier进程，请稍候..."), m_processDialog);
+    m_progressLabel->setAlignment(Qt::AlignCenter);
+    layout->addWidget(m_progressLabel);
+
+    // 无限进度条
+    m_progressBar = new QProgressBar(m_processDialog);
+    m_progressBar->setRange(0, 0);  // 设置为无限滚动模式
+    m_progressBar->setTextVisible(false);
+    m_progressBar->setMinimumHeight(20);
+    layout->addWidget(m_progressBar);
+
+    m_processDialog->setLayout(layout);
+    m_processDialog->show();
+
+    // 启动超时定时器
+    QTimer::singleShot(EASYTIER_START_TIMEOUT_MS, this, [this]() {
+        if (m_processDialog && m_processDialog->isVisible()) {
+            closeProcessDialog();
+            m_logTextEdit->appendPlainText(tr("启动超时"));
+            QMessageBox::warning(this, tr("警告"), tr("EasyTier进程启动超时"));
+            onStopNetwork();
+        }
+    });
+}
+
+// 关闭启动过程对话框
+void NetPage::closeProcessDialog()
+{
+    if (m_processDialog) {
+        m_processDialog->close();
+        m_processDialog->deleteLater();
+        m_processDialog = nullptr;
+        m_progressBar = nullptr;
+        m_progressLabel = nullptr;
+    }
+}
+
+// 限制日志行数
+void NetPage::limitLogLines(int maxLines)
+{
+    if (!m_logTextEdit) return;
+
+    QTextDocument *doc = m_logTextEdit->document();
+    int lineCount = doc->blockCount();
+
+    if (lineCount > maxLines) {
+        QTextCursor cursor(doc);
+        cursor.movePosition(QTextCursor::Start);
+        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, lineCount - maxLines);
+        cursor.removeSelectedText();
+    }
+}
+
+
+// =====================Worker信号处理===================
+
+void NetPage::onWorkerProcessStarted(bool success, const QString& errorMessage)
+{
+    closeProcessDialog();
+
+    if (success) {
+        updateUIState(true);
+        emit networkStarted();
+    } else {
+        updateUIState(false);
+        if (!errorMessage.isEmpty()) {
+            m_logTextEdit->appendPlainText(tr("启动失败: %1").arg(errorMessage));
+            QMessageBox::warning(this, tr("警告"), tr("启动失败: %1").arg(errorMessage));
+        }
+    }
+}
+
+void NetPage::onWorkerProcessStopped(bool success)
+{
+    updateUIState(false);
+    emit networkFinished();
+
+    // 清空节点列表
+    if (m_peerTable) {
+        m_peerTable->setRowCount(0);
+    }
+
+    if (!success) {
+        m_logTextEdit->appendPlainText(tr("警告: 进程停止可能不完全"));
+    }
+}
+
+void NetPage::onWorkerLogOutput(const QString& logText, bool isError)
+{
+    if (isError) {
+        m_logTextEdit->appendPlainText(logText);
+    } else {
+        m_logTextEdit->appendPlainText(logText);
+    }
+    limitLogLines(MAX_LOG_LINES);
+}
+
+void NetPage::onWorkerPeerInfoUpdated(const QJsonArray& peers)
+{
     // 清空表格
     m_peerTable->setRowCount(0);
 
@@ -1683,6 +1487,171 @@ void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
         m_peerTable->setItem(row, 7, new QTableWidgetItem(peerObj.value("tx_bytes").toString()));
         m_peerTable->setItem(row, 8, new QTableWidgetItem(peerObj.value("cidr").toString()));
     }
+}
+
+void NetPage::onWorkerProcessCrashed(int exitCode)
+{
+    m_logTextEdit->appendPlainText(tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
+    QMessageBox::warning(this, tr("警告"), tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
+}
+
+// 打开日志文件
+void NetPage::onOpenLogFileClicked()
+{
+    // 日志文件路径
+    QString logDirPath = QCoreApplication::applicationDirPath() + "/log";
+    QString networkName = getNetworkName();
+    if (networkName.isEmpty()) {
+        networkName = "default";
+    }
+    QString logFilePath = QString("%1/%2.log").arg(logDirPath, networkName);
+
+    QFileInfo fileInfo(logFilePath);
+    if (!fileInfo.exists()) {
+        QMessageBox::information(this, tr("提示"), tr("暂无日志文件"));
+        return;
+    }
+
+    // 使用系统默认程序打开日志文件
+    QDesktopServices::openUrl(QUrl::fromLocalFile(logFilePath));
+}
+
+
+// ===================== 开机自动运行相关 =====================
+// 开机自启动方法 - 重构版本
+void NetPage::runNetworkOnAutoStart()
+{
+    m_logTextEdit->clear();
+    m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络（自启动）..."));
+
+    // 准备EasyTier程序
+    QString appDir, easytierPath;
+    if (!prepareEasyTierProgram(appDir, easytierPath)) {
+        updateUIState(false);
+        return;
+    }
+
+    try {
+        QStringList arguments = generateConfCommand(this);
+
+        m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
+
+        // 通过信号槽调用Worker的startEasyTier方法
+        QMetaObject::invokeMethod(m_worker, "startEasyTier",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(QString, getNetworkName()),
+                                  Q_ARG(QStringList, arguments),
+                                  Q_ARG(QString, appDir),
+                                  Q_ARG(QString, easytierPath),
+                                  Q_ARG(int, realRpcPort));
+
+    } catch (const std::exception& e) {
+        m_logTextEdit->appendPlainText(tr("启动异常: %1").arg(e.what()));
+        updateUIState(false);
+    }
+}
+
+
+// ===============配置导入导出功能实现===============
+
+void NetPage::onImportConfigClicked()
+{
+    // 弹出文件选择对话框，让用户选择要导入的配置文件
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("导入配置"),
+        QDir::homePath(),
+        tr("配置文件 (*.json);;所有文件 (*)")
+    );
+
+    if (fileName.isEmpty()) {
+        return; // 用户取消了操作
+    }
+
+    QFile configFile(fileName);
+    if (!configFile.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, tr("错误"), tr("无法打开配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    QJsonParseError jsonError;
+    QJsonDocument doc = QJsonDocument::fromJson(configFile.readAll(), &jsonError);
+
+    if (jsonError.error != QJsonParseError::NoError) {
+        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: %1").arg(jsonError.errorString()));
+        return;
+    }
+
+    if (!doc.isObject()) {
+        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: 不是有效的JSON对象"));
+        return;
+    }
+
+    // 停止当前运行的网络（如果正在运行）
+    if (isRunning()) {
+        QMessageBox::StandardButton ret = QMessageBox::question(
+            this,
+            tr("确认"),
+            tr("当前网络正在运行，导入配置将会停止当前网络，是否继续？"),
+            QMessageBox::Yes | QMessageBox::No
+        );
+        if (ret == QMessageBox::No) {
+            return;
+        }
+
+        // 停止正在运行的网络
+        onStopNetwork();
+    }
+
+    // 使用导入的配置更新界面
+    setNetworkConfig(doc.object());
+
+    m_logTextEdit->appendPlainText(tr("配置导入成功: %1").arg(fileName));
+    QMessageBox::information(this, tr("成功"), tr("配置导入成功！"));
+}
+
+// 导出配置
+void NetPage::onExportConfigClicked()
+{
+    // 获取当前配置
+    QJsonObject config = getNetworkConfig();
+    // 删除用户名
+    config.remove("username");
+
+    // 弹出文件保存对话框
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("导出配置"),
+        QDir::homePath() + "/QtEasyTier_config.json",
+        tr("配置文件 (*.json);;所有文件 (*)")
+    );
+
+    if (fileName.isEmpty()) {
+        return; // 用户取消了操作
+    }
+
+    // 如果文件名没有.json扩展名，添加它
+    if (!fileName.endsWith(".json", Qt::CaseInsensitive)) {
+        fileName += ".json";
+    }
+
+    QFile configFile(fileName);
+    if (!configFile.open(QIODevice::WriteOnly)) {
+        QMessageBox::critical(this, tr("错误"), tr("无法创建配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    QJsonDocument doc(config);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+
+    qint64 bytesWritten = configFile.write(jsonData);
+    if (bytesWritten == -1) {
+        QMessageBox::critical(this, tr("错误"), tr("无法写入配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    m_logTextEdit->appendPlainText(tr("配置导出成功: %1").arg(fileName));
+    QMessageBox::information(this, tr("成功"), tr("配置导出成功！"));
 }
 
 
@@ -1892,165 +1861,4 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
             }
         }
     }
-}
-
-// ===================== 开机自动运行相关 =====================
-// 开机自启动方法 - 重构版本
-void NetPage::runNetworkOnAutoStart()
-{
-    m_logTextEdit->clear();
-    m_logTextEdit->appendPlainText("正在启动EasyTier网络（自启动）...");
-
-    // 初始化日志文件
-    if (!initLogFile()) {
-        m_logTextEdit->appendPlainText("警告: 日志文件初始化失败");
-    }
-
-    // 准备EasyTier程序
-    QString appDir, easytierPath;
-    if (!prepareEasyTierProgram(appDir, easytierPath)) {
-        closeLogFile();
-        updateUIState(false);
-        return;
-    }
-
-    try {
-        QApplication::processEvents();
-        QStringList arguments = generateConfCommand(this);
-        QApplication::processEvents();
-
-        // 直接启动进程（无对话框）
-        m_easytierProcess = new QProcess(this);
-        m_easytierProcess->setWorkingDirectory(appDir);
-        setupProcessConnections();
-        m_easytierProcess->start(easytierPath, arguments);
-
-        // 等待进程启动
-        if (!m_easytierProcess->waitForStarted(1600)) {
-            m_easytierProcess->kill();
-            throw std::runtime_error("进程启动超时");
-        }
-
-        m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
-        m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
-
-        updateUIState(true);
-        emit networkStarted();
-
-    } catch (const std::exception& e) {
-        m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
-        updateUIState(false);
-        if (m_easytierProcess) {
-            emit networkFinished();
-            m_easytierProcess->deleteLater();
-            m_easytierProcess = nullptr;
-        }
-    }
-
-    //closeLogFile();
-}
-
-
-// ===============配置导入导出功能实现===============
-
-void NetPage::onImportConfigClicked()
-{
-    // 弹出文件选择对话框，让用户选择要导入的配置文件
-    QString fileName = QFileDialog::getOpenFileName(
-        this,
-        tr("导入配置"),
-        QDir::homePath(),
-        tr("配置文件 (*.json);;所有文件 (*)")
-    );
-
-    if (fileName.isEmpty()) {
-        return; // 用户取消了操作
-    }
-
-    QFile configFile(fileName);
-    if (!configFile.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, tr("错误"), tr("无法打开配置文件: %1").arg(configFile.errorString()));
-        return;
-    }
-
-    QJsonParseError jsonError;
-    QJsonDocument doc = QJsonDocument::fromJson(configFile.readAll(), &jsonError);
-
-    if (jsonError.error != QJsonParseError::NoError) {
-        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: %1").arg(jsonError.errorString()));
-        return;
-    }
-
-    if (!doc.isObject()) {
-        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: 不是有效的JSON对象"));
-        return;
-    }
-
-    // 停止当前运行的网络（如果正在运行）
-    if (isRunning()) {
-        QMessageBox::StandardButton ret = QMessageBox::question(
-            this,
-            tr("确认"),
-            tr("当前网络正在运行，导入配置将会停止当前网络，是否继续？"),
-            QMessageBox::Yes | QMessageBox::No
-        );
-        if (ret == QMessageBox::No) {
-            return;
-        }
-
-        // 停止正在运行的网络
-        if (m_easytierProcess) {
-            stopCurrentNetwork();
-        }
-    }
-
-    // 使用导入的配置更新界面
-    setNetworkConfig(doc.object());
-
-    m_logTextEdit->appendPlainText(tr("配置导入成功: %1").arg(fileName));
-    QMessageBox::information(this, tr("成功"), tr("配置导入成功！"));
-}
-
-// 导出配置
-void NetPage::onExportConfigClicked()
-{
-    // 获取当前配置
-    QJsonObject config = getNetworkConfig();
-    // 删除用户名
-    config.remove("username");
-
-    // 弹出文件保存对话框
-    QString fileName = QFileDialog::getSaveFileName(
-        this,
-        tr("导出配置"),
-        QDir::homePath() + "/QtEasyTier_config.json",
-        tr("配置文件 (*.json);;所有文件 (*)")
-    );
-
-    if (fileName.isEmpty()) {
-        return; // 用户取消了操作
-    }
-
-    // 如果文件名没有.json扩展名，添加它
-    if (!fileName.endsWith(".json", Qt::CaseInsensitive)) {
-        fileName += ".json";
-    }
-
-    QFile configFile(fileName);
-    if (!configFile.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, tr("错误"), tr("无法创建配置文件: %1").arg(configFile.errorString()));
-        return;
-    }
-
-    QJsonDocument doc(config);
-    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
-
-    qint64 bytesWritten = configFile.write(jsonData);
-    if (bytesWritten == -1) {
-        QMessageBox::critical(this, tr("错误"), tr("无法写入配置文件: %1").arg(configFile.errorString()));
-        return;
-    }
-
-    m_logTextEdit->appendPlainText(tr("配置导出成功: %1").arg(fileName));
-    QMessageBox::information(this, tr("成功"), tr("配置导出成功！"));
 }

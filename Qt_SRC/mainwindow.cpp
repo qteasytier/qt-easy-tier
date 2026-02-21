@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // 点击关于按钮时，打开关于对话框
-    connect(ui->aboutPushButton, &QPushButton::clicked, this, [=, this]() {
+    connect(ui->aboutPushButton, &QPushButton::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz"));
     });
 
@@ -75,7 +75,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // 点击etPushButton时，打开et官网
-    connect(ui->etPushButton, &QPushButton::clicked, this, [=, this]() {
+    connect(ui->etPushButton, &QPushButton::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://easytier.cn"));
     });
 
@@ -464,8 +464,15 @@ void MainWindow::loadConfig() {
     // 是否隐藏到系统托盘
     m_isHideOnTray = m_settingsWindow->isHideOnTray();
 
-    // 暂时关闭自启检查更新
-    //m_settingsWindow->detectSoftwareVersion();
+    // 自启检查更新
+    if (m_settingsWindow->isAutoUpdate())
+    {
+        m_settingsWindow->detectSoftwareVersion();
+    }
+    connect(m_settingsWindow, &setting::finishDetectUpdate, this, [=, this]() {
+        // 检测完成后删除setting窗口
+        if (m_settingsWindow) m_settingsWindow->deleteLater();
+    });
 }
 
 // 保存网络配置
