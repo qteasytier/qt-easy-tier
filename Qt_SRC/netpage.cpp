@@ -1228,6 +1228,8 @@ void NetPage::initRunningStatePage()
     layout->addWidget(infoWidget);
     layout->addWidget(m_peerTable);
     layout->setAlignment(Qt::AlignTop);
+
+    updateUIState(false);
 }
 
 // EasyTier按键运行方法
@@ -1336,10 +1338,16 @@ void NetPage::updateUIState(bool isRunning)
         ui->startPushButton->setText(tr("运行中"));
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
         m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
+        ui->runningState->setEnabled(true);
     } else {
         ui->startPushButton->setStyleSheet("");
         ui->startPushButton->setText(tr("运行网络"));
         m_runningStatusLabel->setText(tr("EasyTier实例未运行，请先点击运行网络"));
+        // 清空节点列表
+        if (m_peerTable) {
+            m_peerTable->setRowCount(0);
+        }
+        ui->runningState->setEnabled(false);
     }
 }
 
@@ -1437,11 +1445,6 @@ void NetPage::onWorkerProcessStopped(bool success)
 {
     updateUIState(false);
     emit networkFinished();
-
-    // 清空节点列表
-    if (m_peerTable) {
-        m_peerTable->setRowCount(0);
-    }
 
     if (!success) {
         m_logTextEdit->appendPlainText(tr("警告: 进程停止可能不完全"));
