@@ -60,6 +60,10 @@ public:
     /// @return 当前进程状态
     ProcessState getProcessState() const { return m_processState; }
 
+    /// @brief 获取当前日志文件路径
+    /// @return 当前日志文件的完整路径，如果没有日志文件则返回空字符串
+    QString getLogFilePath() const { return m_currentLogFileName; }
+
 public slots:
     /// @brief 启动EasyTier进程
     /// @param networkName 网络名称，用于日志文件命名

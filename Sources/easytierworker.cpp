@@ -6,6 +6,7 @@
  */
 
 #include "easytierworker.h"
+#include "generateconf.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -295,8 +296,16 @@ bool EasyTierWorker::initLogFile(const QString& networkName)
         }
     }
 
-    // 生成日志文件名
-    m_currentLogFileName = QString("%1/%2.log").arg(logDirPath, networkName);
+    // 生成时间戳前缀
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+
+    // 对网络名进行Base32编码
+    QString encodedNetworkName = base32Encode(networkName.toUtf8());
+    // 移除Base32填充字符'='，使文件名更简洁
+    encodedNetworkName.remove('=');
+
+    // 生成日志文件名（格式：时间戳_Base32编码的网络名.log）
+    m_currentLogFileName = QString("%1/%2_%3.log").arg(logDirPath, timestamp, encodedNetworkName);
 
     // 打开日志文件
     m_logFile = new QFile(m_currentLogFileName);
@@ -330,7 +339,9 @@ void EasyTierWorker::closeLogFile()
 void EasyTierWorker::saveLogToFile(const QString& text)
 {
     if (m_logStream) {
-        *m_logStream << text;
+        // 添加时间戳前缀
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+        *m_logStream << "[" << timestamp << "] " << text;
         if (!text.endsWith('\n')) {
             *m_logStream << Qt::endl;
         }

@@ -16,9 +16,6 @@
 #include <QIntValidator>
 #include <iostream>
 
-// OneClick 专用的 RPC 端口
-constexpr int ONECLICK_RPC_PORT = 55666;
-
 OneClick::OneClick(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::OneClick)
@@ -104,6 +101,9 @@ void OneClick::showProcessDialog(const QString& title)
         m_processDialog->deleteLater();
     }
 
+    // 重置连接状态
+    m_connectionEstablished = false;
+
     m_processDialog = new QDialog(this);
     m_processDialog->setWindowTitle(title);
     m_processDialog->setModal(true);
@@ -129,19 +129,27 @@ void OneClick::showProcessDialog(const QString& title)
     m_processDialog->setLayout(layout);
     m_processDialog->show();
 
-    // 启动超时定时器
-    QTimer::singleShot(EASYTIER_START_TIMEOUT_MS, this, [this]() {
-        if (m_processDialog && m_processDialog->isVisible()) {
-            closeProcessDialog();
-            QMessageBox::warning(this, tr("警告"), tr("EasyTier进程启动超时"));
-            stopCurrentProcess();
-        }
-    });
+    // 创建连接超时定时器（20秒）
+    if (m_connectionTimeoutTimer) {
+        m_connectionTimeoutTimer->deleteLater();
+    }
+    m_connectionTimeoutTimer = new QTimer(this);
+    m_connectionTimeoutTimer->setSingleShot(true);
+    m_connectionTimeoutTimer->setInterval(20000);  // 20秒超时
+    connect(m_connectionTimeoutTimer, &QTimer::timeout, this, &OneClick::onConnectionTimeout);
+    m_connectionTimeoutTimer->start();
 }
 
 // 关闭启动过程对话框
 void OneClick::closeProcessDialog()
 {
+    // 停止连接超时定时器
+    if (m_connectionTimeoutTimer) {
+        m_connectionTimeoutTimer->stop();
+        m_connectionTimeoutTimer->deleteLater();
+        m_connectionTimeoutTimer = nullptr;
+    }
+
     if (m_processDialog) {
         m_processDialog->close();
         m_processDialog->deleteLater();
@@ -213,8 +221,8 @@ void OneClick::stopCurrentProcess() {
         // 通过信号槽调用Worker的stopEasyTier方法
         QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::QueuedConnection);
     }
-    // 重置界面状态
-    updateInterfaceState(UserRole::None);
+    // 注意：不在这里重置界面状态，而是在 onWorkerProcessStopped 回调中重置
+    // 这样可以确保进程完全停止后才更新UI，避免竞态条件
 }
 
 // 更新界面状态
@@ -225,8 +233,10 @@ void OneClick::updateInterfaceState(UserRole role) {
     case UserRole::None:
         m_hostStartBtn->setText(tr("开始联机"));
         m_hostStartBtn->setStyleSheet("");
+        m_hostStartBtn->setEnabled(true);
         m_guestStartBtn->setText(tr("开始联机"));
         m_guestStartBtn->setStyleSheet("");
+        m_guestStartBtn->setEnabled(true);
         m_hostCodeLineEdit->setToolTip("");
         m_hostCodeLineEdit->clear();
         m_guestIpLineEdit->clear();
@@ -237,23 +247,41 @@ void OneClick::updateInterfaceState(UserRole role) {
     case UserRole::Host:
         m_hostStartBtn->setText(tr("运行中"));
         m_hostStartBtn->setStyleSheet("color: green; font-weight: bold;");
+        m_hostStartBtn->setEnabled(true);
         m_guestStartBtn->setText(tr("开始联机"));
         m_guestStartBtn->setStyleSheet("");
+        m_guestStartBtn->setEnabled(true);
         break;
 
     case UserRole::Guest:
         m_guestStartBtn->setText(tr("运行中"));
         m_guestStartBtn->setStyleSheet("color: green; font-weight: bold;");
+        m_guestStartBtn->setEnabled(true);
         m_hostStartBtn->setText(tr("开始联机"));
         m_hostStartBtn->setStyleSheet("");
+        m_hostStartBtn->setEnabled(true);
+        break;
+
+    case UserRole::HostStopping:
+        m_hostStartBtn->setText(tr("停止中..."));
+        m_hostStartBtn->setStyleSheet("color: orange; font-weight: bold;");
+        m_hostStartBtn->setEnabled(false);
+        break;
+
+    case UserRole::GuestStopping:
+        m_guestStartBtn->setText(tr("停止中..."));
+        m_guestStartBtn->setStyleSheet("color: orange; font-weight: bold;");
+        m_guestStartBtn->setEnabled(false);
         break;
     }
 }
 
 // 验证Tab切换是否允许
 bool OneClick::canSwitchToTab(int tabIndex) {
-    // 如果当前没有运行任何角色，允许切换
-    if (m_currentRole == UserRole::None) {
+    // 如果当前没有运行任何角色或正在停止中，允许切换（停止中会自动切换回来）
+    if (m_currentRole == UserRole::None || 
+        m_currentRole == UserRole::HostStopping ||
+        m_currentRole == UserRole::GuestStopping) {
         return true;
     }
 
@@ -281,18 +309,23 @@ void OneClick::onTabChanged(int index) {
 // Worker信号处理
 void OneClick::onWorkerProcessStarted(bool success, const QString& errorMessage)
 {
-    closeProcessDialog();
-
     if (!success) {
+        closeProcessDialog();
         updateInterfaceState(UserRole::None);
         if (!errorMessage.isEmpty()) {
             QMessageBox::warning(this, tr("警告"), tr("启动失败: %1").arg(errorMessage));
+        }
+    } else {
+        // 进程启动成功，更新提示文字，等待连接服务器
+        if (m_progressLabel) {
+            m_progressLabel->setText(tr("进程已启动，正在连接服务器..."));
         }
     }
 }
 
 void OneClick::onWorkerProcessStopped(bool success)
 {
+    // 在回调中重置界面状态，确保进程完全停止后才更新UI
     updateInterfaceState(UserRole::None);
     Q_UNUSED(success);
 }
@@ -308,6 +341,7 @@ void OneClick::onWorkerLogOutput(const QString& logText, bool isError)
 void OneClick::onWorkerPeerInfoUpdated(const QJsonArray& peers)
 {
     parsePeerInfo(peers);
+    checkConnectionEstablished(peers);
 }
 
 void OneClick::onWorkerProcessCrashed(int exitCode)
@@ -426,6 +460,16 @@ void OneClick::onPublicServerClicked() {
 
 // 房主点击开始联机按钮
 void OneClick::onHostStartClicked() {
+    // 检查进程状态，防止在启动/停止过程中重复操作
+    // 按钮已在停止中状态被禁用，这里只是额外的保护
+    if (m_worker) {
+        auto state = m_worker->getProcessState();
+        if (state == EasyTierWorker::ProcessState::Starting ||
+            state == EasyTierWorker::ProcessState::Stopping) {
+            return;  // 直接返回，不处理
+        }
+    }
+
     // 如果当前是房主且正在运行，则停止
     if (m_currentRole == UserRole::Host && isRunning()) {
         stopCurrentProcess();
@@ -433,16 +477,18 @@ void OneClick::onHostStartClicked() {
     }
 
     // 如果当前是房客正在运行，不允许切换
-    if (m_currentRole == UserRole::Guest) {
+    if (m_currentRole == UserRole::Guest || m_currentRole == UserRole::GuestStopping) {
         QMessageBox::warning(this, tr("警告"), tr("当前正在以房客身份运行，无法切换到房主模式。\n请先停止房客运行。"));
         return;
     }
 
-    // 检测端口占用
-    if (isPortOccupied(ONECLICK_RPC_PORT)) {
-        QMessageBox::warning(this, tr("错误"), tr("端口55666被占用，请检查是否其他程序正在使用。"));
+    // 如果正在停止中，不允许启动
+    if (m_currentRole == UserRole::HostStopping) {
         return;
     }
+
+    // 获取随机 RPC 端口
+    m_currentRpcPort = getRandomPort();
 
     // 显示启动过程对话框
     showProcessDialog(tr("启动EasyTier中..."));
@@ -461,12 +507,12 @@ void OneClick::onHostStartClicked() {
         }
 
         QStringList arguments;
-        arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
+        arguments << "--private-mode" << "true" << "--latency-first"
                   << "--dhcp" << "false" << "--hostname" << "host"
-                  << "--ipv4" << "11.45.14.1/24"
+                  << "--ipv4" << "11.45.14.1/24" << "--no-listener"
                   << "--network-name" << m_currentNetworkId
                   << "--network-secret" << m_currentPassword
-                  << "--rpc-portal" << QString::number(ONECLICK_RPC_PORT);
+                  << "--rpc-portal" << QString::number(m_currentRpcPort);
 
         // 服务器列表
         for (int i = 0; i < m_serverListWidget->count(); ++i) {
@@ -478,6 +524,7 @@ void OneClick::onHostStartClicked() {
         std::clog << "联机码: " << connectionCode.toStdString() << std::endl;
         std::clog << "网络号(原始): " << m_currentNetworkId.toStdString() << std::endl;
         std::clog << "密码(原始): " << m_currentPassword.toStdString() << std::endl;
+        std::clog << "RPC端口: " << m_currentRpcPort << std::endl;
 
         // 准备程序路径
         QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
@@ -507,7 +554,7 @@ void OneClick::onHostStartClicked() {
                                   Q_ARG(QStringList, arguments),
                                   Q_ARG(QString, appDir),
                                   Q_ARG(QString, easytierPath),
-                                  Q_ARG(int, ONECLICK_RPC_PORT));
+                                  Q_ARG(int, m_currentRpcPort));
 
     } catch (const std::exception& e) {
         closeProcessDialog();
@@ -518,6 +565,16 @@ void OneClick::onHostStartClicked() {
 
 // 房客点击开始联机按钮
 void OneClick::onGuestStartClicked() {
+    // 检查进程状态，防止在启动/停止过程中重复操作
+    // 按钮已在停止中状态被禁用，这里只是额外的保护
+    if (m_worker) {
+        auto state = m_worker->getProcessState();
+        if (state == EasyTierWorker::ProcessState::Starting ||
+            state == EasyTierWorker::ProcessState::Stopping) {
+            return;  // 直接返回，不处理
+        }
+    }
+
     // 如果当前是房客且正在运行，则停止
     if (m_currentRole == UserRole::Guest && isRunning()) {
         stopCurrentProcess();
@@ -525,8 +582,13 @@ void OneClick::onGuestStartClicked() {
     }
 
     // 如果当前是房主正在运行，不允许切换
-    if (m_currentRole == UserRole::Host) {
+    if (m_currentRole == UserRole::Host || m_currentRole == UserRole::HostStopping) {
         QMessageBox::warning(this, tr("警告"), tr("当前正在以房主身份运行，无法切换到房客模式。\n请先停止房主运行。"));
+        return;
+    }
+
+    // 如果正在停止中，不允许启动
+    if (m_currentRole == UserRole::GuestStopping) {
         return;
     }
 
@@ -555,7 +617,7 @@ void OneClick::onGuestStartClicked() {
     std::clog << "解码后的密码(原始): " << password.toStdString() << std::endl;
 
     // 检测端口占用
-    if (isPortOccupied(ONECLICK_RPC_PORT)) {
+    if (isPortOccupied(m_currentRpcPort)) {
         QMessageBox::warning(this, tr("错误"), tr("端口55666被占用，请检查是否其他程序正在使用。"));
         return;
     }
@@ -581,11 +643,11 @@ void OneClick::onGuestStartClicked() {
         } else {
             arguments << "true";
         }
-        arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
+        arguments << "--private-mode" << "true" << "--no-listener"
                   << "--latency-first" << "--hostname" << "guest"
                   << "--network-name" << networkId
                   << "--network-secret" << password
-                  << "--rpc-portal" << QString::number(ONECLICK_RPC_PORT);
+                  << "--rpc-portal" << QString::number(m_currentRpcPort);
 
         // 服务器列表（使用相同的服务器）
         for (int i = 0; i < m_serverListWidget->count(); ++i) {
@@ -605,11 +667,52 @@ void OneClick::onGuestStartClicked() {
                                   Q_ARG(QStringList, arguments),
                                   Q_ARG(QString, appDir),
                                   Q_ARG(QString, easytierPath),
-                                  Q_ARG(int, ONECLICK_RPC_PORT));
+                                  Q_ARG(int, m_currentRpcPort));
 
     } catch (const std::exception& e) {
         closeProcessDialog();
         QMessageBox::warning(this, tr("警告"), tr("启动异常: %1").arg(e.what()));
         updateInterfaceState(UserRole::None);
     }
+}
+
+// 检查是否成功连接到任意服务器
+void OneClick::checkConnectionEstablished(const QJsonArray& peers)
+{
+    // 如果已经连接成功，不再处理
+    if (m_connectionEstablished) {
+        return;
+    }
+
+    // 如果对话框不显示，不处理
+    if (!m_processDialog || !m_processDialog->isVisible()) {
+        return;
+    }
+
+    // 检查是否有除本机外的其他节点（至少连接到一个服务器）
+    // 节点数 > 1 表示至少连接到了一个服务器或其他节点
+    // 如果连接到至少一个节点（服务器或其他节点），则认为连接成功
+    if (peers.count() >= 2) {
+        m_connectionEstablished = true;
+        closeProcessDialog();
+        std::clog << "成功连接到 " << peers.count() << " 个节点" << std::endl;
+    }
+}
+
+// 连接超时处理
+void OneClick::onConnectionTimeout()
+{
+    // 如果已经连接成功，忽略超时
+    if (m_connectionEstablished) {
+        return;
+    }
+
+    // 如果对话框不显示，忽略
+    if (!m_processDialog || !m_processDialog->isVisible()) {
+        return;
+    }
+
+    closeProcessDialog();
+    QMessageBox::warning(this, tr("警告"), tr("连接服务器超时（20秒），请检查网络连接后重试。"));
+    stopCurrentProcess();
 }

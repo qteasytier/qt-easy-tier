@@ -129,6 +129,29 @@ MainWindow::MainWindow(QWidget *parent)
     // 创建系统托盘
     createTrayIcon();
 
+    // 清理过期日志文件
+    {
+        // 先加载设置获取日志保存天数
+        QDir().mkpath(m_configPath);
+        QString settingsFile = m_configPath + "/settings.json";
+        int logRetentionDays = 7;  // 默认7天
+        
+        QFile file(settingsFile);
+        if (file.open(QIODevice::ReadOnly)) {
+            QByteArray data = file.readAll();
+            file.close();
+            QJsonDocument doc = QJsonDocument::fromJson(data);
+            if (!doc.isNull() && doc.isObject()) {
+                logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
+            }
+        }
+        
+        int deletedCount = Settings::cleanupOldLogs(logRetentionDays);
+        if (deletedCount > 0) {
+            std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
+        }
+    }
+
     std::clog << "配置文件路径: " << m_configPath.toStdString() << std::endl;
 }
 
@@ -136,6 +159,29 @@ MainWindow::~MainWindow()
 {
     // 关闭应用前保存配置
     saveNetworkConfig();
+
+    // 清理过期日志文件
+    {
+        // 从设置文件读取日志保存天数
+        QDir().mkpath(m_configPath);
+        QString settingsFile = m_configPath + "/settings.json";
+        int logRetentionDays = 7;  // 默认7天
+        
+        QFile file(settingsFile);
+        if (file.open(QIODevice::ReadOnly)) {
+            QByteArray data = file.readAll();
+            file.close();
+            QJsonDocument doc = QJsonDocument::fromJson(data);
+            if (!doc.isNull() && doc.isObject()) {
+                logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
+            }
+        }
+        
+        int deletedCount = Settings::cleanupOldLogs(logRetentionDays);
+        if (deletedCount > 0) {
+            std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
+        }
+    }
 
     if (m_webDashboardProcess) {
         m_webDashboardProcess->disconnect();

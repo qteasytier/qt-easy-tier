@@ -228,6 +228,7 @@ private:
     QTableWidget *m_peerTable =  nullptr;
     QCheckBox *m_isHideServersBox =  nullptr;  //是否隐藏服务器的信息
     QPushButton *m_openLogFileBtn =  nullptr;
+    QPushButton *m_openLogDirBtn =  nullptr;
 
     // EasyTierWorker相关（线程和工作对象）
     QThread* m_workerThread = nullptr;

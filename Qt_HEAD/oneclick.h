@@ -52,6 +52,9 @@ private slots:
     void onWorkerLogOutput(const QString& logText, bool isError);
     void onWorkerPeerInfoUpdated(const QJsonArray& peers);
     void onWorkerProcessCrashed(int exitCode);
+    
+    // 连接超时处理
+    void onConnectionTimeout();
 
 private:
     Ui::OneClick *ui;
@@ -74,6 +77,7 @@ private:
     // 当前生成的房间信息
     QString m_currentNetworkId = "";
     QString m_currentPassword = "";
+    int m_currentRpcPort = 0;  // 当前使用的 RPC 端口
 
     // EasyTierWorker相关（线程和工作对象）
     QThread* m_workerThread = nullptr;
@@ -83,15 +87,19 @@ private:
     QDialog* m_processDialog = nullptr;
     QProgressBar* m_progressBar = nullptr;
     QLabel* m_progressLabel = nullptr;
+    QTimer* m_connectionTimeoutTimer = nullptr;  // 连接超时定时器
+    bool m_connectionEstablished = false;  // 是否已成功连接到服务器
 
     // 房主IP地址更新相关
     QString m_lastHostIp = "";
 
     // 身份状态管理
     enum class UserRole {
-        None,    // 未运行任何角色
-        Host,    // 当前是房主
-        Guest    // 当前是房客
+        None,       // 未运行任何角色
+        Host,       // 当前是房主运行中
+        Guest,      // 当前是房客运行中
+        HostStopping,   // 房主停止中
+        GuestStopping   // 房客停止中
     };
     UserRole m_currentRole = UserRole::None;
 
@@ -123,6 +131,9 @@ private:
 
     // 解析节点信息更新房主IP和联机人数
     void parsePeerInfo(const QJsonArray& peers);
+    
+    // 检查是否成功连接到任意服务器
+    void checkConnectionEstablished(const QJsonArray& peers);
 };
 
 #endif // ONECLICK_H

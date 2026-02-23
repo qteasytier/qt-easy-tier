@@ -630,19 +630,6 @@ font-size: 8</string>
            </widget>
           </item>
           <item alignment="Qt::AlignmentFlag::AlignHCenter">
-           <widget class="QPushButton" name="webDashboardBtn">
-            <property name="minimumSize">
-             <size>
-              <width>265</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>启用 Web 控制台</string>
-            </property>
-           </widget>
-          </item>
-          <item alignment="Qt::AlignmentFlag::AlignHCenter">
            <widget class="QWidget" name="gridWidget" native="true">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -663,31 +650,6 @@ font-size: 8</string>
              <property name="verticalSpacing">
               <number>6</number>
              </property>
-             <item row="1" column="0" alignment="Qt::AlignmentFlag::AlignRight">
-              <widget class="QPushButton" name="aboutPushButton">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="minimumSize">
-                <size>
-                 <width>130</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>150</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>关于本项目</string>
-               </property>
-              </widget>
-             </item>
              <item row="2" column="0" alignment="Qt::AlignmentFlag::AlignRight">
               <widget class="QPushButton" name="etPushButton">
                <property name="sizePolicy">
@@ -751,6 +713,50 @@ gridline-color: rgb(255, 55, 14);</string>
                </property>
                <property name="text">
                 <string>赞助本项目</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+              <widget class="QPushButton" name="aboutPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>130</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>150</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>关于本项目</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0" colspan="2">
+              <widget class="QPushButton" name="webDashboardBtn">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>100</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>启用 Web 控制台</string>
                </property>
               </widget>
              </item>

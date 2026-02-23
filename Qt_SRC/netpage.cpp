@@ -1168,12 +1168,17 @@ void NetPage::initRunningLogWindow()
     m_logTextEdit = new QPlainTextEdit(ui->runningLog);
     m_logTextEdit->setReadOnly(true);
 
-    // 创建打开日志文件按钮
-    m_openLogFileBtn = new QPushButton(tr("打开日志文件查看完整日志"), ui->runningLog);
+    QWidget *buttonWidget = new QWidget(ui->runningLog);
+    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonWidget);
+    // 创建打开日志文件(夹)按钮
+    m_openLogFileBtn = new QPushButton(tr("打开当前日志文件"), ui->runningLog);
+    m_openLogDirBtn = new QPushButton(tr("打开日志保存目录"), ui->runningLog);
+    buttonLayout->addWidget(m_openLogFileBtn);
+    buttonLayout->addWidget(m_openLogDirBtn);
 
     // 添加控件到主布局
     mainLayout->addWidget(m_logTextEdit, 1);  // 日志文本框占主要空间
-    mainLayout->addWidget(m_openLogFileBtn);
+    mainLayout->addWidget(buttonWidget);
 
     // 设置runningLog页面的布局
     ui->runningLog->setLayout(mainLayout);
@@ -1235,6 +1240,15 @@ void NetPage::initRunningStatePage()
 // EasyTier按键运行方法
 void NetPage::onRunNetwork()
 {
+    // 检查进程状态，防止在启动/停止过程中重复操作
+    if (m_worker) {
+        auto state = m_worker->getProcessState();
+        if (state == EasyTierWorker::ProcessState::Starting ||
+            state == EasyTierWorker::ProcessState::Stopping) {
+            return;  // 直接返回，不处理
+        }
+    }
+
     // 如果网络正在运行，则停止它
     if (isRunning()) {
         onStopNetwork();
@@ -1304,6 +1318,11 @@ void NetPage::onStopNetwork()
         return;
     }
 
+    // 设置停止中状态，禁用按钮并显示"停止中..."
+    ui->startPushButton->setText(tr("停止中..."));
+    ui->startPushButton->setStyleSheet("color: orange; font-weight: bold;");
+    ui->startPushButton->setEnabled(false);
+
     m_logTextEdit->appendPlainText(tr("正在停止EasyTier进程..."));
 
     // 通过信号槽调用Worker的stopEasyTier方法
@@ -1337,11 +1356,13 @@ void NetPage::updateUIState(bool isRunning)
     if (isRunning) {
         ui->startPushButton->setText(tr("运行中"));
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
+        ui->startPushButton->setEnabled(true);
         m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
         ui->runningState->setEnabled(true);
     } else {
         ui->startPushButton->setStyleSheet("");
         ui->startPushButton->setText(tr("运行网络"));
+        ui->startPushButton->setEnabled(true);
         m_runningStatusLabel->setText(tr("EasyTier实例未运行，请先点击运行网络"));
         // 清空节点列表
         if (m_peerTable) {
@@ -1384,12 +1405,13 @@ void NetPage::showProcessDialog()
     m_processDialog->show();
 
     // 启动超时定时器
-    QTimer::singleShot(EASYTIER_START_TIMEOUT_MS, this, [this]() {
+    QTimer::singleShot(EASYTIER_START_TIMEOUT_MS, m_processDialog, [this]() {
         if (m_processDialog && m_processDialog->isVisible()) {
             closeProcessDialog();
             m_logTextEdit->appendPlainText(tr("启动超时"));
             QMessageBox::warning(this, tr("警告"), tr("EasyTier进程启动超时"));
             onStopNetwork();
+
         }
     });
 }
@@ -1514,17 +1536,22 @@ void NetPage::onWorkerProcessCrashed(int exitCode)
 // 打开日志文件
 void NetPage::onOpenLogFileClicked()
 {
-    // 日志文件路径
-    QString logDirPath = QCoreApplication::applicationDirPath() + "/log";
-    QString networkName = getNetworkName();
-    if (networkName.isEmpty()) {
-        networkName = "default";
+    // 检查Worker是否存在(不存在则发生严重错误)
+    if (!m_worker) {
+        QMessageBox::critical(this, tr("错误"), tr("未创建EasyTier Worker实例"));
+        return;
     }
-    QString logFilePath = QString("%1/%2.log").arg(logDirPath, networkName);
+
+    // 从Worker获取日志文件路径
+    QString logFilePath = m_worker->getLogFilePath();
+    if (logFilePath.isEmpty()) {
+        QMessageBox::information(this, tr("提示"), tr("暂无日志文件，请先启动网络"));
+        return;
+    }
 
     QFileInfo fileInfo(logFilePath);
     if (!fileInfo.exists()) {
-        QMessageBox::information(this, tr("提示"), tr("暂无日志文件"));
+        QMessageBox::warning(this, tr("警告"), tr("日志文件不存在: %1").arg(logFilePath));
         return;
     }
 
