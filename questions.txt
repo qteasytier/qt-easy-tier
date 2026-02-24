@@ -1,0 +1,149 @@
+ 项目问题分析报告
+
+  🔴 严重问题
+
+  1. 线程安全风险
+  文件: Qt_SRC/netpage.cpp (第 1196-1200 行)
+   void NetPage::cleanupWorkerThread()
+   {
+       if (m_workerThread) {
+           if (m_worker && m_worker->isRunning()) {
+               QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::BlockingQueuedConnection);
+           }
+           // ...
+       }
+   }
+  问题: 使用 BlockingQueuedConnection 可能导致死锁，如果工作线程正在等待主线程响应。
+
+  2. 进程崩溃信号语义混乱
+  文件: Sources/easytierworker.cpp (第 188-196 行)
+   void EasyTierWorker::onEasyTierFinished(int exitCode, QProcess::ExitStatus exitStatus)
+   {
+       // ...
+       if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+           emit processCrashed(exitCode);
+       } else {
+           emit processCrashed(114514);  // 正常退出也发送崩溃信号？？
+       }
+   }
+  问题: 正常退出时也发送 processCrashed 信号（退出码114514），语义混乱，应该只发送 processStopped。
+
+  3. 潜在的内存泄漏
+  文件: Qt_SRC/mainwindow.cpp (析构函数)
+   MainWindow::~MainWindow()
+   {
+       // ...
+       if (m_webWorker) {
+           m_webWorker->disconnect();
+           m_webWorker->stopProcess();
+           m_webWorker->deleteLater();  // deleteLater 在析构函数中可能不会执行
+           m_webWorker = nullptr;
+       }
+       // ...
+   }
+  问题: 在析构函数中使用 deleteLater() 可能导致内存泄漏，应该直接 delete。
+
+  ---
+
+  🟠 中等问题
+
+  4. 异常处理不完善
+  文件: Sources/generateconf.cpp
+   QStringList generateConfCommand(NetPage *netPage)
+   {
+       // ...
+       if (netPage->realRpcPort == 0) {
+           throw std::runtime_error("could not find an available RPC port");
+       }
+       // ...
+   }
+  问题: 抛出异常但在调用处只是简单捕获并显示警告，没有适当的恢复机制。
+
+  5. 硬编码魔术数字
+  文件: Sources/easytierworker.cpp
+   constexpr int EASYTIER_START_TIMEOUT_MS = 30000;
+   constexpr int CLI_UPDATE_INTERVAL_MS = 2000;
+  文件: Sources/generateconf.cpp
+   std::uniform_int_distribution<> dis(10000, 50000);  // 端口范围
+  问题: 魔术数字分散在代码各处，应集中管理或使用配置文件。
+
+  6. Windows 特定代码缺少条件编译保护
+  文件: Sources/generateconf.cpp
+   bool isPortOccupied(const int &port)
+   {
+       // ...
+   #ifdef __WIN32
+       // Windows 代码
+   #else
+       // 非 Windows 代码
+   #endif
+   }
+  问题: 应使用 Q_OS_WIN 宏而非 __WIN32，与 Qt 跨平台规范一致。
+
+  7. 日志文件命名可能冲突
+  文件: Sources/easytierworker.cpp
+   QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+  问题: 如果同一秒内启动多个同名网络，日志文件名会冲突。
+
+  ---
+
+  🟡 轻微问题
+
+  8. 代码重复
+  多处重复的列表管理代码：
+   - onAddServer() / onRemoveServer()
+   - onAddListenAddr() / onRemoveListenAddr()
+   - onAddCidr() / onRemoveCidr()
+   - onAddRelayNetworkWhitelist() / onRemoveRelayNetworkWhitelist()
+
+  建议: 可以抽取模板化的列表管理组件。
+
+  9. 未使用的变量和注释
+  文件: Qt_SRC/netpage.cpp
+   // m_removeServerBtn->setEnabled(false);  // 注释掉的代码
+
+  10. 缺少输入验证
+  文件: Sources/generateconf.cpp
+   if (!netPage->getIpAddress().isEmpty()) {
+       conf << "--ipv4" << netPage->getIpAddress();  // 未验证 IP 格式
+   }
+  问题: IP 地址虽然有 UI 验证，但在生成命令时未再次验证。
+
+  11. 设置对话框内存管理问题
+  文件: Qt_SRC/mainwindow.cpp
+   void MainWindow::onClickSettingBtn() {
+       Settings *settings = new Settings(this);
+       settings->exec();
+       m_isHideOnTray = settings->isHideOnTray();
+       settings->deleteLater();
+       settings = nullptr;  // 这行无意义
+   }
+  问题: 局部变量置空无实际效果，且 deleteLater() 后置空不必要。
+
+  12. 版本检测的线程管理复杂
+  文件: Qt_SRC/setting.cpp
+  版本检测每次都创建新线程，使用完成后销毁，开销较大。可以考虑使用线程池。
+
+  ---
+
+  📋 架构建议
+
+   1. 引入依赖注入: 当前 NetPage 直接创建 EasyTierWorker，考虑使用工厂模式或依赖注入便于测试。
+
+   2. 配置管理统一化: 当前配置分散在 generateconf.cpp、setting.cpp 等多处，建议统一配置管理类。
+
+   3. 错误处理策略: 建议定义统一的错误类型和错误处理策略，而非混用异常和返回值。
+
+   4. 日志系统改进: 当前直接写入文件，建议引入日志级别（DEBUG/INFO/WARNING/ERROR）和日志轮转。
+
+   5. 单元测试: 项目缺少单元测试，建议为核心逻辑添加测试。
+
+  ---
+
+  ✅ 做得好的地方
+
+✦  1. 线程模型设计: Worker 对象移动到独立线程的设计符合 Qt 最佳实践。
+   2. 信号槽连接: 正确使用 Qt::QueuedConnection 确保线程安全。
+   3. 资源管理: 进程清理逻辑较为完善。
+   4. 配置持久化: JSON 格式保存配置，易于阅读和调试。
+   5. UI 分离: UI 文件与逻辑分离，便于维护。
