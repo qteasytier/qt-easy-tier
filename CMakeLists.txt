@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 1.3.0 LANGUAGES CXX)
+project(${ProjectName} VERSION 1.3.1 LANGUAGES CXX)
 set(SAVE_CONF_IN_APP_DIR false)
 
 # 启用Qt的自动MOC和RCC
@@ -45,7 +45,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Windows系统下自动生成rc文件并嵌入manifest
 if(WIN32)  # 改为判断Windows系统，而非MinGW编译器
     # 1. 定义manifest文件的绝对路径
-    set(MANIFEST_FILE "${CMAKE_SOURCE_DIR}/app.manifest")
+    set(MANIFEST_FILE "${CMAKE_SOURCE_DIR}/assets/app.manifest")
 
     # 2. 检查manifest文件是否存在（增加健壮性）
     if(NOT EXISTS ${MANIFEST_FILE})
@@ -108,15 +108,15 @@ if(WIN32)
     # 复制BreezeStyle文件夹中的内容到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/BreezeStyle
+            ${CMAKE_SOURCE_DIR}/ThirdParty/Breeze
             $<TARGET_FILE_DIR:${ProjectName}>
-            COMMENT "复制BreezeStyle 到 ${ProjectName} 目录..."
+            COMMENT "复制 Breeze 到 ${ProjectName} 目录..."
     )
 
     # 复制EasyTier文件夹到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/EasyTier
+            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/win
             $<TARGET_FILE_DIR:${ProjectName}>/etcore
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
@@ -124,7 +124,7 @@ if(WIN32)
     # 复制公共节点列表信息
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_SOURCE_DIR}/publicserver.json
+            ${CMAKE_SOURCE_DIR}/assets/publicserver.json
             $<TARGET_FILE_DIR:${ProjectName}>/publicserver.json
             COMMENT "复制公共服务器列表到 ${ProjectName} 目录..."
     )
@@ -179,7 +179,7 @@ if(WIN32)
         message(STATUS \"部署BreezeStyle...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                \"${CMAKE_SOURCE_DIR}/BreezeStyle\"
+                \"${CMAKE_SOURCE_DIR}/ThirdParty/Breeze\"
                 \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         )
     ")
@@ -189,7 +189,7 @@ if(WIN32)
         message(STATUS \"部署EasyTier...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                \"${CMAKE_SOURCE_DIR}/EasyTier\"
+                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/win\"
                 \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
         )
     ")
@@ -200,7 +200,7 @@ install(CODE "
     message(STATUS \"复制公共服务器列表\")
     execute_process(
         COMMAND \"${CMAKE_COMMAND}\" -E copy
-            \"${CMAKE_SOURCE_DIR}/publicserver.json\"
+            \"${CMAKE_SOURCE_DIR}/assets/publicserver.json\"
             \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/publicserver.json\"
     )
 ")

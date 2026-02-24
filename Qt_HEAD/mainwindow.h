@@ -20,6 +20,7 @@ QT_END_NAMESPACE
 
 // 前向声明
 class Donate;
+class WebDashboardWorker;
 
 class MainWindow : public QMainWindow
 {
@@ -41,8 +42,14 @@ private slots:
     void onShowWindow();  // 显示主窗口
     void onExitApp();     // 退出应用程序
     void onClickOneClickBtn(); // 当点击一键联机按钮时
-    void onClickWebDashboardBtn(); // 当点击Web控制台按钮时
     void onClickSettingBtn(); // 当点击设置按钮时
+
+    void onClickWebDashboardBtn();  // 当点击Web控制台按钮时
+
+    // Web控制台 Worker 信号处理槽函数
+    void onWebProcessStarted(bool success, const QString &message);
+    void onWebProcessStopped(bool success);
+    void onWebProcessCrashed(int exitCode, QProcess::ExitStatus exitStatus);
 
 protected:
     void closeEvent(QCloseEvent *event) override;  // 重写关闭事件
@@ -62,8 +69,7 @@ private:
     bool m_isHideOnTray =  true;
 
     // Web控制台
-    QProcess *m_webDashboardProcess = nullptr;
-    WebConsoleConfig m_webConfig; // Web控制台配置
+    WebDashboardWorker *m_webWorker = nullptr;
 
     // 配置保存路径
 #if SAVE_CONF_IN_APP_DIR == true

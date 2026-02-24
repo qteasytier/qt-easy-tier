@@ -468,9 +468,6 @@ void Settings::onDialogAccepted()
 
     saveSettings();
     
-    // 发送信号让配置立即生效
-    emit webConfigUpdated(m_webConfig);
-    
     accept();
 }
 

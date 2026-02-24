@@ -106,26 +106,26 @@ public:
     void detectSoftwareVersion(bool isFromInternal = false);
 
     /// @brief 获取自动回连状态
-    bool isAutoRun() const { return m_autoRun; }
+    [[nodiscard]] bool isAutoRun() const { return m_autoRun; }
 
     /// @brief 是否隐藏到系统托盘
-    bool isHideOnTray() const { return m_isHideOnTray; }
+    [[nodiscard]] bool isHideOnTray() const { return m_isHideOnTray; }
 
     /// @brief 是否自动检查更新
-    bool isAutoUpdate() const { return m_autoUpdate; }
+    [[nodiscard]] bool isAutoUpdate() const { return m_autoUpdate; }
 
     /// @brief 获取配置保存路径
-    QString getConfigPath() const { return m_configPath; }
+    [[nodiscard]] QString getConfigPath() const { return m_configPath; }
 
     /// @brief 是否应该弹出赞助窗口
     /// @return 当启动次数达到阈值且未弹出过赞助窗口时返回 true
-    bool shouldShowDonate() const { return m_shouldShowDonate; }
+    [[nodiscard]] bool shouldShowDonate() const { return m_shouldShowDonate; }
 
     /// @brief 获取 Web 控制台配置
-    WebConsoleConfig getWebConsoleConfig() const { return m_webConfig; }
+    [[nodiscard]] WebConsoleConfig getWebConsoleConfig() const { return m_webConfig; }
 
     /// @brief 获取日志保存天数
-    int getLogRetentionDays() const { return m_logRetentionDays; }
+    [[nodiscard]] int getLogRetentionDays() const { return m_logRetentionDays; }
 
     /// @brief 清理过期日志文件
     /// @param retentionDays 保留天数，0 表示清理所有日志
@@ -142,9 +142,6 @@ public:
 signals:
     /// @brief 更新检测完成信号
     void finishDetectUpdate();
-    
-    /// @brief Web 配置已更新信号（用于立即生效）
-    void webConfigUpdated(const WebConsoleConfig &config);
 
 protected:
     void showEvent(QShowEvent *event) override;

@@ -4,6 +4,7 @@
 #include "oneclick.h"
 #include "generateconf.h"
 #include "donate.h"
+#include "webdashboardworker.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -183,24 +184,24 @@ MainWindow::~MainWindow()
         }
     }
 
-    if (m_webDashboardProcess) {
-        m_webDashboardProcess->disconnect();
-        m_webDashboardProcess->kill();
-        if (m_webDashboardProcess->waitForFinished(1000)) {
-            std::clog << "成功终止Web进程" << std::endl;
-        } else {
-            std::cerr << "可能无法终止Web进程" << std::endl;
-        }
-        m_webDashboardProcess->deleteLater();
-        m_webDashboardProcess = nullptr;
+    // 清理 Web 控制台 Worker
+    if (m_webWorker) {
+        m_webWorker->disconnect();
+        m_webWorker->stopProcess();
+        m_webWorker->deleteLater();
+        m_webWorker = nullptr;
     }
 
     // 杀死所有easytier-core进程
     QProcess process;
 #ifdef Q_OS_WIN
     process.startDetached("taskkill /F /IM easytier-core.exe");
+    process.startDetached("taskkill /F /IM easytier-cli.exe");
+    process.startDetached("taskkill /F /IM easytier-web-embed.exe");
 #elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     process.startDetached("pkill easytier-core");
+    process.startDetached("pkill easytier-cli");
+    process.startDetached("pkill easytier-web-embed");
 #endif
     process.waitForFinished(5000);
 
@@ -297,65 +298,111 @@ void MainWindow::onClickOneClickBtn() {
 }
 
 void MainWindow::onClickWebDashboardBtn() {
-    if (m_webDashboardProcess) {
-        m_webDashboardProcess->disconnect();
-        m_webDashboardProcess->kill();
 
-        // 等待强制终止完成
-        if (m_webDashboardProcess->waitForFinished(1000)) {
-            std::clog << "成功终止Web进程" << std::endl;
-        } else {
-            QMessageBox::warning(this, "警告", "终止Web进程可能失败");
-        }
+    // 如果 Worker 已存在且正在运行，则停止
 
-        m_webDashboardProcess->deleteLater();
-        m_webDashboardProcess = nullptr;
-        ui->webDashboardBtn->setText("启动 Web 控制台");
-        ui->webDashboardBtn->setStyleSheet("");
-
+    if (m_webWorker && m_webWorker->isRunning()) {
+        ui->webDashboardBtn->setStyleSheet("color: yellow; gridline-color: yellow; font-weight: bold;");
+        ui->webDashboardBtn->setText(tr("结束Web控制台进程中..."));
+        ui->webDashboardBtn->setEnabled(false);
+        QApplication::processEvents();  // 先刷新 UI
+        m_webWorker->stopProcess();
         return;
     }
+
     // 启动web控制台
     const QString &appDir = QCoreApplication::applicationDirPath()+"/etcore";
     const QString &appFile = appDir + "/easytier-web-embed.exe";
 
     // 检查appFile是否存在
     if (!QFile::exists(appFile)) {
-        QMessageBox::critical(this, "错误", "找不到easytier-web-embed.exe");
+        QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed.exe"));
         return;
     }
+    const WebConsoleConfig webConfig = getWebConsoleConfig();
 
-    // 检测端口占用情况
-    if (isPortOccupied(m_webConfig.webPagePort) || isPortOccupied(m_webConfig.configPort))
-    {
-        QMessageBox::critical(this, "错误", 
-            QString("%1或%2端口被占用").arg(m_webConfig.webPagePort).arg(m_webConfig.configPort));
+    if (isPortOccupied(webConfig.webPagePort) || isPortOccupied(webConfig.configPort)) {
+        QMessageBox::critical(this, tr("错误"),
+            tr("%1或%2端口被占用").arg(webConfig.webPagePort).arg(webConfig.configPort));
         return;
     }
 
     // 构建启动命令
     QStringList args;
-    args << "--api-server-port" << QString::number(m_webConfig.webPagePort);
-    args << "--api-host" << m_webConfig.getActualApiAddress();
-    args << "--config-server-port" << QString::number(m_webConfig.configPort);
-    args << "--config-server-protocol" << m_webConfig.getConfigProtocolString();
+    args << "--api-server-port" << QString::number(webConfig.webPagePort);
+    args << "--api-host" << webConfig.getActualApiAddress();
+    args << "--config-server-port" << QString::number(webConfig.configPort);
+    args << "--config-server-protocol" << webConfig.getConfigProtocolString();
 
-    std::clog << "启动Web控制台命令：" << appFile.toStdString() << " " << args.join(" ").toStdString() << std::endl;
+    // 创建 Worker 对象（直接在主线程，QProcess 本身是异步的）
 
-    m_webDashboardProcess = new QProcess(this);
-    m_webDashboardProcess->start(appFile, args);
-    ui->webDashboardBtn->setText("Web 控制台已启动");
-    ui->webDashboardBtn->setStyleSheet("color: #66ccff; gridline-color: #66ccff");
+    if (!m_webWorker) {
+        m_webWorker = new WebDashboardWorker(this);
+        // 连接 Worker 信号
+        connect(m_webWorker, &WebDashboardWorker::processStarted,
+                this, &MainWindow::onWebProcessStarted);
+        connect(m_webWorker, &WebDashboardWorker::processStopped,
+                this, &MainWindow::onWebProcessStopped);
+        connect(m_webWorker, &WebDashboardWorker::processCrashed,
+                this, &MainWindow::onWebProcessCrashed);
+    }
 
-    // 等待一秒打开浏览器
-    QTimer::singleShot(1000, [=, this]() {
-        if (m_webDashboardProcess && m_webDashboardProcess->state() == QProcess::Running) {
-            QDesktopServices::openUrl(QUrl(QString("http://127.0.0.1:%1").arg(m_webConfig.webPagePort)));
-        } else {
-            QMessageBox::warning(this, "警告", "Web控制台可能启动失败");
-        }
+    // 更新 UI 状态
+    ui->webDashboardBtn->setText(tr("启动Web控制台中..."));
+    ui->webDashboardBtn->setEnabled(false);
+    QApplication::processEvents();  // 先刷新 UI
 
-    });
+    // 保存配置用于后续打开浏览器
+    m_webWorker->setProperty("webPagePort", webConfig.webPagePort);
+
+    // 直接调用启动进程（QProcess 是异步的，不会阻塞）
+    m_webWorker->startProcess(appFile, args);
+}
+
+void MainWindow::onWebProcessStarted(bool success, const QString &message) {
+    if (success) {
+        ui->webDashboardBtn->setText(tr("Web 控制台已启动"));
+        ui->webDashboardBtn->setStyleSheet("color: #66ccff; gridline-color: #66ccff; font-weight: bold;");
+        ui->webDashboardBtn->setEnabled(true);
+
+        // 获取保存的端口号并打开浏览器
+        int webPagePort = m_webWorker ? m_webWorker->property("webPagePort").toInt() : 55667;
+        QDesktopServices::openUrl(QUrl(QString("http://127.0.0.1:%1").arg(webPagePort)));
+    } else {
+        QMessageBox::warning(this, tr("警告"), message);
+        ui->webDashboardBtn->setStyleSheet("");
+        ui->webDashboardBtn->setText(tr("启动 Web 控制台"));
+        ui->webDashboardBtn->setEnabled(true);
+    }
+}
+
+void MainWindow::onWebProcessStopped(bool success) {
+    if (!success) {
+        QMessageBox::warning(this, tr("警告"), tr("Web控制台进程结束超时"));
+    }
+    m_webWorker->deleteLater();
+    m_webWorker = nullptr;
+    
+    ui->webDashboardBtn->setStyleSheet("");
+    ui->webDashboardBtn->setText(tr("启动 Web 控制台"));
+    ui->webDashboardBtn->setEnabled(true);
+}
+
+void MainWindow::onWebProcessCrashed(int exitCode, QProcess::ExitStatus exitStatus) {
+    Q_UNUSED(exitCode);
+    
+    if (exitStatus == QProcess::CrashExit) {
+        QMessageBox::critical(this, tr("错误"), tr("Web控制台进程发生崩溃"));
+    } else {
+        QMessageBox::warning(this, tr("警告"), tr("Web控制台进程正常结束"));
+    }
+
+    m_webWorker->deleteLater();
+    m_webWorker = nullptr;
+
+    ui->webDashboardBtn->setStyleSheet("");
+    ui->webDashboardBtn->setText(tr("启动 Web 控制台"));
+    ui->webDashboardBtn->setEnabled(true);
 }
 
 /// @brief 页面替换函数
@@ -399,11 +446,6 @@ void MainWindow::_changeWidget(QWidget *newWidget) {
 
 void MainWindow::onClickSettingBtn() {
     Settings *settings = new Settings(this);
-    
-    // 连接 Web 配置更新信号，使配置立即生效
-    connect(settings, &Settings::webConfigUpdated, this, [this](const WebConsoleConfig &config) {
-        m_webConfig = config;
-    });
     
     settings->exec();
     m_isHideOnTray = settings->isHideOnTray();
@@ -534,9 +576,6 @@ void MainWindow::loadConfig() {
 
     // 是否隐藏到系统托盘
     m_isHideOnTray = tempSettings->isHideOnTray();
-    
-    // 加载 Web 控制台配置
-    m_webConfig = tempSettings->getWebConsoleConfig();
 
     if (tempSettings->shouldShowDonate()) {
         Donate *donateWindow = new Donate(this);
