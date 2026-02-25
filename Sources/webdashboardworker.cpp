@@ -1,5 +1,6 @@
 #include "webdashboardworker.h"
 #include <QTimer>
+#include <QDateTime>
 #include <iostream>
 
 /// 启动超时时间（毫秒）

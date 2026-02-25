@@ -71,12 +71,6 @@ private:
     // Web控制台
     WebDashboardWorker *m_webWorker = nullptr;
 
-    // 配置保存路径
-#if SAVE_CONF_IN_APP_DIR == true
-    QString m_configPath = QApplication::applicationDirPath() + "/config";
-#else
-    QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);;
-#endif
 
     void _changeWidget(QWidget *newWidget);
     void setupContextMenu();

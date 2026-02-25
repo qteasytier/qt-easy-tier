@@ -28,7 +28,7 @@
    }
   问题: 正常退出时也发送 processCrashed 信号（退出码114514），语义混乱，应该只发送 processStopped。
 
-  3. 潜在的内存泄漏
+  *3. 潜在的内存泄漏 ->已经修复
   文件: Qt_SRC/mainwindow.cpp (析构函数)
    MainWindow::~MainWindow()
    {

@@ -31,9 +31,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    ui->webDashboardBtn->setToolTip(tr("Web控制台需要占用55667(API)、55668(配置下发)端口\n"
-        "启动后，会自动打开网页，请使用名为admin的账户登录，默认密码是admin\n"
-        "然后就可以新建一个网络配置，勾选使用Web控制台管理后启动即可"
+    ui->webDashboardBtn->setToolTip(tr("Web控制台默认占用55667(API)、55668(配置下发)端口\n"
+        "启动后，会自动打开网页，登录即可开始使用\n"
     ));
 
     // 设置窗口图标
@@ -111,7 +110,7 @@ MainWindow::MainWindow(QWidget *parent)
             _changeWidget(m_netpages[index]);
         } else {
             std::cerr << "无效的索引，程序出错" << std::endl;
-            std::exit(1);
+            QMessageBox::critical(this, tr("错误"), tr("无效的索引，程序出错"));
         }
     });
 
@@ -130,30 +129,10 @@ MainWindow::MainWindow(QWidget *parent)
     // 创建系统托盘
     createTrayIcon();
 
-    // 清理过期日志文件
-    {
-        // 先加载设置获取日志保存天数
-        QDir().mkpath(m_configPath);
-        QString settingsFile = m_configPath + "/settings.json";
-        int logRetentionDays = 7;  // 默认7天
-        
-        QFile file(settingsFile);
-        if (file.open(QIODevice::ReadOnly)) {
-            QByteArray data = file.readAll();
-            file.close();
-            QJsonDocument doc = QJsonDocument::fromJson(data);
-            if (!doc.isNull() && doc.isObject()) {
-                logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
-            }
-        }
-        
-        int deletedCount = Settings::cleanupOldLogs(logRetentionDays);
-        if (deletedCount > 0) {
-            std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
-        }
+    int deletedCount = Settings::cleanupOldLogs();
+    if (deletedCount > 0) {
+        std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
     }
-
-    std::clog << "配置文件路径: " << m_configPath.toStdString() << std::endl;
 }
 
 MainWindow::~MainWindow()
@@ -161,50 +140,32 @@ MainWindow::~MainWindow()
     // 关闭应用前保存配置
     saveNetworkConfig();
 
-    // 清理过期日志文件
-    {
-        // 从设置文件读取日志保存天数
-        QDir().mkpath(m_configPath);
-        QString settingsFile = m_configPath + "/settings.json";
-        int logRetentionDays = 7;  // 默认7天
-        
-        QFile file(settingsFile);
-        if (file.open(QIODevice::ReadOnly)) {
-            QByteArray data = file.readAll();
-            file.close();
-            QJsonDocument doc = QJsonDocument::fromJson(data);
-            if (!doc.isNull() && doc.isObject()) {
-                logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
-            }
-        }
-        
-        int deletedCount = Settings::cleanupOldLogs(logRetentionDays);
-        if (deletedCount > 0) {
-            std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
-        }
+    int deletedCount = Settings::cleanupOldLogs();
+    if (deletedCount > 0) {
+        std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
     }
 
     // 清理 Web 控制台 Worker
     if (m_webWorker) {
-        m_webWorker->disconnect();
+        if (!m_webWorker->disconnect())
+        {
+            std::cerr << "Can not disconnect WebDashboardWorker" << std::endl;
+        }
         m_webWorker->stopProcess();
-        m_webWorker->deleteLater();
+        QApplication::processEvents();
+        delete m_webWorker;
         m_webWorker = nullptr;
     }
 
-    // 杀死所有easytier-core进程
-    QProcess process;
 #ifdef Q_OS_WIN
-    process.startDetached("taskkill /F /IM easytier-core.exe");
-    process.startDetached("taskkill /F /IM easytier-cli.exe");
-    process.startDetached("taskkill /F /IM easytier-web-embed.exe");
+    QProcess::startDetached("taskkill /F /IM easytier-core.exe");
+    QProcess::startDetached("taskkill /F /IM easytier-cli.exe");
+    QProcess::startDetached("taskkill /F /IM easytier-web-embed.exe");
 #elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    process.startDetached("pkill easytier-core");
-    process.startDetached("pkill easytier-cli");
-    process.startDetached("pkill easytier-web-embed");
+    QProcess::startDetached("pkill easytier-core");
+    QProcess::startDetached("pkill easytier-cli");
+    QProcess::startDetached("pkill easytier-web-embed");
 #endif
-    process.waitForFinished(5000);
-
     delete ui;
 }
 
@@ -335,7 +296,6 @@ void MainWindow::onClickWebDashboardBtn() {
     args << "--config-server-protocol" << webConfig.getConfigProtocolString();
 
     // 创建 Worker 对象（直接在主线程，QProcess 本身是异步的）
-
     if (!m_webWorker) {
         m_webWorker = new WebDashboardWorker(this);
         // 连接 Worker 信号
@@ -366,7 +326,7 @@ void MainWindow::onWebProcessStarted(bool success, const QString &message) {
         ui->webDashboardBtn->setEnabled(true);
 
         // 获取保存的端口号并打开浏览器
-        int webPagePort = m_webWorker ? m_webWorker->property("webPagePort").toInt() : 55667;
+        const int webPagePort = m_webWorker ? m_webWorker->property("webPagePort").toInt() : 55667;
         QDesktopServices::openUrl(QUrl(QString("http://127.0.0.1:%1").arg(webPagePort)));
     } else {
         QMessageBox::warning(this, tr("警告"), message);
@@ -450,7 +410,6 @@ void MainWindow::onClickSettingBtn() {
     settings->exec();
     m_isHideOnTray = settings->isHideOnTray();
     settings->deleteLater();
-    settings = nullptr;
 }
 
 
@@ -475,12 +434,12 @@ void MainWindow::loadConfig() {
 
     // 配置目录
     QDir configDir;
-    if (!configDir.exists(m_configPath)) {
-        configDir.mkpath(m_configPath);
+    if (!configDir.exists(g_configPath)) {
+        configDir.mkpath(g_configPath);
     }
 
     // 配置文件路径
-    QString configFile = m_configPath + "/network.json";
+    QString configFile = g_configPath + "/network.json";
 
     // 检查配置文件是否存在
     QFile file(configFile);
@@ -599,12 +558,12 @@ void MainWindow::loadConfig() {
 void MainWindow::saveNetworkConfig() {
     // 创建配置目录
     QDir configDir;
-    if (!configDir.exists(m_configPath)) {
-        configDir.mkpath(m_configPath);
+    if (!configDir.exists(g_configPath)) {
+        configDir.mkpath(g_configPath);
     }
 
     // 构建配置文件路径
-    QString configFile = m_configPath + "/network.json";
+    QString configFile = g_configPath + "/network.json";
 
     QJsonObject rootObj;
     rootObj["version"] = "1.0";
