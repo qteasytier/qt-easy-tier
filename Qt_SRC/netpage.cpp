@@ -34,10 +34,10 @@ NetPage::NetPage(QWidget *parent)
     initRunningStatePage();      // 初始化运行状态页面
     initWorkerThread();          // 初始化Worker线程
 
-    ui->useWebBtn->setToolTip(tr("使用Web控制台管理该进程，请先前往首页打开Web控制台\n"
+    ui->useWebBox->setToolTip(tr("使用Web控制台管理该进程，请先前往首页打开Web控制台\n"
                     "警告：只应有一个进程被 Web 控制台管理，否则可能会导致奇怪的问题。"));
-    connect(ui->useWebBtn, &QPushButton::clicked, this, [this]() {
-        if (ui->useWebBtn->isChecked()) {
+    connect(ui->useWebBox, &QPushButton::clicked, this, [this]() {
+        if (ui->useWebBox->isChecked()) {
             // 不允许使用设置界面和运行状态页面
             ui->primerSet->setEnabled(false);
             ui->advancedSet->setEnabled(false);
@@ -1278,7 +1278,7 @@ void NetPage::onRunNetwork()
 
     try {
         QStringList arguments;
-        if (ui->useWebBtn->isChecked()) {
+        if (ui->useWebBox->isChecked()) {
             // 获取 Web 控制台配置
             const WebConsoleConfig webConfig = getWebConsoleConfig();
             

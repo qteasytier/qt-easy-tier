@@ -10,6 +10,13 @@
 #include <QNetworkAccessManager>
 #include "generateconf.h"  // 包含 WebConsoleConfig 定义
 
+// 配置保存路径
+#if SAVE_CONF_IN_APP_DIR == true
+static const QString g_configPath = QApplication::applicationDirPath() + "/config";
+#else
+static const QString g_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+#endif
+
 namespace Ui {
 class setting;
 }
@@ -115,7 +122,7 @@ public:
     [[nodiscard]] bool isAutoUpdate() const { return m_autoUpdate; }
 
     /// @brief 获取配置保存路径
-    [[nodiscard]] QString getConfigPath() const { return m_configPath; }
+    [[nodiscard]] QString getConfigPath() const { return g_configPath; }
 
     /// @brief 是否应该弹出赞助窗口
     /// @return 当启动次数达到阈值且未弹出过赞助窗口时返回 true
@@ -128,9 +135,8 @@ public:
     [[nodiscard]] int getLogRetentionDays() const { return m_logRetentionDays; }
 
     /// @brief 清理过期日志文件
-    /// @param retentionDays 保留天数，0 表示清理所有日志
     /// @return 清理的文件数量
-    static int cleanupOldLogs(int retentionDays);
+    static int cleanupOldLogs();
 
     /// @brief 清空所有日志文件
     /// @return 清理的文件数量
@@ -191,13 +197,6 @@ private:
 
 private:
     Ui::setting *ui;
-
-    // 配置保存路径
-#if SAVE_CONF_IN_APP_DIR == true
-    const QString m_configPath = QApplication::applicationDirPath() + "/config";
-#else
-    const QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-#endif
 
     // === 设置项 ===
     bool m_autoRun = false;       // 自动回连

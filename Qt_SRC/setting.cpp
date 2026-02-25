@@ -558,8 +558,8 @@ void Settings::onNetworkReplyFinished(bool isFromInternal)
 
 void Settings::loadSettings()
 {
-    QDir().mkpath(m_configPath);
-    QString settingsFile = m_configPath + "/settings.json";
+    QDir().mkpath(g_configPath);
+    QString settingsFile = g_configPath + "/settings.json";
 
     QFile file(settingsFile);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -600,7 +600,7 @@ void Settings::loadSettings()
 
 void Settings::saveSettings()
 {
-    QString settingsFile = m_configPath + "/settings.json";
+    QString settingsFile = g_configPath + "/settings.json";
 
     QJsonObject settings;
     settings["autoRun"] = m_autoRun;
@@ -734,21 +734,41 @@ QString Settings::getLogDirPath()
     return QCoreApplication::applicationDirPath() + "/log";
 }
 
-int Settings::cleanupOldLogs(int retentionDays)
+int Settings::cleanupOldLogs()
 {
-    QString logDirPath = getLogDirPath();
-    QDir logDir(logDirPath);
+    // 清理过期日志文件
+    // 先加载设置获取日志保存天数
+    if (!QDir().mkpath(g_configPath))
+    {
+        std::cerr << "Can not create config directory." << std::endl;
+    }
+    QString settingsFile = g_configPath + "/settings.json";
+    int logRetentionDays = 7;  // 默认7天
+
+    QFile file(settingsFile);
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray data = file.readAll();
+        file.close();
+        auto doc = QJsonDocument::fromJson(data);
+        if (!doc.isNull() && doc.isObject())
+        {
+            logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
+        }
+    }
+
+    const QString &logDirPath = getLogDirPath();
+    const QDir logDir(logDirPath);
     
     if (!logDir.exists()) {
         return 0;
     }
     
     // 如果 retentionDays 为 0，清理所有日志
-    if (retentionDays <= 0) {
+    if (logRetentionDays <= 0) {
         return clearAllLogs();
     }
     
-    QDateTime cutoffDate = QDateTime::currentDateTime().addDays(-retentionDays);
+    const QDateTime cutoffDate = QDateTime::currentDateTime().addDays(-logRetentionDays);
     int deletedCount = 0;
     
     // 日志文件名格式：yyyyMMdd_HHmmss_Base32编码的网络名.log
@@ -763,12 +783,8 @@ int Settings::cleanupOldLogs(int retentionDays)
         QString timestampStr = fileName.left(15);
         QDateTime fileDateTime = QDateTime::fromString(timestampStr, "yyyyMMdd_HHmmss");
         
-        if (!fileDateTime.isValid()) {
-            continue;
-        }
-        
-        // 如果文件时间早于截止日期，删除
-        if (fileDateTime < cutoffDate) {
+        // 如果文件名格式错误或时间早于截止日期，删除
+        if (!fileDateTime.isValid() || fileDateTime < cutoffDate) {
             QString filePath = logDir.filePath(fileName);
             if (QFile::remove(filePath)) {
                 deletedCount++;
