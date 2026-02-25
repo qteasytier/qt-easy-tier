@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QRegularExpressionValidator>
+#include <QIntValidator>
 #include <QMessageBox>
 #include <QGridLayout>
 #include <QPlainTextEdit>
@@ -22,6 +23,7 @@
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QProgressBar>
+#include <QStandardPaths>
 
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
@@ -33,21 +35,7 @@ NetPage::NetPage(QWidget *parent)
     initRunningLogWindow();      // 初始化运行日志窗口
     initRunningStatePage();      // 初始化运行状态页面
     initWorkerThread();          // 初始化Worker线程
-
-    ui->useWebBox->setToolTip(tr("使用Web控制台管理该进程，请先前往首页打开Web控制台\n"
-                    "警告：只应有一个进程被 Web 控制台管理，否则可能会导致奇怪的问题。"));
-    connect(ui->useWebBox, &QPushButton::clicked, this, [this]() {
-        if (ui->useWebBox->isChecked()) {
-            // 不允许使用设置界面和运行状态页面
-            ui->primerSet->setEnabled(false);
-            ui->advancedSet->setEnabled(false);
-            ui->runningState->setEnabled(false);
-        } else {
-            ui->primerSet->setEnabled(true);
-            ui->advancedSet->setEnabled(true);
-            ui->runningState->setEnabled(true);
-        }
-    });
+    initOtherSettingsPage();     // 初始化其他设置页面
 
     // 连接运行网络按钮的点击事件
     connect(ui->startPushButton, &QPushButton::clicked, this, &NetPage::onRunNetwork);
@@ -60,6 +48,9 @@ NetPage::~NetPage()
 {
     // 清理Worker线程
     cleanupWorkerThread();
+
+    // 清理临时配置文件
+    cleanupTempConfigFile();
 
     // 清理启动过程对话框
     if (m_processDialog) {
@@ -241,6 +232,8 @@ void NetPage::initServerManagement()
     m_removeServerBtn->setEnabled(false);
 
     // 默认添加EasyTier公共服务器地址
+    m_serverListWidget->addItem("txt://qtet-public.070219.xyz");
+    m_serverListWidget->addItem("txt://qtet-public2.070219.xyz");
     m_serverListWidget->addItem("tcp://public.easytier.top:11010");
 
     // 公共服务器和服务器帮助按钮
@@ -480,6 +473,14 @@ void NetPage::initAdvancedSettings()
     m_rpcPortEdit->setText("0"); // 默认值设为0
     m_rpcPortEdit->setValidator(new QIntValidator(0, 65535, m_rpcPortEdit)); // 限制输入0-65535的端口号
     connect(m_rpcPortEdit, &QLineEdit::textChanged, this, &NetPage::onRpcPortTextChanged);
+    // 同步到配置文件模式的 RPC 端口输入框
+    connect(m_rpcPortEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
+        if (m_confRpcPortEdit) {
+            m_confRpcPortEdit->blockSignals(true);
+            m_confRpcPortEdit->setText(text);
+            m_confRpcPortEdit->blockSignals(false);
+        }
+    });
 
     // 初始化监听地址管理组件
     initListenAddrManagement();
@@ -1265,35 +1266,128 @@ void NetPage::onRunNetwork()
     // 跳转到运行状态窗口
     ui->netTabWidget->setCurrentWidget(ui->runningState);
 
-    // 清理之前的日志
+    // 清理之前的日志和临时配置文件
     m_logTextEdit->clear();
+    cleanupTempConfigFile();
     m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络..."));
 
     // 准备EasyTier程序
     QString appDir, easytierPath;
     if (!prepareEasyTierProgram(appDir, easytierPath)) {
+        closeProcessDialog();
         updateUIState(false);
         return;
     }
 
     try {
         QStringList arguments;
-        if (ui->useWebBox->isChecked()) {
-            // 获取 Web 控制台配置
-            const WebConsoleConfig webConfig = getWebConsoleConfig();
-            
-            // 构建 Web 管理参数
-            QString protocol = webConfig.getConfigProtocolString();
-            QString webArg = QString("%1://127.0.0.1:%2/admin").arg(protocol).arg(webConfig.configPort);
-            
-            // 如果有 Core 连接地址，添加连接参数
-            if (!webConfig.coreConnectAddress.isEmpty()) {
-                // 连接到指定的 Core 地址
-                webArg = webConfig.coreConnectAddress;
+        QString networkName = getNetworkName();
+
+        switch (m_startMode) {
+        case StartMode::WebConsole: {
+            // Web 控制台管理模式
+            m_logTextEdit->appendPlainText(tr("启动模式: Web 控制台管理"));
+
+            // 获取连接地址
+            QString webArg;
+            if (ui->connectToLocalBox->isChecked()) {
+                // 连接到本地控制台
+                const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();
+                QString protocol = webConfig.getConfigProtocolString();
+                webArg = QString("%1://127.0.0.1:%2/admin").arg(protocol).arg(webConfig.configPort);
+            } else if (m_webConnectAddrEdit && !m_webConnectAddrEdit->text().isEmpty()) {
+                // 使用自定义连接地址
+                webArg = m_webConnectAddrEdit->text().trimmed();
+            } else {
+                closeProcessDialog();
+                m_logTextEdit->appendPlainText(tr("错误: 未指定Web控制台连接地址"));
+                QMessageBox::warning(this, tr("警告"), tr("请输入Web控制台连接地址或勾选连接到本地控制台"));
+                updateUIState(false);
+                return;
             }
             arguments << "-w" << webArg;
-        } else {
+            // Web 控制台管理模式不需要 CLI 监测
+            realRpcPort = NO_USE_CLI;
+            break;
+        }
+        case StartMode::ConfigFile: {
+            // 配置文件启动模式
+            m_logTextEdit->appendPlainText(tr("启动模式: 配置文件启动"));
+
+            // 准备配置文件路径
+            QString configFilePath;
+            if (m_configSource == ConfigSource::SelectFile) {
+                // 选择文件模式：直接使用所选文件
+                configFilePath = m_configFilePathEdit->text().trimmed();
+                if (configFilePath.isEmpty()) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: 未选择配置文件"));
+                    QMessageBox::warning(this, tr("警告"), tr("请选择配置文件"));
+                    updateUIState(false);
+                    return;
+                }
+                if (!QFile::exists(configFilePath)) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: 配置文件不存在"));
+                    QMessageBox::warning(this, tr("警告"), tr("配置文件不存在"));
+                    updateUIState(false);
+                    return;
+                }
+            } else {
+                // 下方输入模式：创建临时配置文件
+                if (!createTempConfigFile(networkName.isEmpty() ? "default" : networkName)) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: 创建临时配置文件失败"));
+                    QMessageBox::warning(this, tr("警告"), tr("创建临时配置文件失败"));
+                    updateUIState(false);
+                    return;
+                }
+                configFilePath = m_tempConfigFilePath;
+            }
+
+            arguments << "-c" << configFilePath;
+
+            // 处理 RPC 端口配置（与常规启动逻辑一致）
+            const int &rpcPort = getRpcPort();  // 从 m_rpcPortEdit 获取值
+            if (rpcPort != 0 && !m_autoRpcCheckBox->isChecked()) {
+                // 用户指定端口，检查是否被占用
+                if (isPortOccupied(rpcPort)) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: RPC 端口 %1 已被占用").arg(rpcPort));
+                    QMessageBox::warning(this, tr("警告"), tr("RPC 端口 %1 已被占用，请更换端口").arg(rpcPort));
+                    updateUIState(false);
+                    return;
+                }
+                realRpcPort = rpcPort;
+                arguments << "--rpc-portal" << QString::number(rpcPort);
+                m_logTextEdit->appendPlainText(tr("RPC 端口: %1 (手动配置)").arg(rpcPort));
+            } else {
+                // 自动分配端口，循环找到一个未被占用的端口
+                for (int i = 10000; i < 50000; i++) {
+                    int port = getRandomPort();
+                    if (!isPortOccupied(port)) {
+                        realRpcPort = port;
+                        arguments << "--rpc-portal" << QString::number(port);
+                        m_logTextEdit->appendPlainText(tr("RPC 端口: %1 (自动分配)").arg(port));
+                        break;
+                    }
+                }
+                if (realRpcPort == 0) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: 无法找到可用的 RPC 端口"));
+                    QMessageBox::warning(this, tr("警告"), tr("无法找到可用的 RPC 端口"));
+                    updateUIState(false);
+                    return;
+                }
+            }
+            break;
+        }
+        case StartMode::Normal:
+        default:
+            // 常规管理模式
+            m_logTextEdit->appendPlainText(tr("启动模式: 常规管理"));
             arguments = generateConfCommand(this);
+            break;
         }
 
         m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
@@ -1301,7 +1395,7 @@ void NetPage::onRunNetwork()
         // 通过信号槽调用Worker的startEasyTier方法
         QMetaObject::invokeMethod(m_worker, "startEasyTier",
                                   Qt::QueuedConnection,
-                                  Q_ARG(QString, getNetworkName()),
+                                  Q_ARG(QString, networkName),
                                   Q_ARG(QStringList, arguments),
                                   Q_ARG(QString, appDir),
                                   Q_ARG(QString, easytierPath),
@@ -1357,12 +1451,29 @@ bool NetPage::isRunning() const
 // 更新UI状态
 void NetPage::updateUIState(bool isRunning)
 {
+    // 提示信息
+    const QString runningTooltip = tr("网络正在运行中，设置不可更改");
+
     if (isRunning) {
         ui->startPushButton->setText(tr("运行中"));
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
         ui->startPushButton->setEnabled(true);
         m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
-        ui->runningState->setEnabled(true);
+        if (m_startMode == StartMode::WebConsole){
+            ui->runningState->setEnabled(false);
+        } else
+        {
+            ui->runningState->setEnabled(true);
+        }
+
+        // 禁用三个设置页面并添加 tooltip
+        ui->primerSet->setEnabled(false);
+        ui->primerSet->setToolTip(runningTooltip);
+        ui->advancedSet->setEnabled(false);
+        ui->advancedSet->setToolTip(runningTooltip);
+        ui->otherSet->setEnabled(false);
+        ui->otherSet->setToolTip(runningTooltip);
+
     } else {
         ui->startPushButton->setStyleSheet("");
         ui->startPushButton->setText(tr("运行网络"));
@@ -1373,6 +1484,17 @@ void NetPage::updateUIState(bool isRunning)
             m_peerTable->setRowCount(0);
         }
         ui->runningState->setEnabled(false);
+
+        // 启用三个设置页面并清除 tooltip
+        ui->primerSet->setEnabled(true);
+        ui->primerSet->setToolTip("");
+        ui->advancedSet->setEnabled(true);
+        ui->advancedSet->setToolTip("");
+        ui->otherSet->setEnabled(true);
+        ui->otherSet->setToolTip("");
+
+        // 恢复其他设置页面的启动方式状态
+        updateStartModeState();
     }
 }
 
@@ -1469,6 +1591,9 @@ void NetPage::onWorkerProcessStarted(bool success, const QString& errorMessage)
 
 void NetPage::onWorkerProcessStopped(bool success)
 {
+    // 清理临时配置文件
+    cleanupTempConfigFile();
+
     updateUIState(false);
     emit networkFinished();
 
@@ -1771,6 +1896,29 @@ QJsonObject NetPage::getNetworkConfig() const
     advancedSettings["cidrList"] = cidrList;
 
     config["advancedSettings"] = advancedSettings;
+
+    // 其他设置页面配置
+    QJsonObject otherSettings;
+    otherSettings["startMode"] = static_cast<int>(m_startMode);
+    otherSettings["configSource"] = static_cast<int>(m_configSource);
+
+    // Web 控制台连接地址
+    if (m_webConnectAddrEdit) {
+        otherSettings["webConnectAddress"] = m_webConnectAddrEdit->text();
+    }
+    otherSettings["connectToLocal"] = ui->connectToLocalBox->isChecked();
+
+    // 配置文件内容
+    if (m_configTextEdit) {
+        otherSettings["configContent"] = m_configTextEdit->toPlainText();
+    }
+
+    // 配置文件路径
+    if (m_configFilePathEdit) {
+        otherSettings["configFilePath"] = m_configFilePathEdit->text();
+    }
+
+    config["otherSettings"] = otherSettings;
     config["isActive"] = isRunning(); // 记录当前是否处于激活运行状态
 
     return config;
@@ -1907,5 +2055,376 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
                 m_cidrListWidget->addItem(cidrValue.toString());
             }
         }
+    }
+
+    if (config.contains("otherSettings") && config["otherSettings"].isObject()) {
+        QJsonObject otherSettings = config["otherSettings"].toObject();
+
+        // 启动方式
+        if (otherSettings.contains("startMode")) {
+            int mode = otherSettings["startMode"].toInt(0);
+            m_startMode = static_cast<StartMode>(mode);
+            updateStartModeState();
+        }
+
+        // Web 控制台连接地址
+        if (otherSettings.contains("webConnectAddress")) {
+            if (m_webConnectAddrEdit) {
+                m_webConnectAddrEdit->setText(otherSettings["webConnectAddress"].toString());
+            }
+        }
+
+        // 连接到本地控制台
+        if (otherSettings.contains("connectToLocal")) {
+            ui->connectToLocalBox->setChecked(otherSettings["connectToLocal"].toBool());
+        }
+
+        // 配置文件来源
+        if (otherSettings.contains("configSource")) {
+            int source = otherSettings["configSource"].toInt(0);
+            m_configSource = static_cast<ConfigSource>(source);
+            ui->confSourceBox->setCurrentIndex(source);
+            updateConfigSourceUI();
+        }
+
+        // 配置文件内容
+        if (otherSettings.contains("configContent")) {
+            if (m_configTextEdit) {
+                m_configTextEdit->setPlainText(otherSettings["configContent"].toString());
+            }
+        }
+
+        // 配置文件路径
+        if (otherSettings.contains("configFilePath")) {
+            if (m_configFilePathEdit) {
+                m_configFilePathEdit->setText(otherSettings["configFilePath"].toString());
+            }
+        }
+    }
+}
+
+// =====================其他设置页面相关===================
+
+void NetPage::initOtherSettingsPage()
+{
+    // 设置工具提示
+    ui->useWebBox->setToolTip(tr("使用 Web 控制台管理该进程，请先前往首页打开 Web 控制台\n"
+                    "警告：只应有一个进程被本地 Web 控制台管理，否则可能会导致奇怪的问题。"));
+    ui->connectToLocalBox->setToolTip(tr("勾选后连接到本地 Web 控制台的 admin 用户\n"
+                    "如需连接其他用户，请手动输入完整“地址/用户名”格式信息"));
+    ui->useConfFileBox->setToolTip(tr("通过 TOML 配置文件启动 EasyTier 核心"));
+
+    // 创建 Web 控制台连接地址输入框（放在 formWidget 中）
+    m_webConnectAddrEdit = ui->webDashboardAddrEdit;
+    m_webConnectAddrEdit->setPlaceholderText(tr("例：udp://qtet.example.cn/firefly"));
+    m_webConnectAddrEdit->setObjectName("webConnectAddrEdit");
+
+    // 初始化 RPC 端口相关控件（使用 UI 文件中的控件）
+    // 配置文件模式的 RPC 端口输入框与高级设置中的 m_rpcPortEdit 共用同一个值
+    // 这里 m_confRpcPortEdit 只是显示和编辑，实际值存储在 m_rpcPortEdit 中
+    m_autoRpcCheckBox = ui->autoRpcBox;
+    m_confRpcPortEdit = ui->confRpcPortEdit;
+    // 设置 RPC 端口输入框的验证器（0-65535，0表示自动分配）
+    m_confRpcPortEdit->setValidator(new QIntValidator(0, 65535, this));
+    m_confRpcPortEdit->setPlaceholderText(tr("0 表示自动分配"));
+    // 默认勾选自动配置
+    m_autoRpcCheckBox->setChecked(true);
+    m_confRpcPortEdit->setEnabled(false);  // 自动模式下禁用输入
+
+    // 创建配置文件文本编辑框
+    m_configTextEdit = new QPlainTextEdit(this);
+    m_configTextEdit->setPlaceholderText(tr("在此输入TOML配置内容..."));
+    m_configTextEdit->setPlainText(getDefaultConfigContent());
+    m_configTextEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+    m_configTextEdit->setStyleSheet("font-family: Consolas, 'Courier New', monospace; font-size: 12px;");
+    // 禁用滚动条，让外层 QScrollArea 处理滚动
+    m_configTextEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // 设置高度可以无限延展
+    m_configTextEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    m_configTextEdit->setMinimumHeight(150);
+
+    // 创建配置文件路径输入框
+    m_configFilePathEdit = new QLineEdit(this);
+    m_configFilePathEdit->setPlaceholderText(tr("请选择配置文件..."));
+    m_configFilePathEdit->setReadOnly(true);
+
+    // 创建选择配置文件按钮
+    m_selectConfigFileBtn = new QPushButton(tr("选择文件"), this);
+    m_selectConfigFileBtn->setMinimumWidth(80);
+
+    // 将控件添加到 confGroupBox 的布局中
+    QVBoxLayout *confLayout = qobject_cast<QVBoxLayout*>(ui->confGroupBox->layout());
+    if (confLayout) {
+        // 添加配置文件文本编辑框（用于下方输入）
+        confLayout->addWidget(m_configTextEdit, 1, Qt::AlignTop);
+
+        // 创建文件选择行的容器
+        QWidget *fileSelectWidget = new QWidget(this);
+        fileSelectWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        QHBoxLayout *fileSelectLayout = new QHBoxLayout(fileSelectWidget);
+        fileSelectLayout->setContentsMargins(0, 0, 0, 0);
+        fileSelectLayout->addWidget(m_configFilePathEdit, 1);
+        fileSelectLayout->addWidget(m_selectConfigFileBtn);
+        confLayout->addWidget(fileSelectWidget, 1, Qt::AlignTop);
+    }
+
+    // 连接信号槽
+    connect(ui->useWebBox, &QCheckBox::checkStateChanged, this, &NetPage::onUseWebBoxChanged);
+    connect(ui->useConfFileBox, &QCheckBox::checkStateChanged, this, &NetPage::onUseConfFileBoxChanged);
+    connect(ui->connectToLocalBox, &QCheckBox::checkStateChanged, this, &NetPage::onConnectToLocalBoxChanged);
+    connect(ui->confSourceBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &NetPage::onConfSourceBoxChanged);
+    connect(m_selectConfigFileBtn, &QPushButton::clicked, this, &NetPage::onSelectConfigFileClicked);
+    // 文本内容变化时动态调整高度
+    connect(m_configTextEdit, &QPlainTextEdit::textChanged, this, &NetPage::onConfigTextChanged);
+    // 自动配置 RPC 端口复选框状态变化
+    connect(m_autoRpcCheckBox, &QCheckBox::checkStateChanged, this, &NetPage::onAutoRpcBoxChanged);
+    // 配置文件模式的 RPC 端口输入框文本变化时，同步到 m_rpcPortEdit
+    connect(m_confRpcPortEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
+        if (m_rpcPortEdit) {
+            m_rpcPortEdit->blockSignals(true);
+            m_rpcPortEdit->setText(text);
+            m_rpcPortEdit->blockSignals(false);
+        }
+    });
+
+    // 初始化UI状态
+    updateStartModeState();
+    updateConfigSourceUI();
+    // 初始化文本编辑框高度
+    onConfigTextChanged();
+}
+
+void NetPage::onUseWebBoxChanged(int state)
+{
+    if (state == Qt::Checked) {
+        m_startMode = StartMode::WebConsole;
+    } else if (!ui->useConfFileBox->isChecked()) {
+        m_startMode = StartMode::Normal;
+    }
+    updateStartModeState();
+}
+
+void NetPage::onUseConfFileBoxChanged(int state)
+{
+    if (state == Qt::Checked) {
+        m_startMode = StartMode::ConfigFile;
+    } else if (!ui->useWebBox->isChecked()) {
+        m_startMode = StartMode::Normal;
+    }
+    updateStartModeState();
+}
+
+void NetPage::onConnectToLocalBoxChanged(int state)
+{
+    // 连接到本地控制台时，禁用连接地址输入框
+    if (m_webConnectAddrEdit) {
+        m_webConnectAddrEdit->setEnabled(state != Qt::Checked);
+    }
+}
+
+void NetPage::onAutoRpcBoxChanged(int state)
+{
+    if (state == Qt::Checked) {
+        // 自动配置：禁用输入框
+        //m_confRpcPortEdit->setText("0");
+        m_confRpcPortEdit->setEnabled(false);
+    } else {
+        // 手动配置：启用输入框，允许用户输入端口号
+        m_confRpcPortEdit->setEnabled(true);
+    }
+}
+
+void NetPage::onConfSourceBoxChanged(int index)
+{
+    m_configSource = static_cast<ConfigSource>(index);
+    updateConfigSourceUI();
+}
+
+void NetPage::onSelectConfigFileClicked()
+{
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("选择配置文件"),
+        QDir::homePath(),
+        tr("TOML 配置文件 (*.toml);;所有文件 (*)")
+    );
+
+    if (!fileName.isEmpty()) {
+        m_configFilePathEdit->setText(fileName);
+        
+        // 读取文件内容并显示在文本编辑框中
+        QFile file(fileName);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            m_configTextEdit->setPlainText(QString::fromUtf8(file.readAll()));
+            file.close();
+        } else {
+            QMessageBox::warning(this, tr("警告"), tr("无法读取配置文件: %1").arg(file.errorString()));
+        }
+    }
+}
+
+void NetPage::onConfigTextChanged()
+{
+    // 动态调整文本编辑框高度，让外层 QScrollArea 处理滚动
+    if (!m_configTextEdit) return;
+    
+    // 获取文档高度
+    QFontMetrics fm(m_configTextEdit->font());
+    int lineSpacing = fm.lineSpacing();
+    int lineCount = m_configTextEdit->document()->lineCount();
+    // 文档内容高度 + 边距
+    int docHeight = lineCount * lineSpacing + 50;
+    // 设置最小高度，确保足够显示内容
+    m_configTextEdit->setMinimumHeight(qMax(150, docHeight));
+}
+
+void NetPage::updateStartModeState()
+{
+    // 根据当前启动方式更新 UI 状态
+    const bool useWeb = (m_startMode == StartMode::WebConsole);
+    const bool useConfig = (m_startMode == StartMode::ConfigFile);
+
+    // 提示信息
+    const QString &webTooltip = tr("正在使用Web控制台管理");
+    const QString &configTooltip = tr("正在使用配置文件管理");
+
+    // 更新复选框状态（避免信号循环）
+    ui->useWebBox->blockSignals(true);
+    ui->useConfFileBox->blockSignals(true);
+    ui->useWebBox->setChecked(useWeb);
+    ui->useConfFileBox->setChecked(useConfig);
+    ui->useWebBox->blockSignals(false);
+    ui->useConfFileBox->blockSignals(false);
+
+    // 禁用互斥的选项并添加 tooltip
+    ui->webGroupBox->setEnabled(!useConfig);
+    ui->webGroupBox->setToolTip(useConfig ? configTooltip : "");
+    ui->confGroupBox->setEnabled(!useWeb);
+    ui->confGroupBox->setToolTip(useWeb ? webTooltip : "");
+
+    // 基础设置和高级设置的启用状态及 tooltip
+    ui->primerSet->setEnabled(!useWeb && !useConfig);
+    ui->primerSet->setToolTip(useWeb ? webTooltip : (useConfig ? configTooltip : ""));
+    ui->advancedSet->setEnabled(!useWeb && !useConfig);
+    ui->advancedSet->setToolTip(useWeb ? webTooltip : (useConfig ? configTooltip : ""));
+
+    if (m_confRpcPortEdit) {
+        // 同步 m_rpcPortEdit 的值到 m_confRpcPortEdit
+        if (m_rpcPortEdit) {
+            m_confRpcPortEdit->blockSignals(true);
+            m_confRpcPortEdit->setText(m_rpcPortEdit->text());
+            m_confRpcPortEdit->blockSignals(false);
+        }
+        // 根据自动配置复选框状态决定是否启用输入框
+        m_confRpcPortEdit->setEnabled(useConfig && m_autoRpcCheckBox && !m_autoRpcCheckBox->isChecked());
+    }
+}
+
+void NetPage::updateConfigSourceUI()
+{
+    const bool isInput = (m_configSource == ConfigSource::Input);
+
+    // 显示/隐藏相应的控件
+    if (m_configTextEdit) {
+        m_configTextEdit->setVisible(isInput);
+    }
+    if (m_configFilePathEdit) {
+        m_configFilePathEdit->setVisible(!isInput);
+    }
+    if (m_selectConfigFileBtn) {
+        m_selectConfigFileBtn->setVisible(!isInput);
+    }
+}
+
+QString NetPage::getDefaultConfigContent() const
+{
+    return {R"(hostname = "YourNodeName"   # 节点名称，可自定义
+dhcp = true
+listeners = [
+    "tcp://0.0.0.0:11010",
+    "udp://0.0.0.0:11010",
+]      # 监听端口
+
+[network_identity]
+network_name = "你的网络名称"
+network_secret = "你的网络密钥"
+
+[[peer]]
+uri = "txt://qtet-public.070219.xyz"
+
+[flags]
+latency_first = true   # 低延迟模式
+private_mode = true    # 私有模式
+)"};
+}
+
+bool NetPage::createTempConfigFile(const QString& networkName)
+{
+    // 选择文件模式：直接使用所选文件路径，不创建临时文件
+    if (m_configSource == ConfigSource::SelectFile) {
+        if (!m_configFilePathEdit || m_configFilePathEdit->text().isEmpty()) {
+            m_logTextEdit->appendPlainText(tr("错误: 未选择配置文件"));
+            return false;
+        }
+        
+        QString filePath = m_configFilePathEdit->text();
+        if (!QFile::exists(filePath)) {
+            m_logTextEdit->appendPlainText(tr("错误: 配置文件不存在: %1").arg(filePath));
+            return false;
+        }
+        
+        // 直接使用所选文件路径
+        m_tempConfigFilePath.clear();  // 清空，表示没有临时文件需要清理
+        m_logTextEdit->appendPlainText(tr("使用配置文件: %1").arg(filePath));
+        return true;
+    }
+    
+    // 下方输入模式：创建临时配置文件
+    QString base32Name = base32Encode(networkName.toUtf8());
+    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    
+    // 确保临时目录存在
+    if (!QDir().mkpath(tempDir)) {
+        m_logTextEdit->appendPlainText(tr("无法创建临时目录: %1").arg(tempDir));
+        return false;
+    }
+    
+    m_tempConfigFilePath = QString("%1/QtEasyTier_%2.toml").arg(tempDir, base32Name);
+    
+    // 获取配置内容
+    QString configContent;
+    if (m_configTextEdit) {
+        configContent = m_configTextEdit->toPlainText();
+    }
+    
+    if (configContent.trimmed().isEmpty()) {
+        m_logTextEdit->appendPlainText(tr("错误: 配置内容为空"));
+        return false;
+    }
+    
+    // 写入临时配置文件
+    QFile tempFile(m_tempConfigFilePath);
+    if (!tempFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_logTextEdit->appendPlainText(tr("无法创建临时配置文件: %1").arg(tempFile.errorString()));
+        return false;
+    }
+    
+    tempFile.write(configContent.toUtf8());
+    tempFile.close();
+    
+    m_logTextEdit->appendPlainText(tr("已创建临时配置文件: %1").arg(m_tempConfigFilePath));
+    return true;
+}
+
+void NetPage::cleanupTempConfigFile()
+{
+    if (!m_tempConfigFilePath.isEmpty()) {
+        QFile file(m_tempConfigFilePath);
+        if (file.exists()) {
+            if (file.remove()) {
+                m_logTextEdit->appendPlainText(tr("已清理临时配置文件: %1").arg(m_tempConfigFilePath));
+            }
+        }
+        m_tempConfigFilePath.clear();
     }
 }

@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>350</height>
+    <height>320</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>500</width>
-    <height>350</height>
+    <height>320</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -439,87 +439,18 @@
           <property name="spacing">
            <number>9</number>
           </property>
-          <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
-           <widget class="QLineEdit" name="confSendEdit">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>55668</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight">
-           <widget class="QLabel" name="label_7">
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>控制台前端端口：</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4">
-           <widget class="QComboBox" name="configProtocolBox">
+          <item row="1" column="3" alignment="Qt::AlignmentFlag::AlignHCenter">
+           <widget class="QCheckBox" name="isUseLocalApiBox">
             <property name="font">
              <font>
               <pointsize>10</pointsize>
              </font>
             </property>
-            <item>
-             <property name="text">
-              <string>UDP</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>TCP</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>WebSocket</string>
-             </property>
-            </item>
-           </widget>
-          </item>
-          <item row="2" column="2" colspan="3">
-           <widget class="QLineEdit" name="apiAddrEdit">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="placeholderText">
-             <string>例：http://qtet.example.cn:55667</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight">
-           <widget class="QLabel" name="label_9">
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
             <property name="text">
-             <string>配置下发端口：</string>
+             <string>使用本地API地址</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -547,6 +478,72 @@
             </property>
            </widget>
           </item>
+          <item row="0" column="3">
+           <widget class="QComboBox" name="configProtocolBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <item>
+             <property name="text">
+              <string>UDP</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>TCP</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>WebSocket</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+           <widget class="QLabel" name="label_9">
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>配置下发端口：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+           <widget class="QLabel" name="label_7">
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>控制台前端端口：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+           <widget class="QLineEdit" name="confSendEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>55668</string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight">
            <widget class="QLabel" name="label_8">
             <property name="font">
@@ -562,38 +559,8 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="4" alignment="Qt::AlignmentFlag::AlignHCenter">
-           <widget class="QCheckBox" name="isUseLocalApiBox">
-            <property name="font">
-             <font>
-              <pointsize>10</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>使用本地API地址</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1" alignment="Qt::AlignmentFlag::AlignRight">
-           <widget class="QLabel" name="label_6">
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;协议为 tcp, udp 或 ws ，端口为配置下发端口&lt;br&gt;格式：地址/用户名，如udp://qt.example.cn:55668/firefly&lt;br&gt;只填用户名连接到 EasyTier 官方地址（不一定可用）&lt;br&gt;留空则连接到本地的配置下发端口地址的admin用户&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Core连接地址：</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2" colspan="3">
-           <widget class="QLineEdit" name="coreConnectAddrEdit">
+          <item row="2" column="2" colspan="2">
+           <widget class="QLineEdit" name="apiAddrEdit">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -605,14 +572,8 @@
               <pointsize>12</pointsize>
              </font>
             </property>
-            <property name="statusTip">
-             <string/>
-            </property>
-            <property name="inputMask">
-             <string/>
-            </property>
             <property name="placeholderText">
-             <string>留空连接到本地地址的admin用户</string>
+             <string>例：http://qtet.example.cn:55667</string>
             </property>
            </widget>
           </item>

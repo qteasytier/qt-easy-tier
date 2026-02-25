@@ -34,6 +34,9 @@ constexpr int PROCESS_KILL_WAIT_MS = 5000;
 /// 最大日志显示行数
 constexpr int MAX_LOG_LINES = 1000;
 
+/// 不启动cli进程时应该传入的假RPC端口号
+constexpr int NO_USE_CLI = -1;
+
 class NetPage;  // 前向声明
 
 class EasyTierWorker : public QObject
@@ -72,7 +75,7 @@ public slots:
     /// @param easytierPath EasyTier可执行文件路径
     /// @param rpcPort RPC端口号
     void startEasyTier(const QString& networkName, const QStringList& arguments,
-                       const QString& appDir, const QString& easytierPath, int rpcPort);
+                       const QString& appDir, const QString& easytierPath, const int &rpcPort);
 
     /// @brief 停止EasyTier进程
     void stopEasyTier();

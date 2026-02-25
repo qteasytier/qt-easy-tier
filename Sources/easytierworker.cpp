@@ -37,7 +37,7 @@ bool EasyTierWorker::isRunning() const
 }
 
 void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList& arguments,
-                                   const QString& appDir, const QString& easytierPath, int rpcPort)
+                                   const QString& appDir, const QString& easytierPath, const int &rpcPort)
 {
     // 如果进程已经在运行，先停止
     if (isRunning()) {
@@ -95,8 +95,12 @@ void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList
     emit logOutput(tr("EasyTier进程启动成功"), false);
     setProcessState(ProcessState::Running);
 
-    // 启动CLI定时器
-    startCliTimer();
+    // 如果 RPC 端口不是 NO_USE_CLI，则启动 CLI 定时器
+    if (m_rpcPort != NO_USE_CLI) {
+        startCliTimer();
+    } else {
+        emit logOutput(tr("未配置 RPC 端口，不启动 CLI 监测"), false);
+    }
 
     emit processStarted(true, QString());
 }

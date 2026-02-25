@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>596</width>
-    <height>439</height>
+    <width>628</width>
+    <height>493</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -29,7 +29,7 @@
    <item>
     <widget class="QTabWidget" name="netTabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="primerSet">
       <attribute name="title">
@@ -71,8 +71,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>564</width>
-            <height>340</height>
+            <width>596</width>
+            <height>394</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -111,11 +111,17 @@
               <item>
                <widget class="QWidget" name="gridWidget" native="true">
                 <layout class="QGridLayout" name="gridLayout">
+                 <property name="leftMargin">
+                  <number>9</number>
+                 </property>
                  <property name="topMargin">
-                  <number>5</number>
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>9</number>
                  </property>
                  <property name="bottomMargin">
-                  <number>5</number>
+                  <number>2</number>
                  </property>
                  <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignLeft">
                   <widget class="QCheckBox" name="useWebBox">
@@ -148,7 +154,7 @@
                   </widget>
                  </item>
                  <item row="0" column="1">
-                  <widget class="QLineEdit" name="lineEdit">
+                  <widget class="QLineEdit" name="webDashboardAddrEdit">
                    <property name="placeholderText">
                     <string>例：udp://qtet.example.cn/firefly</string>
                    </property>
@@ -181,40 +187,146 @@
                <widget class="QWidget" name="gridWidget_2" native="true">
                 <layout class="QGridLayout" name="gridLayout_2">
                  <property name="topMargin">
-                  <number>5</number>
+                  <number>0</number>
                  </property>
                  <property name="bottomMargin">
                   <number>2</number>
                  </property>
-                 <item row="0" column="0">
+                 <item row="1" column="0" alignment="Qt::AlignmentFlag::AlignVCenter">
+                  <widget class="QCheckBox" name="autoRpcBox">
+                   <property name="text">
+                    <string>自动配置 RPC 端口</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignVCenter">
                   <widget class="QCheckBox" name="useConfFileBox">
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>66666</height>
+                    </size>
+                   </property>
                    <property name="text">
                     <string>通过 TOML 配置文件启动</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="0" column="1">
-                  <widget class="QWidget" name="formWidget_2" native="true">
-                   <layout class="QFormLayout" name="formLayout_2">
-                    <item row="0" column="0">
-                     <widget class="QLabel" name="Label">
-                      <property name="font">
-                       <font>
-                        <pointsize>10</pointsize>
-                       </font>
+                 <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter">
+                  <widget class="QWidget" name="horizontalWidget" native="true">
+                   <layout class="QHBoxLayout" name="horizontalLayout_4">
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <item alignment="Qt::AlignmentFlag::AlignRight">
+                     <widget class="QLabel" name="label_3">
+                      <property name="minimumSize">
+                       <size>
+                        <width>100</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>100</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>RPC 端口号：</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item alignment="Qt::AlignmentFlag::AlignLeft">
+                     <widget class="QLineEdit" name="confRpcPortEdit">
+                      <property name="minimumSize">
+                       <size>
+                        <width>100</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>100</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                 <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter">
+                  <widget class="QWidget" name="horizontalWidget" native="true">
+                   <layout class="QHBoxLayout" name="horizontalLayout_3">
+                    <property name="spacing">
+                     <number>5</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+                     <widget class="QLabel" name="label_2">
+                      <property name="minimumSize">
+                       <size>
+                        <width>100</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>100</width>
+                        <height>16777215</height>
+                       </size>
                       </property>
                       <property name="text">
                        <string>配置文件来源：</string>
                       </property>
                      </widget>
                     </item>
-                    <item row="0" column="1">
+                    <item alignment="Qt::AlignmentFlag::AlignLeft">
                      <widget class="QComboBox" name="confSourceBox">
                       <property name="sizePolicy">
                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                       <size>
+                        <width>100</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>100</width>
+                        <height>16777215</height>
+                       </size>
                       </property>
                       <property name="font">
                        <font>
@@ -223,7 +335,7 @@
                       </property>
                       <item>
                        <property name="text">
-                        <string>下方输入</string>
+                        <string>直接输入</string>
                        </property>
                       </item>
                       <item>
@@ -234,6 +346,18 @@
                      </widget>
                     </item>
                    </layout>
+                  </widget>
+                 </item>
+                 <item row="2" column="0" colspan="2" alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignVCenter">
+                  <widget class="QLabel" name="label_4">
+                   <property name="font">
+                    <font>
+                     <pointsize>8</pointsize>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>程序需通过 RPC 端口监测节点的连接情况，此处会覆盖 TOML 中的 RPC 设置</string>
+                   </property>
                   </widget>
                  </item>
                 </layout>

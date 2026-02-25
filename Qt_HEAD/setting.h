@@ -10,13 +10,6 @@
 #include <QNetworkAccessManager>
 #include "generateconf.h"  // 包含 WebConsoleConfig 定义
 
-// 配置保存路径
-#if SAVE_CONF_IN_APP_DIR == true
-static const QString g_configPath = QApplication::applicationDirPath() + "/config";
-#else
-static const QString g_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-#endif
-
 namespace Ui {
 class setting;
 }
@@ -107,6 +100,35 @@ public:
     explicit Settings(QWidget *parent = nullptr);
     ~Settings() override;
 
+    /**
+ * @brief Web 控制台配置结构体
+ */
+    struct WebConsoleConfig {
+        int configPort = 55668;           // 配置下发端口
+        int webPagePort = 55667;          // 控制台前端端口
+        bool useLocalApi = true;          // 是否使用本地 API 地址
+        QString apiAddress;               // 控制台 API 地址
+        QString configProtocol = "udp";   // 配置下发协议（udp/tcp/ws）
+
+        /// @brief 获取协议字符串（用于命令行参数）
+        QString getConfigProtocolString() const {
+            if (configProtocol == "TCP") return "tcp";
+            if (configProtocol == "WebSocket") return "ws";
+            return "udp";
+        }
+
+        /// @brief 获取实际的 API 地址
+        QString getActualApiAddress() const {
+            if (useLocalApi) {
+                return QString("http://127.0.0.1:%1").arg(webPagePort);
+            }
+            return apiAddress;
+        }
+    };
+
+    /// @brief 获取 Web 控制台配置
+    static WebConsoleConfig getWebConsoleConfig();
+
     /// @brief 检测软件版本
     /// @param isFromInternal 是否来自内部调用
     /// @warning 外部调用时，检测完成后会自动 delete 该 setting 对象，无需再次释放
@@ -122,14 +144,19 @@ public:
     [[nodiscard]] bool isAutoUpdate() const { return m_autoUpdate; }
 
     /// @brief 获取配置保存路径
-    [[nodiscard]] QString getConfigPath() const { return g_configPath; }
+    static QString getConfigPath()
+    {
+        // 配置保存路径
+#if SAVE_CONF_IN_APP_DIR == true
+        return QApplication::applicationDirPath()+"/config"
+        #else
+        return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+#endif
+    }
 
     /// @brief 是否应该弹出赞助窗口
     /// @return 当启动次数达到阈值且未弹出过赞助窗口时返回 true
     [[nodiscard]] bool shouldShowDonate() const { return m_shouldShowDonate; }
-
-    /// @brief 获取 Web 控制台配置
-    [[nodiscard]] WebConsoleConfig getWebConsoleConfig() const { return m_webConfig; }
 
     /// @brief 获取日志保存天数
     [[nodiscard]] int getLogRetentionDays() const { return m_logRetentionDays; }

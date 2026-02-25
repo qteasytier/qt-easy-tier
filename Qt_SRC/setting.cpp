@@ -246,9 +246,6 @@ void Settings::setupWebConfigUi()
     ui->apiAddrEdit->setText(m_webConfig.apiAddress);
     ui->apiAddrEdit->setEnabled(!m_webConfig.useLocalApi);
     
-    // Core 连接地址
-    ui->coreConnectAddrEdit->setText(m_webConfig.coreConnectAddress);
-    
     // 配置下发协议
     int protocolIndex = 0;
     if (m_webConfig.configProtocol == "TCP") {
@@ -446,7 +443,6 @@ void Settings::onDialogAccepted()
     m_webConfig.webPagePort = webPagePort;
     m_webConfig.useLocalApi = ui->isUseLocalApiBox->isChecked();
     m_webConfig.apiAddress = ui->apiAddrEdit->text();
-    m_webConfig.coreConnectAddress = ui->coreConnectAddrEdit->text();
     
     // 保存协议设置
     switch (ui->configProtocolBox->currentIndex()) {
@@ -558,8 +554,8 @@ void Settings::onNetworkReplyFinished(bool isFromInternal)
 
 void Settings::loadSettings()
 {
-    QDir().mkpath(g_configPath);
-    QString settingsFile = g_configPath + "/settings.json";
+    QDir().mkpath(getConfigPath());
+    QString settingsFile = getConfigPath() + "/settings.json";
 
     QFile file(settingsFile);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -591,7 +587,6 @@ void Settings::loadSettings()
     m_webConfig.webPagePort = webConfig.value("webPagePort").toInt(55667);
     m_webConfig.useLocalApi = webConfig.value("useLocalApi").toBool(true);
     m_webConfig.apiAddress = webConfig.value("apiAddress").toString();
-    m_webConfig.coreConnectAddress = webConfig.value("coreConnectAddress").toString();
     m_webConfig.configProtocol = webConfig.value("configProtocol").toString("udp");
 
     // 加载日志保存天数
@@ -600,7 +595,7 @@ void Settings::loadSettings()
 
 void Settings::saveSettings()
 {
-    QString settingsFile = g_configPath + "/settings.json";
+    QString settingsFile = getConfigPath() + "/settings.json";
 
     QJsonObject settings;
     settings["autoRun"] = m_autoRun;
@@ -615,7 +610,6 @@ void Settings::saveSettings()
     webConfig["webPagePort"] = m_webConfig.webPagePort;
     webConfig["useLocalApi"] = m_webConfig.useLocalApi;
     webConfig["apiAddress"] = m_webConfig.apiAddress;
-    webConfig["coreConnectAddress"] = m_webConfig.coreConnectAddress;
     webConfig["configProtocol"] = m_webConfig.configProtocol;
     settings["webConsole"] = webConfig;
 
@@ -738,11 +732,11 @@ int Settings::cleanupOldLogs()
 {
     // 清理过期日志文件
     // 先加载设置获取日志保存天数
-    if (!QDir().mkpath(g_configPath))
+    if (!QDir().mkpath(getConfigPath()))
     {
         std::cerr << "Can not create config directory." << std::endl;
     }
-    QString settingsFile = g_configPath + "/settings.json";
+    QString settingsFile = getConfigPath() + "/settings.json";
     int logRetentionDays = 7;  // 默认7天
 
     QFile file(settingsFile);
@@ -842,4 +836,38 @@ void Settings::onClearLogClicked()
         QMessageBox::information(this, tr("完成"), 
             tr("已清空 %1 个日志文件").arg(deletedCount));
     }
+}
+
+
+/// @brief 获取 Web 控制台配置
+Settings::WebConsoleConfig Settings::getWebConsoleConfig()
+{
+    WebConsoleConfig config;
+    QString settingsFile = getConfigPath() + "/settings.json";
+
+    QFile file(settingsFile);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return config; // 返回默认配置
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+
+    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+        return config; // 返回默认配置
+    }
+
+    QJsonObject settings = doc.object();
+    QJsonObject webConfig = settings.value("webConsole").toObject();
+
+    config.configPort = webConfig.value("configPort").toInt(55668);
+    config.webPagePort = webConfig.value("webPagePort").toInt(55667);
+    config.useLocalApi = webConfig.value("useLocalApi").toBool(true);
+    config.apiAddress = webConfig.value("apiAddress").toString();
+    config.configProtocol = webConfig.value("configProtocol").toString("udp");
+
+    return config;
 }

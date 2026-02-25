@@ -33,52 +33,6 @@ int getRandomPort()
     return dis(gen);
 }
 
-bool isRpcPortOccupied(const int &port);
-
-/// @brief 获取配置文件路径
-static QString getSettingsFilePath()
-{
-#if SAVE_CONF_IN_APP_DIR == true
-    return QApplication::applicationDirPath() + "/config/settings.json";
-#else
-    return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.json";
-#endif
-}
-
-/// @brief 获取 Web 控制台配置
-WebConsoleConfig getWebConsoleConfig()
-{
-    WebConsoleConfig config;
-    QString settingsFile = getSettingsFilePath();
-
-    QFile file(settingsFile);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return config; // 返回默认配置
-    }
-
-    QByteArray data = file.readAll();
-    file.close();
-
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
-
-    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-        return config; // 返回默认配置
-    }
-
-    QJsonObject settings = doc.object();
-    QJsonObject webConfig = settings.value("webConsole").toObject();
-
-    config.configPort = webConfig.value("configPort").toInt(55668);
-    config.webPagePort = webConfig.value("webPagePort").toInt(55667);
-    config.useLocalApi = webConfig.value("useLocalApi").toBool(true);
-    config.apiAddress = webConfig.value("apiAddress").toString();
-    config.coreConnectAddress = webConfig.value("coreConnectAddress").toString();
-    config.configProtocol = webConfig.value("configProtocol").toString("udp");
-
-    return config;
-}
-
 // @brief: 生成EasyTier配置文件
 // @param netPage: 网络配置页面指针
 // @return: 生成的EasyTier配置参数Qt字符串

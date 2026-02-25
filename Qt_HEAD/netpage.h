@@ -28,6 +28,28 @@ QT_END_NAMESPACE
 // 前向声明
 class EasyTierWorker;
 
+/**
+ * @brief 启动方式枚举类
+ * 
+ * 三种启动方式互不兼容：
+ * - Normal: 常规管理，使用命令行参数启动
+ * - WebConsole: Web 控制台管理
+ * - ConfigFile: 通过 TOML 配置文件启动
+ */
+enum class StartMode {
+    Normal,         // 常规管理（默认）
+    WebConsole,     // Web 控制台管理
+    ConfigFile      // 配置文件启动
+};
+
+/**
+ * @brief 配置文件来源枚举类
+ */
+enum class ConfigSource {
+    Input,          // 下方输入
+    SelectFile      // 选择文件
+};
+
 class NetPage : public QGroupBox
 {
     Q_OBJECT
@@ -153,6 +175,17 @@ private slots:
     // ===============日志相关===============
     void onOpenLogFileClicked();  // 打开日志文件
 
+    // ===============其他设置页面相关===============
+    void onUseWebBoxChanged(int state);
+    void onUseConfFileBoxChanged(int state);
+    void onConnectToLocalBoxChanged(int state);
+    void onConfSourceBoxChanged(int index);
+    void onSelectConfigFileClicked();
+    // 配置文件文本编辑框内容变化，动态调整高度
+    void onConfigTextChanged();
+    // 自动配置RPC端口复选框状态变化
+    void onAutoRpcBoxChanged(int state);
+
 private:
     Ui::NetPage *ui;
 
@@ -199,6 +232,22 @@ private:
 
     // RPC端口输入框
     QLineEdit *m_rpcPortEdit =  nullptr;
+
+    // ===============其他设置页面相关===============
+    // Web 控制台管理组件
+    QLineEdit *m_webConnectAddrEdit = nullptr;   // Web 控制台连接地址输入框
+
+    // 配置文件启动相关组件
+    QPlainTextEdit *m_configTextEdit = nullptr;      // 配置文件文本编辑框
+    QLineEdit *m_configFilePathEdit = nullptr;       // 配置文件路径输入框
+    QPushButton *m_selectConfigFileBtn = nullptr;    // 选择配置文件按钮
+    QCheckBox *m_autoRpcCheckBox = nullptr;          // 自动配置 RPC 端口复选框
+    QLineEdit *m_confRpcPortEdit = nullptr;          // 配置文件模式的 RPC 端口输入框
+
+    // 启动方式管理
+    StartMode m_startMode = StartMode::Normal;       // 当前启动方式
+    ConfigSource m_configSource = ConfigSource::Input; // 配置文件来源
+    QString m_tempConfigFilePath;                     // 临时配置文件路径
 
     // 网络白名单管理组件
     QCheckBox *m_relayNetworkWhitelistCheckBox =  nullptr; // 是否启用网络白名单
@@ -278,6 +327,20 @@ private:
     void initWorkerThread();
     // 清理Worker线程
     void cleanupWorkerThread();
+
+// ============== 其他设置页面相关===============
+    // 初始化其他设置页面
+    void initOtherSettingsPage();
+    // 更新启动方式互斥状态
+    void updateStartModeState();
+    // 更新配置文件来源显示
+    void updateConfigSourceUI();
+    // 创建临时配置文件
+    bool createTempConfigFile(const QString& networkName);
+    // 清理临时配置文件
+    void cleanupTempConfigFile();
+    // 获取默认配置文件内容
+    QString getDefaultConfigContent() const;
 
 signals:
     void networkStarted();    // 网络启动信号

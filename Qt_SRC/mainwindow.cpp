@@ -31,8 +31,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    ui->webDashboardBtn->setToolTip(tr("Web控制台默认占用55667(API)、55668(配置下发)端口\n"
-        "启动后，会自动打开网页，登录即可开始使用\n"
+    ui->webDashboardBtn->setToolTip(tr("Web控制台默认占用55667(网页/API)、55668(配置下发)端口，可在设置界面更改\n"
+        "启动后，会自动打开网页，登录即可开始使用，admin用户默认密码为admin\n"
     ));
 
     // 设置窗口图标
@@ -247,7 +247,6 @@ void MainWindow::onDeleteNetwork()
 
         // 删除列表项
         delete ui->netListWidget->takeItem(index);
-
     }
 }
 
@@ -280,7 +279,7 @@ void MainWindow::onClickWebDashboardBtn() {
         QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed.exe"));
         return;
     }
-    const WebConsoleConfig webConfig = getWebConsoleConfig();
+    const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();
 
     if (isPortOccupied(webConfig.webPagePort) || isPortOccupied(webConfig.configPort)) {
         QMessageBox::critical(this, tr("错误"),
@@ -418,6 +417,7 @@ void MainWindow::onClickSettingBtn() {
 
 // 加载网络配置
 void MainWindow::loadConfig() {
+    std::clog << "Config file save path: " << Settings::getConfigPath().toStdString() << std::endl;
     // 创建一个setting对象用于加载配置
     auto *tempSettings = new Settings();
 
@@ -434,12 +434,12 @@ void MainWindow::loadConfig() {
 
     // 配置目录
     QDir configDir;
-    if (!configDir.exists(g_configPath)) {
-        configDir.mkpath(g_configPath);
+    if (!configDir.exists(Settings::getConfigPath())) {
+        configDir.mkpath(Settings::getConfigPath());
     }
 
     // 配置文件路径
-    QString configFile = g_configPath + "/network.json";
+    QString configFile = Settings::getConfigPath() + "/network.json";
 
     // 检查配置文件是否存在
     QFile file(configFile);
@@ -558,12 +558,12 @@ void MainWindow::loadConfig() {
 void MainWindow::saveNetworkConfig() {
     // 创建配置目录
     QDir configDir;
-    if (!configDir.exists(g_configPath)) {
-        configDir.mkpath(g_configPath);
+    if (!configDir.exists(Settings::getConfigPath())) {
+        configDir.mkpath(Settings::getConfigPath());
     }
 
     // 构建配置文件路径
-    QString configFile = g_configPath + "/network.json";
+    QString configFile = Settings::getConfigPath() + "/network.json";
 
     QJsonObject rootObj;
     rootObj["version"] = "1.0";
