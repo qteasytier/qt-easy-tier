@@ -111,14 +111,14 @@ public:
         QString configProtocol = "udp";   // 配置下发协议（udp/tcp/ws）
 
         /// @brief 获取协议字符串（用于命令行参数）
-        QString getConfigProtocolString() const {
+        [[nodiscard]] QString getConfigProtocolString() const {
             if (configProtocol == "TCP") return "tcp";
             if (configProtocol == "WebSocket") return "ws";
             return "udp";
         }
 
         /// @brief 获取实际的 API 地址
-        QString getActualApiAddress() const {
+        [[nodiscard]] QString getActualApiAddress() const {
             if (useLocalApi) {
                 return QString("http://127.0.0.1:%1").arg(webPagePort);
             }
@@ -126,21 +126,22 @@ public:
         }
     };
 
-    /// @brief 获取 Web 控制台配置
+    /// @brief 获取 Web 控制台配置（直接从配置文件读取）
     static WebConsoleConfig getWebConsoleConfig();
 
     /// @brief 检测软件版本
     /// @param parent 父窗口指针
-    static void detectSoftwareVersion(QWidget *parent = nullptr);
+    /// @param isNotMessageBox 是否不显示消息框
+    static void detectSoftwareVersion(QWidget *parent = nullptr, bool isNotMessageBox = false);
 
-    /// @brief 获取自动回连状态
-    [[nodiscard]] bool isAutoRun() const { return m_autoRun; }
+    /// @brief 获取自动回连状态（直接从配置文件读取）
+    static bool isAutoRun();
 
-    /// @brief 是否隐藏到系统托盘
-    [[nodiscard]] bool isHideOnTray() const { return m_isHideOnTray; }
+    /// @brief 是否隐藏到系统托盘（直接从配置文件读取）
+    static bool isHideOnTray();
 
-    /// @brief 是否自动检查更新
-    [[nodiscard]] bool isAutoUpdate() const { return m_autoUpdate; }
+    /// @brief 是否自动检查更新（直接从配置文件读取）
+    static bool isAutoCheckUpdate();
 
     /// @brief 获取配置保存路径
     static QString getConfigPath()
@@ -153,12 +154,9 @@ public:
 #endif
     }
 
-    /// @brief 是否应该弹出赞助窗口
-    /// @return 当启动次数达到阈值且未弹出过赞助窗口时返回 true
-    [[nodiscard]] bool shouldShowDonate() const { return m_shouldShowDonate; }
-
-    /// @brief 获取日志保存天数
-    [[nodiscard]] int getLogRetentionDays() const { return m_logRetentionDays; }
+    /// @brief 是否应该弹出赞助窗口（直接从配置文件读取并更新启动次数）
+    /// @return 当启动次数达到阈值时返回 true
+    static bool shouldShowDonate();
 
     /// @brief 清理过期日志文件
     /// @return 清理的文件数量
@@ -170,10 +168,6 @@ public:
 
     /// @brief 获取日志文件夹路径
     static QString getLogDirPath();
-
-signals:
-    /// @brief 更新检测完成信号
-    void finishDetectUpdate();
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -211,9 +205,14 @@ private:
     void loadSettings();
     void saveSettings();
 
-    // === 功能实现 ===
+    // === 静态配置文件读写 ===
+    /// @brief 从配置文件读取设置（供静态方法使用）
+    static QJsonObject loadSettingsFromFile();
+    /// @brief 保存设置到配置文件（供静态方法使用）
+    static bool saveSettingsToFile(const QJsonObject &settings);
+
+    // === 设置开机自启 ===
     void setAutoStart(bool enable);
-    void incrementLaunchCount();
     
     // === 输入验证 ===
     void setupPortValidation();
@@ -232,7 +231,6 @@ private:
 
     // === 启动计数相关 ===
     int m_launchCount = 0;        // 启动次数
-    bool m_shouldShowDonate = false; // 是否应弹出赞助窗口
     static constexpr int DONATE_THRESHOLD = 50; // 弹出赞助窗口的启动次数阈值
 
     // === Web 控制台配置 ===

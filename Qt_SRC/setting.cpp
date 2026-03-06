@@ -208,9 +208,8 @@ Settings::Settings(QWidget *parent)
     
     // 设置端口输入验证
     setupPortValidation();
-
-    // 增加启动计数
-    incrementLaunchCount();
+    
+    // 注意：启动次数计数已移到 Settings::shouldShowDonate() 静态方法中统一处理
 }
 
 Settings::~Settings()
@@ -491,7 +490,7 @@ void Settings::onDialogRejected()
 // 软件版本检测（网络请求）
 // =============================================================================
 
-void Settings::detectSoftwareVersion(QWidget *parent)
+void Settings::detectSoftwareVersion(QWidget *parent, bool isNotMessageBox)
 {
     const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
 
@@ -509,7 +508,7 @@ void Settings::detectSoftwareVersion(QWidget *parent)
     QObject::connect(timeoutTimer, &QTimer::timeout, reply, &QNetworkReply::abort);
 
     // 请求完成处理
-    QObject::connect(reply, &QNetworkReply::finished, parent, [networkManager, reply, timeoutTimer, parent]() {
+    QObject::connect(reply, &QNetworkReply::finished, parent, [=]() {
         // 停止并删除超时定时器
         if (timeoutTimer) {
             timeoutTimer->stop();
@@ -529,7 +528,7 @@ void Settings::detectSoftwareVersion(QWidget *parent)
             QString latestVersion = jsonObj["tag_name"].toString();
 
             // 对比版本号（使用 PROJECT_VERSION 宏）
-            if (!latestVersion.isEmpty() && latestVersion != PROJECT_VERSION) {
+            if (!latestVersion.isEmpty() && latestVersion != PROJECT_VERSION && !isNotMessageBox) {
                 QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
                               .arg(latestVersion).arg(PROJECT_VERSION);
 
@@ -539,7 +538,7 @@ void Settings::detectSoftwareVersion(QWidget *parent)
                 if (ret == QMessageBox::Yes) {
                     QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
                 }
-            } else {
+            } else if (!isNotMessageBox) {
                 QMessageBox::information(parent, "检查更新", "当前已是最新版本！");
             }
         } else if (reply->error() != QNetworkReply::OperationCanceledError) {
@@ -560,15 +559,14 @@ void Settings::detectSoftwareVersion(QWidget *parent)
 // 设置读写
 // =============================================================================
 
-void Settings::loadSettings()
+QJsonObject Settings::loadSettingsFromFile()
 {
     QDir().mkpath(getConfigPath());
     QString settingsFile = getConfigPath() + "/settings.json";
 
     QFile file(settingsFile);
     if (!file.open(QIODevice::ReadOnly)) {
-        // 使用默认设置
-        return;
+        return QJsonObject(); // 返回空对象
     }
 
     QByteArray data = file.readAll();
@@ -578,11 +576,33 @@ void Settings::loadSettings()
     QJsonDocument doc = QJsonDocument::fromJson(data, &error);
 
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-        // 使用默认设置
-        return;
+        return QJsonObject(); // 返回空对象
     }
 
-    QJsonObject settings = doc.object();
+    return doc.object();
+}
+
+bool Settings::saveSettingsToFile(const QJsonObject &settings)
+{
+    QDir().mkpath(getConfigPath());
+    QString settingsFile = getConfigPath() + "/settings.json";
+
+    QJsonDocument doc(settings);
+
+    QFile file(settingsFile);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    file.write(doc.toJson());
+    file.close();
+    return true;
+}
+
+void Settings::loadSettings()
+{
+    QJsonObject settings = loadSettingsFromFile();
+
     m_autoRun = settings.value("autoRun").toBool(false);
     m_autoStart = settings.value("autoStart").toBool(false);
     m_isHideOnTray = settings.value("isHideOnTray").toBool(true);
@@ -603,9 +623,8 @@ void Settings::loadSettings()
 
 void Settings::saveSettings()
 {
-    QString settingsFile = getConfigPath() + "/settings.json";
+    QJsonObject settings = loadSettingsFromFile();
 
-    QJsonObject settings;
     settings["autoRun"] = m_autoRun;
     settings["autoStart"] = m_autoStart;
     settings["isHideOnTray"] = m_isHideOnTray;
@@ -624,34 +643,49 @@ void Settings::saveSettings()
     // 保存日志保存天数
     settings["logRetentionDays"] = m_logRetentionDays;
 
-    QJsonDocument doc(settings);
-
-    QFile file(settingsFile);
-    if (!file.open(QIODevice::WriteOnly)) {
+    if (!saveSettingsToFile(settings)) {
         QMessageBox::warning(this, "错误", "无法保存设置");
-        return;
     }
-
-    file.write(doc.toJson());
-    file.close();
 }
 
 // =============================================================================
 // 辅助功能
 // =============================================================================
 
-void Settings::incrementLaunchCount()
+bool Settings::isAutoRun()
 {
-    // 启动次数计数（达到阈值后停止计数）
-    if (m_launchCount <= DONATE_THRESHOLD) {
-        m_launchCount++;
-        saveSettings();
+    QJsonObject settings = loadSettingsFromFile();
+    return settings.value("autoRun").toBool(false);
+}
+
+bool Settings::isHideOnTray()
+{
+    QJsonObject settings = loadSettingsFromFile();
+    return settings.value("isHideOnTray").toBool(true);
+}
+
+bool Settings::isAutoCheckUpdate()
+{
+    QJsonObject settings = loadSettingsFromFile();
+    return settings.value("autoUpdate").toBool(true);
+}
+
+bool Settings::shouldShowDonate()
+{
+    QJsonObject settings = loadSettingsFromFile();
+    int launchCount = settings.value("launchCount").toInt(0);
+
+    // 达到阈值时返回 true
+    if (launchCount >= DONATE_THRESHOLD) {
+        return true;
     }
 
-    // 达到阈值时设置赞助弹窗标志
-    if (m_launchCount == DONATE_THRESHOLD) {
-        m_shouldShowDonate = true;
-    }
+    // 增加启动次数
+    launchCount++;
+    settings["launchCount"] = launchCount;
+    saveSettingsToFile(settings);
+
+    return false;
 }
 
 void Settings::setAutoStart(bool enable)
@@ -674,7 +708,7 @@ void Settings::setAutoStart(bool enable)
 #endif
         // 创建开机自启任务
         args << "/create"
-             << "/tn" << appName
+             << "/tn" << appName+"-onlogon"
              << "/tr" << QString("\"%1\" --auto-start").arg(appPath)
              << "/sc" << "onlogon"
              << "/delay" << "0000:02"
@@ -683,7 +717,7 @@ void Settings::setAutoStart(bool enable)
     } else {
         // 删除开机自启任务
         args << "/delete"
-             << "/tn" << appName
+             << "/tn" << appName+"-onlogon"
              << "/f";
     }
 
@@ -792,23 +826,8 @@ int Settings::cleanupOldLogs()
 {
     // 清理过期日志文件
     // 先加载设置获取日志保存天数
-    if (!QDir().mkpath(getConfigPath()))
-    {
-        std::cerr << "Can not create config directory." << std::endl;
-    }
-    QString settingsFile = getConfigPath() + "/settings.json";
-    int logRetentionDays = 7;  // 默认7天
-
-    QFile file(settingsFile);
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray data = file.readAll();
-        file.close();
-        auto doc = QJsonDocument::fromJson(data);
-        if (!doc.isNull() && doc.isObject())
-        {
-            logRetentionDays = doc.object().value("logRetentionDays").toInt(7);
-        }
-    }
+    QJsonObject settings = loadSettingsFromFile();
+    int logRetentionDays = settings.value("logRetentionDays").toInt(7);
 
     const QString &logDirPath = getLogDirPath();
     const QDir logDir(logDirPath);
@@ -903,24 +922,7 @@ void Settings::onClearLogClicked()
 Settings::WebConsoleConfig Settings::getWebConsoleConfig()
 {
     WebConsoleConfig config;
-    QString settingsFile = getConfigPath() + "/settings.json";
-
-    QFile file(settingsFile);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return config; // 返回默认配置
-    }
-
-    QByteArray data = file.readAll();
-    file.close();
-
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
-
-    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-        return config; // 返回默认配置
-    }
-
-    QJsonObject settings = doc.object();
+    QJsonObject settings = loadSettingsFromFile();
     QJsonObject webConfig = settings.value("webConsole").toObject();
 
     config.configPort = webConfig.value("configPort").toInt(55668);

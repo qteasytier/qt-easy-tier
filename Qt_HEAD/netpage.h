@@ -152,8 +152,6 @@ private slots:
     void onWorkerProcessStarted(bool success, const QString& errorMessage);
     // 处理进程停止结果
     void onWorkerProcessStopped(bool success);
-    // 处理日志输出
-    void onWorkerLogOutput(const QString& logText, bool isError);
     // 处理节点信息更新
     void onWorkerPeerInfoUpdated(const QJsonArray& peers);
     // 处理进程崩溃
@@ -165,7 +163,7 @@ private slots:
 
     // ===============日志相关===============
     void onOpenLogFileClicked();  // 打开日志文件
-
+    void onWorkerLogOutput(const QString& logText, bool isError);  // 处理日志输出
     // ===============其他设置页面相关===============
     void onUseWebBoxChanged(int state);
     void onUseConfFileBoxChanged(int state);

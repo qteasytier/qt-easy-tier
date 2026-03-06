@@ -485,13 +485,17 @@ void OneClick::onHostStartClicked() {
         return;
     }
 
-    // 获取随机 RPC 端口
-    m_currentRpcPort = getRandomPort();
-
     // 显示启动过程对话框
     showProcessDialog(tr("启动EasyTier中..."));
 
     try {
+        // 获取随机 RPC 端口
+        for (int i = 0; i<40000; i++)
+        {
+            m_currentRpcPort = getRandomPort();
+            if (!isPortOccupied(m_currentRpcPort)) break;
+        }
+
         // 生成房间凭证
         QPair<QString, QString> credentials = generateRoomCredentials();
         m_currentNetworkId = credentials.first;   // 原始网络号
@@ -524,20 +528,6 @@ void OneClick::onHostStartClicked() {
         std::clog << "密码(原始): " << m_currentPassword.toStdString() << std::endl;
         std::clog << "RPC端口: " << m_currentRpcPort << std::endl;
 
-        // 准备程序路径（根据平台设置）
-        QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-#ifdef Q_OS_WIN
-        QString easytierPath = appDir + "/easytier-core.exe";
-#else
-        QString easytierPath = appDir + "/easytier-core";
-#endif
-
-        // 检查程序是否存在
-        QFileInfo fileInfo(easytierPath);
-        if (!fileInfo.exists()) {
-            throw std::runtime_error("无法找到EasyTier核心程序");
-        }
-
         // 显示联机码
         m_hostCodeLineEdit->setText(connectionCode);
         m_hostCodeLineEdit->setReadOnly(true);
@@ -553,9 +543,7 @@ void OneClick::onHostStartClicked() {
         QMetaObject::invokeMethod(m_worker, "startEasyTier",
                                   Qt::QueuedConnection,
                                   Q_ARG(QString, m_currentNetworkId),
-                                  Q_ARG(QStringList, arguments),
-                                  Q_ARG(QString, appDir),
-                                  Q_ARG(QString, easytierPath),
+                                  Q_ARG(QStringList, arguments),\
                                   Q_ARG(int, m_currentRpcPort));
 
     } catch (const std::exception& e) {
@@ -628,18 +616,11 @@ void OneClick::onGuestStartClicked() {
     showProcessDialog(tr("启动EasyTier中..."));
 
     try {
-        // 准备程序路径（根据平台设置）
-        QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-#ifdef Q_OS_WIN
-        QString easytierPath = appDir + "/easytier-core.exe";
-#else
-        QString easytierPath = appDir + "/easytier-core";
-#endif
-
-        // 检查程序是否存在
-        QFileInfo fileInfo(easytierPath);
-        if (!fileInfo.exists()) {
-            throw std::runtime_error("无法找到EasyTier核心程序");
+        // 获取随机 RPC 端口
+        for (int i = 0; i<40000; i++)
+        {
+            m_currentRpcPort = getRandomPort();
+            if (!isPortOccupied(m_currentRpcPort)) break;
         }
 
         // 构造房客启动参数
@@ -671,8 +652,6 @@ void OneClick::onGuestStartClicked() {
                                   Qt::QueuedConnection,
                                   Q_ARG(QString, networkId),
                                   Q_ARG(QStringList, arguments),
-                                  Q_ARG(QString, appDir),
-                                  Q_ARG(QString, easytierPath),
                                   Q_ARG(int, m_currentRpcPort));
 
     } catch (const std::exception& e) {

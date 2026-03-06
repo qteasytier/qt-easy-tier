@@ -35,7 +35,8 @@ MainWindow::MainWindow(QWidget *parent, bool isAutoStart)
         "启动后，会自动打开网页，登录即可开始使用，admin用户默认密码为admin\n"
     ));
 
-    // 设置窗口图标
+    // 设置窗口图标标题
+    setWindowTitle("QtEasyTier Ver" + QString(PROJECT_VERSION));
     setWindowIcon(QIcon(":/icons/icon.ico"));
 
     // 当点击千万别点按钮时候, 使用浏览器打开《恭喜发财》（新春特别版）
@@ -287,11 +288,7 @@ void MainWindow::onClickWebDashboardBtn() {
 
     // 检查appFile是否存在
     if (!QFile::exists(appFile)) {
-#ifdef Q_OS_WIN
-        QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed.exe"));
-#else
         QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed"));
-#endif
         return;
     }
     const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();
@@ -422,7 +419,7 @@ void MainWindow::onClickSettingBtn() {
     Settings *settings = new Settings(this);
     
     settings->exec();
-    m_isHideOnTray = settings->isHideOnTray();
+    m_isHideOnTray = Settings::isHideOnTray();
     settings->deleteLater();
 }
 
@@ -433,8 +430,6 @@ void MainWindow::onClickSettingBtn() {
 // 加载网络配置
 void MainWindow::loadConfig() {
     std::clog << "Config file save path: " << Settings::getConfigPath().toStdString() << std::endl;
-    // 创建一个setting对象用于加载配置
-    auto *tempSettings = new Settings();
 
     QWidget loadingMessage ;
     loadingMessage.setWindowTitle("QtEasyTier");
@@ -469,18 +464,16 @@ void MainWindow::loadConfig() {
             file.write(doc.toJson());
             file.close();
         }
-        tempSettings->deleteLater();
         return;
     }
 
     // 读取配置文件
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << "无法打开配置文件进行读取:" << configFile;
-        tempSettings->deleteLater();
         return;
     }
 
-    QByteArray data = file.readAll();
+    const QByteArray data = file.readAll();
     file.close();
 
     QJsonParseError error;
@@ -489,14 +482,12 @@ void MainWindow::loadConfig() {
     if (error.error != QJsonParseError::NoError) {
         qDebug() << "JSON解析错误:" << error.errorString();
         QMessageBox::critical(this, "错误", "JSON解析错误:" + error.errorString());
-        tempSettings->deleteLater();
         return;
     }
 
     if (!doc.isObject()) {
         qDebug() << "配置文件格式错误，应为JSON对象";
         QMessageBox::critical(this, "错误", "配置文件格式错误，应为JSON对象");
-        tempSettings->deleteLater();
         return;
     }
 
@@ -505,7 +496,6 @@ void MainWindow::loadConfig() {
     if (!rootObj.contains("networks") || !rootObj["networks"].isArray()) {
         qDebug() << "配置文件缺少networks数组";
         QMessageBox::critical(this, "错误", "配置文件缺少networks数组");
-        tempSettings->deleteLater();
         return;
     }
 
@@ -542,22 +532,21 @@ void MainWindow::loadConfig() {
         // 如果网络是活跃的，尝试重新启动它
         if (networkObj.contains("isActive") && networkObj["isActive"].toBool()) {
             // 从settings文件加载autoRun设置
-            if (tempSettings->isAutoRun()) {
+            if (Settings::isAutoRun()) {
                 netPage->runNetworkOnAutoStart();
             }
         }
     }
 
     // 是否隐藏到系统托盘
-    m_isHideOnTray = tempSettings->isHideOnTray();
+    m_isHideOnTray = Settings::isHideOnTray();
 
-    if (tempSettings->shouldShowDonate()) {
-        Donate *donateWindow = new Donate(this);
-        donateWindow->exec();
-        donateWindow->deleteLater();
+    if (Settings::shouldShowDonate()) {
+        Donate donate(this);
+        donate.exec();
     }
-    ///if ()
-    Settings::detectSoftwareVersion(this);
+    if (Settings::isAutoCheckUpdate())
+    Settings::detectSoftwareVersion(this, true);
 }
 
 // 保存网络配置

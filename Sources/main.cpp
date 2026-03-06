@@ -10,15 +10,22 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 
-void isAlreadyRunning(const QString& serverName);
+void isAlreadyRunning(const QString& serverName, const bool &isAutoStart);
 
 int main(int argc, char *argv[])
 {
+    bool isAutoStart = false;
+    for (int i = 0; i < argc; ++i) {
+        if (QString(argv[i]) == "--auto-start") {
+            isAutoStart = true;
+            break;
+        }
+    }
     QApplication app(argc, argv);
 
     // 检查是否已有实例运行（确保单实例）
     QString serverName = "QtEasyTierbyViahuang";
-    isAlreadyRunning(serverName);   // 有实例运行自动退出
+    isAlreadyRunning(serverName, isAutoStart);   // 有实例运行自动退出
 
     // 使用Breeze主题
 #ifdef WIN32
@@ -32,16 +39,7 @@ int main(int argc, char *argv[])
         std::clog << "Breeze 样式不可用，使用默认样式" << std::endl;
     }
 #endif
-
-    MainWindow w;
-
-
-    for (int i = 0; i < argc; ++i) {
-        if (QString(argv[i]) == "--auto-start") {
-
-            break;
-        }
-    }
+    MainWindow w(nullptr, isAutoStart);
 
     w.show();
 
@@ -49,15 +47,17 @@ int main(int argc, char *argv[])
 }
 
 // 检查是否已有实例运行
-void isAlreadyRunning(const QString& serverName) {
+void isAlreadyRunning(const QString& serverName, const bool &isAutoStart) {
     // 创建本地套接字，尝试连接指定名称的服务器
     QLocalSocket socket;
     socket.connectToServer(serverName);
 
     // 如果连接成功，说明已有实例
-    if (socket.waitForConnected(500)) {
+    if (socket.waitForConnected(5000)) {
         std::clog << "已有实例运行，本程序退出" << std::endl;
-        QMessageBox::information(nullptr, "Tip", "QtEasyTier 已在运行");
+        if (!isAutoStart) {
+            QMessageBox::information(nullptr, "Tip", "QtEasyTier 已在运行");
+        }
         std::exit(0);
     }
 
