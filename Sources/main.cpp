@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 #endif
     MainWindow w(nullptr, isAutoStart);
 
-    w.show();
+    if (!isAutoStart) w.show();
 
     return app.exec();
 }

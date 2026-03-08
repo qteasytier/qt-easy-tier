@@ -528,7 +528,7 @@ void Settings::detectSoftwareVersion(QWidget *parent, bool isNotMessageBox)
             QString latestVersion = jsonObj["tag_name"].toString();
 
             // 对比版本号（使用 PROJECT_VERSION 宏）
-            if (!latestVersion.isEmpty() && latestVersion != PROJECT_VERSION && !isNotMessageBox) {
+            if (!latestVersion.isEmpty() && latestVersion != PROJECT_VERSION) {
                 QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
                               .arg(latestVersion).arg(PROJECT_VERSION);
 
@@ -675,16 +675,15 @@ bool Settings::shouldShowDonate()
     QJsonObject settings = loadSettingsFromFile();
     int launchCount = settings.value("launchCount").toInt(0);
 
-    // 达到阈值时返回 true
-    if (launchCount >= DONATE_THRESHOLD) {
-        return true;
-    }
-
     // 增加启动次数
     launchCount++;
     settings["launchCount"] = launchCount;
     saveSettingsToFile(settings);
 
+    // 达到阈值时返回 true
+    if (launchCount == DONATE_THRESHOLD) {
+        return true;
+    }
     return false;
 }
 
@@ -693,7 +692,7 @@ void Settings::setAutoStart(bool enable)
 #ifdef Q_OS_WIN
     // Windows 平台：使用任务计划程序实现开机自启
     const QString appName = "QtEasyTier";
-    const QString appPath = QCoreApplication::applicationFilePath();
+    const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
     QProcess process;
 
     QStringList args;
@@ -708,16 +707,16 @@ void Settings::setAutoStart(bool enable)
 #endif
         // 创建开机自启任务
         args << "/create"
-             << "/tn" << appName+"-onlogon"
+             << "/tn" << appName
              << "/tr" << QString("\"%1\" --auto-start").arg(appPath)
-             << "/sc" << "onlogon"
-             << "/delay" << "0000:02"
+             << "/sc" << "onstart"
+             << "/delay" << "0000:20"
              << "/rl" << "highest"
              << "/f";
     } else {
         // 删除开机自启任务
         args << "/delete"
-             << "/tn" << appName+"-onlogon"
+             << "/tn" << appName
              << "/f";
     }
 
@@ -726,6 +725,7 @@ void Settings::setAutoStart(bool enable)
     if (!process.waitForFinished(5000)) {
         QMessageBox::warning(this, "错误",
             QString("%1自启任务失败：命令执行超时").arg(enable ? "创建" : "删除"));
+        std::clog <<QString("%1自启任务失败：命令执行超时").arg(enable ? "创建" : "删除").toStdString()<< std::endl;
         return;
     }
 
@@ -733,6 +733,10 @@ void Settings::setAutoStart(bool enable)
         QString error = QString::fromLocal8Bit(process.readAllStandardError());
         QMessageBox::warning(this, "错误",
             QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error));
+        std::clog <<QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error).toStdString()<< std::endl;
+    } else
+    {
+        std::clog <<QString("%1自启任务成功").arg(enable ? "创建" : "删除").toStdString()<< std::endl;
     }
 
 #elif defined(Q_OS_LINUX)
