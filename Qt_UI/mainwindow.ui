@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>767</width>
-    <height>428</height>
+    <width>730</width>
+    <height>400</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -21,17 +21,23 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
     <item>
      <widget class="QWidget" name="leftDock" native="true">
       <property name="minimumSize">
        <size>
-        <width>220</width>
+        <width>200</width>
         <height>0</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
-        <width>220</width>
+        <width>200</width>
         <height>16777215</height>
        </size>
       </property>
@@ -43,7 +49,10 @@
         <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
        </property>
        <property name="leftMargin">
-        <number>1</number>
+        <number>8</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
        </property>
        <item alignment="Qt::AlignmentFlag::AlignHCenter">
         <widget class="QPushButton" name="homeButton">
@@ -55,7 +64,7 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>200</width>
+           <width>0</width>
            <height>45</height>
           </size>
          </property>

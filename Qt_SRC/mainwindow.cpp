@@ -26,7 +26,7 @@
 #include <QJsonArray>     // 添加JSON数组支持
 #include <QStandardPaths> // 添加标准路径支持1
 
-MainWindow::MainWindow(QWidget *parent, bool isAutoStart)
+MainWindow::MainWindow(QWidget *parent, const bool isAutoStart)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
@@ -91,12 +91,14 @@ MainWindow::MainWindow(QWidget *parent, bool isAutoStart)
         item->setIcon(QIcon(":/icons/network.svg"));
 
         // 连接网络启动与关闭信号设置列表字体颜色
-        connect(newNetPage, &NetPage::networkStarted, this, [=]() {
+        connect(newNetPage, &NetPage::networkStarted, this, [=, this]() {
             item->setIcon(QIcon(":/icons/network-running.svg"));
+            saveNetworkConfig();
         });
 
-        connect(newNetPage, &NetPage::networkFinished, this, [=]() {
+        connect(newNetPage, &NetPage::networkFinished, this, [=, this]() {
             item->setIcon(QIcon(":/icons/network.svg")); // 设置图标颜色为默认值
+            saveNetworkConfig();
         });
 
 
@@ -137,7 +139,7 @@ MainWindow::MainWindow(QWidget *parent, bool isAutoStart)
 
     if (isAutoStart)
     {
-        hide();
+        close();
     }
 }
 
@@ -518,11 +520,13 @@ void MainWindow::loadConfig() {
         item->setIcon(QIcon(":/icons/network.svg"));
 
         // 连接网络启动与关闭信号设置列表字体颜色
-        connect(netPage, &NetPage::networkStarted, this, [=]() {
+        connect(netPage, &NetPage::networkStarted, this, [=, this]() {
             item->setIcon(QIcon(":/icons/network-running.svg"));
+            saveNetworkConfig();
         });
-        connect(netPage, &NetPage::networkFinished, this, [=]() {
+        connect(netPage, &NetPage::networkFinished, this, [=, this]() {
             item->setIcon(QIcon(":/icons/network.svg")); // 设置图标颜色为默认值
+            saveNetworkConfig();
         });
         ui->netListWidget->addItem(item);
 
@@ -546,7 +550,9 @@ void MainWindow::loadConfig() {
         donate.exec();
     }
     if (Settings::isAutoCheckUpdate())
-    Settings::detectSoftwareVersion(this, true);
+    {
+        Settings::detectSoftwareVersion(this, true);
+    }
 }
 
 // 保存网络配置
