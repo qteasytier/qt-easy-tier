@@ -13,8 +13,6 @@
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
-#include <QFile>
-#include <QTextStream>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -62,10 +60,6 @@ public:
     /// @brief 获取当前进程状态
     /// @return 当前进程状态
     ProcessState getProcessState() const { return m_processState; }
-
-    /// @brief 获取当前日志文件路径
-    /// @return 当前日志文件的完整路径，如果没有日志文件则返回空字符串
-    QString getLogFilePath() const { return m_currentLogFileName; }
 
 public slots:
     /// @brief 启动EasyTier进程
@@ -121,18 +115,6 @@ private slots:
     void onUpdatePeerInfo();
 
 private:
-    /// @brief 初始化日志文件
-    /// @param networkName 网络名称
-    /// @return 是否成功初始化
-    bool initLogFile(const QString& networkName);
-
-    /// @brief 关闭日志文件
-    void closeLogFile();
-
-    /// @brief 保存日志到文件
-    /// @param text 日志文本
-    void saveLogToFile(const QString& text);
-
     /// @brief 设置进程状态
     /// @param state 新状态
     void setProcessState(ProcessState state);
@@ -164,14 +146,6 @@ private:
 
     // 应用程序目录
     QString m_appDir;
-
-    // 日志文件相关
-    QFile* m_logFile = nullptr;
-    QTextStream* m_logStream = nullptr;
-    QString m_currentLogFileName;
-
-    // 日志行计数器
-    int m_logLineCount = 0;
 };
 
 #endif // EASYTIERWORKER_H

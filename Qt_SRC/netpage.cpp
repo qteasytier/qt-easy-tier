@@ -25,6 +25,8 @@
 #include <QDesktopServices>
 #include <QProgressBar>
 #include <QStandardPaths>
+#include <QDateTime>
+#include <QCoreApplication>
 
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
@@ -52,6 +54,9 @@ NetPage::~NetPage()
 
     // 清理临时配置文件
     cleanupTempConfigFile();
+
+    // 关闭日志文件
+    closeLogFile();
 
     // 清理启动过程对话框
     if (m_processDialog) {
@@ -1110,7 +1115,7 @@ void NetPage::onClickCidrCalculator() {
     // 检查程序是否存在
     const QFileInfo fileInfo(calculatorPath);
     if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorPath));
+        onHandleLogs(tr("错误: 找不到 %1").arg(calculatorPath), true);
 #ifdef Q_OS_WIN
         QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
 #else
@@ -1290,16 +1295,21 @@ void NetPage::onRunNetwork()
     // 清理之前的日志和临时配置文件
     m_logTextEdit->clear();
     cleanupTempConfigFile();
-    m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络..."));
+
+    // 初始化日志文件
+    QString networkName = getNetworkName();
+    QString logNetworkName = networkName.isEmpty() ? "default" : networkName;
+    initLogFile(logNetworkName);
+
+    onHandleLogs(tr("正在启动EasyTier网络..."));
 
     try {
         QStringList arguments;
-        QString networkName = getNetworkName();
 
         switch (m_startMode) {
         case StartMode::WebConsole: {
             // Web 控制台管理模式
-            m_logTextEdit->appendPlainText(tr("启动模式: Web 控制台管理"));
+            onHandleLogs(tr("启动模式: Web 控制台管理"));
 
             // 获取连接地址
             QString webConnectAddr;
@@ -1309,7 +1319,7 @@ void NetPage::onRunNetwork()
                 webConnectAddr = m_webConnectAddrEdit->text().trimmed();
                 if (webConnectAddr.isEmpty()) {
                     closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: 未指定Web控制台连接地址"));
+                    onHandleLogs(tr("错误: 未指定Web控制台连接地址"), true);
                     QMessageBox::warning(this, tr("警告"), tr("请输入Web控制台连接地址或勾选连接到本地控制台"));
                     updateUIState(false);
                     return;
@@ -1324,21 +1334,21 @@ void NetPage::onRunNetwork()
         }
         case StartMode::ConfigFile: {
             // 配置文件启动模式
-            m_logTextEdit->appendPlainText(tr("启动模式: 配置文件启动"));
+            onHandleLogs(tr("启动模式: 配置文件启动"));
 
             if (m_configSource == ConfigSource::SelectFile) {
                 // 选择文件模式：直接使用所选文件
                 QString configFilePath = m_configFilePathEdit->text().trimmed();
                 if (configFilePath.isEmpty()) {
                     closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: 未选择配置文件"));
+                    onHandleLogs(tr("错误: 未选择配置文件"), true);
                     QMessageBox::warning(this, tr("警告"), tr("请选择配置文件"));
                     updateUIState(false);
                     return;
                 }
                 if (!QFile::exists(configFilePath)) {
                     closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: 配置文件不存在"));
+                    onHandleLogs(tr("错误: 配置文件不存在"), true);
                     QMessageBox::warning(this, tr("警告"), tr("配置文件不存在"));
                     updateUIState(false);
                     return;
@@ -1351,7 +1361,7 @@ void NetPage::onRunNetwork()
                     configContent = m_configTextEdit->toPlainText();
                     if (configContent.trimmed().isEmpty()) {
                         closeProcessDialog();
-                        m_logTextEdit->appendPlainText(tr("错误: 配置内容为空"));
+                        onHandleLogs(tr("错误: 配置内容为空"), true);
                         QMessageBox::warning(this, tr("警告"), tr("配置内容为空"));
                         updateUIState(false);
                         return;
@@ -1364,12 +1374,12 @@ void NetPage::onRunNetwork()
         case StartMode::Normal:
         default:
             // 常规管理模式
-            m_logTextEdit->appendPlainText(tr("启动模式: 常规管理"));
+            onHandleLogs(tr("启动模式: 常规管理"));
             arguments = generateConfCommand(this);
             break;
         }
 
-        m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
+        onHandleLogs(tr("启动参数: %1").arg(arguments.join(" ")));
 
         // 通过信号槽调用Worker的startEasyTier方法
         QMetaObject::invokeMethod(m_worker, "startEasyTier",
@@ -1380,7 +1390,7 @@ void NetPage::onRunNetwork()
 
     } catch (const std::exception& e) {
         closeProcessDialog();
-        m_logTextEdit->appendPlainText(tr("启动异常: %1").arg(e.what()));
+        onHandleLogs(tr("启动异常: %1").arg(e.what()), true);
         QMessageBox::warning(this, tr("警告"), tr("启动异常: %1").arg(e.what()));
         updateUIState(false);
     }
@@ -1398,7 +1408,7 @@ void NetPage::onStopNetwork()
     ui->startPushButton->setStyleSheet("color: orange; font-weight: bold;");
     ui->startPushButton->setEnabled(false);
 
-    m_logTextEdit->appendPlainText(tr("正在停止EasyTier进程..."));
+    onHandleLogs(tr("正在停止EasyTier进程..."));
 
     // 通过信号槽调用Worker的stopEasyTier方法
     QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::QueuedConnection);
@@ -1496,7 +1506,7 @@ void NetPage::showProcessDialog()
     QTimer::singleShot(EASYTIER_START_TIMEOUT_MS, m_processDialog, [this]() {
         if (m_processDialog && m_processDialog->isVisible()) {
             closeProcessDialog();
-            m_logTextEdit->appendPlainText(tr("启动超时"));
+            onHandleLogs(tr("启动超时"), true);
             QMessageBox::warning(this, tr("警告"), tr("EasyTier进程启动超时"));
             onStopNetwork();
 
@@ -1545,7 +1555,7 @@ void NetPage::onWorkerProcessStarted(bool success, const QString& errorMessage)
     } else {
         updateUIState(false);
         if (!errorMessage.isEmpty()) {
-            m_logTextEdit->appendPlainText(tr("启动失败: %1").arg(errorMessage));
+            onHandleLogs(tr("启动失败: %1").arg(errorMessage), true);
             QMessageBox::warning(this, tr("警告"), tr("启动失败: %1").arg(errorMessage));
         }
     }
@@ -1556,21 +1566,41 @@ void NetPage::onWorkerProcessStopped(bool success)
     // 清理临时配置文件
     cleanupTempConfigFile();
 
+    // 关闭日志文件
+    closeLogFile();
+
     updateUIState(false);
     emit networkFinished();
 
     if (!success) {
-        m_logTextEdit->appendPlainText(tr("警告: 进程停止可能不完全"));
+        onHandleLogs(tr("警告: 进程停止可能不完全"), true);
     }
 }
 
 void NetPage::onWorkerLogOutput(const QString& logText, bool isError)
 {
-    if (isError) {
-        m_logTextEdit->appendPlainText(logText);
-    } else {
-        m_logTextEdit->appendPlainText(logText);
+    // Core 输出的日志不添加时间戳（core 已包含时间戳）
+    onHandleLogs(logText, isError, false);
+}
+
+void NetPage::onHandleLogs(const QString& logText, bool isError, bool addTimestamp)
+{
+    // 构建最终输出文本
+    QString outputText = logText;
+
+    // 如果需要添加时间戳（本程序输出的日志）
+    if (addTimestamp) {
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+        outputText = QString("[%1] %2").arg(timestamp, logText);
     }
+
+    // 显示到文本框
+    m_logTextEdit->appendPlainText(outputText);
+
+    // 保存到日志文件（文件中不重复添加时间戳，由 saveLogToFile 内部处理）
+    saveLogToFile(outputText, false);
+
+    // 限制日志行数
     limitLogLines(MAX_LOG_LINES);
 }
 
@@ -1618,7 +1648,7 @@ void NetPage::onWorkerPeerInfoUpdated(const QJsonArray& peers)
 
 void NetPage::onWorkerProcessCrashed(int exitCode)
 {
-    m_logTextEdit->appendPlainText(tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
+    onHandleLogs(tr("EasyTier进程异常终止，退出码: %1").arg(exitCode), true);
     QMessageBox::warning(this, tr("警告"), tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
     emit networkFinished();
     updateUIState(false);
@@ -1627,14 +1657,8 @@ void NetPage::onWorkerProcessCrashed(int exitCode)
 // 打开日志文件
 void NetPage::onOpenLogFileClicked()
 {
-    // 检查Worker是否存在(不存在则发生严重错误)
-    if (!m_worker) {
-        QMessageBox::critical(this, tr("错误"), tr("未创建EasyTier Worker实例"));
-        return;
-    }
-
-    // 从Worker获取日志文件路径
-    QString logFilePath = m_worker->getLogFilePath();
+    // 从 NetPage 获取日志文件路径
+    QString logFilePath = getLogFilePath();
     if (logFilePath.isEmpty()) {
         QMessageBox::information(this, tr("提示"), tr("暂无日志文件，请先启动网络"));
         return;
@@ -1713,7 +1737,7 @@ void NetPage::onImportConfigClicked()
     // 使用导入的配置更新界面
     setNetworkConfig(doc.object());
 
-    m_logTextEdit->appendPlainText(tr("配置导入成功: %1").arg(fileName));
+    onHandleLogs(tr("配置导入成功: %1").arg(fileName));
     QMessageBox::information(this, tr("成功"), tr("配置导入成功！"));
 }
 
@@ -1757,7 +1781,7 @@ void NetPage::onExportConfigClicked()
         return;
     }
 
-    m_logTextEdit->appendPlainText(tr("配置导出成功: %1").arg(fileName));
+    onHandleLogs(tr("配置导出成功: %1").arg(fileName));
     QMessageBox::information(this, tr("成功"), tr("配置导出成功！"));
 }
 
@@ -2299,56 +2323,56 @@ bool NetPage::createTempConfigFile(const QString& networkName)
     // 选择文件模式：直接使用所选文件路径，不创建临时文件
     if (m_configSource == ConfigSource::SelectFile) {
         if (!m_configFilePathEdit || m_configFilePathEdit->text().isEmpty()) {
-            m_logTextEdit->appendPlainText(tr("错误: 未选择配置文件"));
+            onHandleLogs(tr("错误: 未选择配置文件"), true);
             return false;
         }
-        
+
         QString filePath = m_configFilePathEdit->text();
         if (!QFile::exists(filePath)) {
-            m_logTextEdit->appendPlainText(tr("错误: 配置文件不存在: %1").arg(filePath));
+            onHandleLogs(tr("错误: 配置文件不存在: %1").arg(filePath), true);
             return false;
         }
-        
+
         // 直接使用所选文件路径
         m_tempConfigFilePath.clear();  // 清空，表示没有临时文件需要清理
-        m_logTextEdit->appendPlainText(tr("使用配置文件: %1").arg(filePath));
+        onHandleLogs(tr("使用配置文件: %1").arg(filePath));
         return true;
     }
-    
+
     // 下方输入模式：创建临时配置文件
     QString base32Name = base32Encode(networkName.toUtf8());
     QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    
+
     // 确保临时目录存在
     if (!QDir().mkpath(tempDir)) {
-        m_logTextEdit->appendPlainText(tr("无法创建临时目录: %1").arg(tempDir));
+        onHandleLogs(tr("无法创建临时目录: %1").arg(tempDir), true);
         return false;
     }
-    
+
     m_tempConfigFilePath = QString("%1/QtEasyTier_%2.toml").arg(tempDir, base32Name);
-    
+
     // 获取配置内容
     QString configContent;
     if (m_configTextEdit) {
         configContent = m_configTextEdit->toPlainText();
     }
-    
+
     if (configContent.trimmed().isEmpty()) {
-        m_logTextEdit->appendPlainText(tr("错误: 配置内容为空"));
+        onHandleLogs(tr("错误: 配置内容为空"), true);
         return false;
     }
-    
+
     // 写入临时配置文件
     QFile tempFile(m_tempConfigFilePath);
     if (!tempFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        m_logTextEdit->appendPlainText(tr("无法创建临时配置文件: %1").arg(tempFile.errorString()));
+        onHandleLogs(tr("无法创建临时配置文件: %1").arg(tempFile.errorString()), true);
         return false;
     }
-    
+
     tempFile.write(configContent.toUtf8());
     tempFile.close();
-    
-    m_logTextEdit->appendPlainText(tr("已创建临时配置文件: %1").arg(m_tempConfigFilePath));
+
+    onHandleLogs(tr("已创建临时配置文件: %1").arg(m_tempConfigFilePath));
     return true;
 }
 
@@ -2358,7 +2382,7 @@ void NetPage::cleanupTempConfigFile()
         QFile file(m_tempConfigFilePath);
         if (file.exists()) {
             if (file.remove()) {
-                m_logTextEdit->appendPlainText(tr("已清理临时配置文件: %1").arg(m_tempConfigFilePath));
+                onHandleLogs(tr("已清理临时配置文件: %1").arg(m_tempConfigFilePath));
             }
         }
         m_tempConfigFilePath.clear();
@@ -2392,9 +2416,93 @@ void NetPage::onWhitelistItemDoubleClicked(QListWidgetItem *item)
 }
 
 // 监听地址列表：双击编辑
+
 void NetPage::onListenAddrItemDoubleClicked(QListWidgetItem *item)
+
 {
+
     if (!item) return;
+
     item->setFlags(item->flags() | Qt::ItemIsEditable);
+
     m_listenAddrListWidget->editItem(item);
+
+}
+
+
+// =====================日志文件管理相关===================
+
+bool NetPage::initLogFile(const QString& networkName)
+{
+    // 先关闭之前的日志文件
+    closeLogFile();
+
+    // 创建 log 文件夹
+    QString logDirPath = QCoreApplication::applicationDirPath() + "/log";
+    QDir logDir(logDirPath);
+    if (!logDir.exists()) {
+        if (!logDir.mkpath(".")) {
+            onHandleLogs(tr("警告: 无法创建日志目录"), true);
+            return false;
+        }
+    }
+
+    // 生成时间戳前缀
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    // 对网络名进行 Base32 编码
+    QString encodedNetworkName = base32Encode(networkName.toUtf8());
+    // 移除 Base32 填充字符'='，使文件名更简洁
+    encodedNetworkName.remove('=');
+    // 生成日志文件名（格式：时间戳_Base32编码的网络名.log）
+    m_currentLogFileName = QString("%1/%2_%3.log").arg(logDirPath, timestamp, encodedNetworkName);
+
+    // 打开日志文件
+    m_logFile = new QFile(m_currentLogFileName);
+    if (!m_logFile->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        onHandleLogs(tr("警告: 无法打开日志文件 %1").arg(m_currentLogFileName), true);
+        delete m_logFile;
+        m_logFile = nullptr;
+        return false;
+    }
+
+    m_logStream = new QTextStream(m_logFile);
+    m_logLineCount = 0;
+    return true;
+}
+
+void NetPage::closeLogFile()
+{
+    if (m_logStream) {
+        delete m_logStream;
+        m_logStream = nullptr;
+    }
+
+    if (m_logFile) {
+        m_logFile->close();
+        delete m_logFile;
+        m_logFile = nullptr;
+    }
+    m_logLineCount = 0;
+}
+
+
+
+void NetPage::saveLogToFile(const QString& text, bool addTimestamp){
+    if (m_logStream) {
+        // 如果需要添加时间戳
+        if (addTimestamp) {
+            QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+            *m_logStream << "[" << timestamp << "] " << text;
+        } else {
+            *m_logStream << text;
+        }
+
+        // 确保每行以换行符结束
+        if (!text.endsWith('\n')) {
+            *m_logStream << Qt::endl;
+        }
+
+        m_logStream->flush();
+        m_logLineCount++;
+    }
 }

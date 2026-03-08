@@ -19,6 +19,8 @@
 #include <QDialog>
 #include <QProgressBar>
 #include <QThread>
+#include <QFile>
+#include <QTextStream>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -105,6 +107,7 @@ public:
     int realRpcPort = 0;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
     bool isRunning() const;
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
+    QString getLogFilePath() const { return m_currentLogFileName; }  // 获取当前日志文件路径
 
 private slots:
     // ===============网络设置相关===============
@@ -163,7 +166,8 @@ private slots:
 
     // ===============日志相关===============
     void onOpenLogFileClicked();  // 打开日志文件
-    void onWorkerLogOutput(const QString& logText, bool isError);  // 处理日志输出
+    void onWorkerLogOutput(const QString& logText, bool isError);  // 处理来自 Worker 的日志输出
+    void onHandleLogs(const QString& logText, bool isError = false, bool addTimestamp = true);  // 统一日志处理函数
     // ===============其他设置页面相关===============
     void onUseWebBoxChanged(int state);
     void onUseConfFileBoxChanged(int state);
@@ -278,6 +282,12 @@ private:
     QPushButton *m_openLogFileBtn =  nullptr;
     QPushButton *m_openLogDirBtn =  nullptr;
 
+    // 日志文件相关
+    QFile* m_logFile = nullptr;
+    QTextStream* m_logStream = nullptr;
+    QString m_currentLogFileName;
+    int m_logLineCount = 0;
+
     // EasyTierWorker相关（线程和工作对象）
     QThread* m_workerThread = nullptr;
     EasyTierWorker* m_worker = nullptr;
@@ -324,6 +334,14 @@ private:
     void initWorkerThread();
     // 清理Worker线程
     void cleanupWorkerThread();
+
+// ============== 日志文件管理相关===============
+    // 初始化日志文件
+    bool initLogFile(const QString& networkName);
+    // 关闭日志文件
+    void closeLogFile();
+    // 保存日志到文件
+    void saveLogToFile(const QString& text, bool addTimestamp = false);
 
 // ============== 其他设置页面相关===============
     // 初始化其他设置页面
