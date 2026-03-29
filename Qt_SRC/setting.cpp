@@ -654,19 +654,25 @@ void Settings::saveSettings()
 
 bool Settings::isAutoRun()
 {
-    QJsonObject settings = loadSettingsFromFile();
+    const QJsonObject settings = loadSettingsFromFile();
     return settings.value("autoRun").toBool(false);
+}
+
+bool Settings::isAutoStart()
+{
+    const QJsonObject settings = loadSettingsFromFile();
+    return settings.value("autoStart").toBool(false);
 }
 
 bool Settings::isHideOnTray()
 {
-    QJsonObject settings = loadSettingsFromFile();
+    const QJsonObject settings = loadSettingsFromFile();
     return settings.value("isHideOnTray").toBool(true);
 }
 
 bool Settings::isAutoCheckUpdate()
 {
-    QJsonObject settings = loadSettingsFromFile();
+    const QJsonObject settings = loadSettingsFromFile();
     return settings.value("autoUpdate").toBool(true);
 }
 

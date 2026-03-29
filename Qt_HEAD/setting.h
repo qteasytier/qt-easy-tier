@@ -134,13 +134,16 @@ public:
     /// @param isNotMessageBox 是否不显示消息框
     static void detectSoftwareVersion(QWidget *parent = nullptr, bool isNotMessageBox = false);
 
-    /// @brief 获取自动回连状态（直接从配置文件读取）
+    /// @brief 获取自动回连状态
     static bool isAutoRun();
 
-    /// @brief 是否隐藏到系统托盘（直接从配置文件读取）
+    /// @brief 获取开机自启状态
+    static bool isAutoStart();
+
+    /// @brief 是否隐藏到系统托盘
     static bool isHideOnTray();
 
-    /// @brief 是否自动检查更新（直接从配置文件读取）
+    /// @brief 是否自动检查更新
     static bool isAutoCheckUpdate();
 
     /// @brief 获取配置保存路径
@@ -168,6 +171,13 @@ public:
 
     /// @brief 获取日志文件夹路径
     static QString getLogDirPath();
+
+    /** @brief 设置开机自启
+     * @param enable 是否启用开机自启
+     * @param parent 父窗口指针
+     * @return 是否成功设置
+     */
+    static bool setAutoStart(bool enable, QWidget *parent = nullptr);
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -211,9 +221,6 @@ private:
     /// @brief 保存设置到配置文件（供静态方法使用）
     static bool saveSettingsToFile(const QJsonObject &settings);
 
-    // === 设置开机自启 ===
-    static bool setAutoStart(bool enable, QWidget *parent = nullptr);
-    
     // === 输入验证 ===
     void setupPortValidation();
     bool validatePortInput(const QString &text, int minPort = 1, int maxPort = 65535);

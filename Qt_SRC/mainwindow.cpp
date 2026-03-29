@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent, const bool isAutoStart)
 
     // 当点击千万别点按钮时候, 使用浏览器打开《恭喜发财》（新春特别版）
     connect(ui->dontClick, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://www.bilibili.com/video/BV1ad4y1V7wb/"));
+        QDesktopServices::openUrl(QUrl("https://www.bilibili.com/video/BV1UT42167xb"));
     });
 
     connect(ui->gitPushButton, &QPushButton::clicked, this, []() {
@@ -429,7 +429,7 @@ void MainWindow::onClickSettingBtn() {
 // ======================== 配置文件加载相关 ===========================
 
 
-// 加载网络配置
+// 加载QtEasyTier配置
 void MainWindow::loadConfig() {
     std::clog << "Config file save path: " << Settings::getConfigPath().toStdString() << std::endl;
 
@@ -445,13 +445,13 @@ void MainWindow::loadConfig() {
     loadingMessage.show();
 
     // 配置目录
-    QDir configDir;
+    const QDir configDir;
     if (!configDir.exists(Settings::getConfigPath())) {
         configDir.mkpath(Settings::getConfigPath());
     }
 
     // 配置文件路径
-    QString configFile = Settings::getConfigPath() + "/network.json";
+    const QString &configFile = Settings::getConfigPath() + "/network.json";
 
     // 检查配置文件是否存在
     QFile file(configFile);
@@ -545,26 +545,36 @@ void MainWindow::loadConfig() {
     // 是否隐藏到系统托盘
     m_isHideOnTray = Settings::isHideOnTray();
 
+    // 是否打开赞助窗口
     if (Settings::shouldShowDonate()) {
         Donate donate(this);
         donate.exec();
     }
+
+    // 是否自动检查更新
     if (Settings::isAutoCheckUpdate())
     {
         Settings::detectSoftwareVersion(this, true);
+    }
+
+    // 是否为自启动
+    if (Settings::isAutoStart())
+    {
+        // 设置为自启动时，尝试写入一次计划任务（冲掉旧的防止路径变化）
+        Settings::setAutoStart(true, this);
     }
 }
 
 // 保存网络配置
 void MainWindow::saveNetworkConfig() {
     // 创建配置目录
-    QDir configDir;
+    const QDir configDir;
     if (!configDir.exists(Settings::getConfigPath())) {
         configDir.mkpath(Settings::getConfigPath());
     }
 
     // 构建配置文件路径
-    QString configFile = Settings::getConfigPath() + "/network.json";
+    const QString &configFile = Settings::getConfigPath() + "/network.json";
 
     QJsonObject rootObj;
     rootObj["version"] = "1.0";
