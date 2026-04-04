@@ -58,6 +58,12 @@ public:
     /// @brief 设置边框不透明度（用于动画）
     void setBorderOpacity(qreal opacity);
 
+    /// @brief 获取是否启用无边框模式
+    [[nodiscard]] bool isBorderless() const;
+    /// @brief 设置是否启用无边框模式
+    /// @param borderless true 启用无边框模式，边框和背景透明，边距为3px
+    void setBorderless(bool borderless);
+
     /// @brief 获取推荐尺寸
     [[nodiscard]] QSize sizeHint() const override;
     /// @brief 获取最小尺寸
@@ -96,6 +102,7 @@ private:
     qreal m_sliderPosition;         ///< 滑块位置 (0.0 ~ 1.0)
     qreal m_borderOpacity;          ///< 边框高亮不透明度 (0.0 ~ 1.0)
     bool m_pressedOnSwitch;         ///< 按下时是否在开关区域
+    bool m_borderless;              ///< 无边框模式标志
 
     // 尺寸常量
     static constexpr int SWITCH_WIDTH = 40;     ///< 开关宽度
@@ -103,7 +110,7 @@ private:
     static constexpr int SLIDER_MARGIN = 2;     ///< 滑块边距
     static constexpr int BORDER_RADIUS = 11;    ///< 边框圆角
     static constexpr int TEXT_SWITCH_SPACING = 8; ///< 文字与开关间距
-    static constexpr int TIP_TEXT_SPACING = 4;  ///< 提示文字与控件间距
+    static constexpr int TIP_TEXT_SPACING = 8;  ///< 提示文字与控件间距
     static constexpr int ANIMATION_DURATION = 150; ///< 动画时长(ms)
     static constexpr int BORDER_ANIMATION_DURATION = 200; ///< 边框动画时长(ms)
 };

@@ -15,6 +15,7 @@ QtETCheckBtn::QtETCheckBtn(QWidget *parent)
     , m_sliderPosition(0.0)
     , m_borderOpacity(0.0)
     , m_pressedOnSwitch(false)
+    , m_borderless(false)
 {
     init();
 }
@@ -25,6 +26,7 @@ QtETCheckBtn::QtETCheckBtn(const QString &text, QWidget *parent)
     , m_sliderPosition(0.0)
     , m_borderOpacity(0.0)
     , m_pressedOnSwitch(false)
+    , m_borderless(false)
 {
     init();
 }
@@ -187,26 +189,47 @@ void QtETCheckBtn::setBorderOpacity(qreal opacity)
     }
 }
 
+bool QtETCheckBtn::isBorderless() const
+{
+    return m_borderless;
+}
+
+void QtETCheckBtn::setBorderless(bool borderless)
+{
+    if (m_borderless != borderless) {
+        m_borderless = borderless;
+        updateGeometry();
+        update();
+    }
+}
+
 QSize QtETCheckBtn::sizeHint() const
 {
     QFontMetrics fm(font());
     int textWidth = fm.horizontalAdvance(text());
     int textHeight = fm.height();
 
-    // 内容区域宽度：左边距 10 + 文字 + 间距 + 开关 + 右边距 10
-    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH + 20;
-    int height = qMax(textHeight, SWITCH_HEIGHT);
+    // 根据无边框模式设置不同的边距
+    int margin = m_borderless ? 3 : 10;
 
-    // 如果有 briefTip，在下方高亮显示，增加高度
+    // 内容区域宽度：左边距 + 文字 + 间距 + 开关 + 右边距
+    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH + margin * 2;
+
+    // 计算高度
+    int height;
     if (!m_briefTip.isEmpty()) {
+        // 有 briefTip 时
         QFont tipFont = font();
         tipFont.setPointSize(m_tipFontSize);
         QFontMetrics tipFm(tipFont);
-        height += TIP_TEXT_SPACING + tipFm.height();
+        // 上边距 + 内容高度 + 间距 + tip高度 + 下边距
+        height = margin + qMax(textHeight, SWITCH_HEIGHT) + TIP_TEXT_SPACING + tipFm.height() + margin;
+    } else {
+        // 无 briefTip 时，上下边距 + 内容高度
+        height = margin * 2 + qMax(textHeight, SWITCH_HEIGHT);
     }
 
-    // 添加上下边距（各 10px）
-    return QSize(width, height + 20);
+    return QSize(width, height);
 }
 
 QSize QtETCheckBtn::minimumSizeHint() const
@@ -216,12 +239,18 @@ QSize QtETCheckBtn::minimumSizeHint() const
 
 QRect QtETCheckBtn::calculateSwitchRect() const
 {
-    // 开关在右侧，与边框保持 9px 间距（边框 1px + 间距 9px = 10px）
-    int switchX = width() - SWITCH_WIDTH - 10;
-    int switchY = 10;  // 与上边框保持 9px 间距
+    // 根据无边框模式设置不同的边距
+    int margin = m_borderless ? 3 : 10;
 
-    // 如果有 briefTip，开关需要在上方区域
-    if (m_briefTip.isEmpty()) {
+    // 开关在右侧
+    int switchX = width() - SWITCH_WIDTH - margin;
+    int switchY;
+
+    if (!m_briefTip.isEmpty()) {
+        // 有 briefTip 时，开关与文字在内容区域垂直居中
+        int contentHeight = qMax(fontMetrics().height(), SWITCH_HEIGHT);
+        switchY = margin + (contentHeight - SWITCH_HEIGHT) / 2;
+    } else {
         // 无 briefTip 时垂直居中
         switchY = (height() - SWITCH_HEIGHT) / 2;
     }
@@ -249,67 +278,73 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // 绘制控件边框（类似 QPushButton 样式）
-    QRect borderRect = rect().adjusted(1, 1, -1, -1);
-    constexpr int borderRadius = 5;
-    
-    // 获取边框颜色
-    QColor borderColor;
-    QColor backgroundColor = palette().color(QPalette::Button);
-    
-    // 判断是否为暗色模式
-    const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
-    
-    // 基础边框颜色（非悬停状态）
-    QColor normalBorderColor;
-    if (isDark) {
-        normalBorderColor = palette().color(QPalette::Light);
-        // 如果颜色太深，使用更浅的颜色
-        if (normalBorderColor.lightnessF() < 0.3) {
-            normalBorderColor = QColor(100, 100, 100);
+    // 非无边框模式时绘制控件边框和背景
+    if (!m_borderless) {
+        // 绘制控件边框（类似 QPushButton 样式）
+        QRect borderRect = rect().adjusted(1, 1, -1, -1);
+        constexpr int borderRadius = 5;
+
+        // 获取边框颜色
+        QColor borderColor;
+        QColor backgroundColor = palette().color(QPalette::Button);
+
+        // 判断是否为暗色模式
+        const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+
+        // 基础边框颜色（非悬停状态）
+        QColor normalBorderColor;
+        if (isDark) {
+            normalBorderColor = palette().color(QPalette::Light);
+            // 如果颜色太深，使用更浅的颜色
+            if (normalBorderColor.lightnessF() < 0.3) {
+                normalBorderColor = QColor(100, 100, 100);
+            }
+        } else {
+            normalBorderColor = palette().color(QPalette::Mid);
+            // 如果颜色太浅，使用更深的颜色
+            if (normalBorderColor.lightnessF() > 0.9) {
+                normalBorderColor = palette().color(QPalette::Dark);
+            }
         }
-    } else {
-        normalBorderColor = palette().color(QPalette::Mid);
-        // 如果颜色太浅，使用更深的颜色
-        if (normalBorderColor.lightnessF() > 0.9) {
-            normalBorderColor = palette().color(QPalette::Dark);
-        }
+
+        // 高亮边框颜色
+        QColor highlightBorderColor = palette().color(QPalette::Highlight);
+
+        // 根据 m_borderOpacity 混合颜色
+        borderColor = QColor::fromRgbF(
+            normalBorderColor.redF() * (1 - m_borderOpacity) + highlightBorderColor.redF() * m_borderOpacity,
+            normalBorderColor.greenF() * (1 - m_borderOpacity) + highlightBorderColor.greenF() * m_borderOpacity,
+            normalBorderColor.blueF() * (1 - m_borderOpacity) + highlightBorderColor.blueF() * m_borderOpacity,
+            normalBorderColor.alphaF() * (1 - m_borderOpacity) + highlightBorderColor.alphaF() * m_borderOpacity
+        );
+
+        // 绘制背景
+        QPainterPath bgPath;
+        bgPath.addRoundedRect(borderRect, borderRadius, borderRadius);
+        painter.fillPath(bgPath, backgroundColor);
+
+        // 绘制边框
+        painter.setPen(QPen(borderColor, 1));
+        painter.drawPath(bgPath);
     }
-    
-    // 高亮边框颜色
-    QColor highlightBorderColor = palette().color(QPalette::Highlight);
-    
-    // 根据 m_borderOpacity 混合颜色
-    borderColor = QColor::fromRgbF(
-        normalBorderColor.redF() * (1 - m_borderOpacity) + highlightBorderColor.redF() * m_borderOpacity,
-        normalBorderColor.greenF() * (1 - m_borderOpacity) + highlightBorderColor.greenF() * m_borderOpacity,
-        normalBorderColor.blueF() * (1 - m_borderOpacity) + highlightBorderColor.blueF() * m_borderOpacity,
-        normalBorderColor.alphaF() * (1 - m_borderOpacity) + highlightBorderColor.alphaF() * m_borderOpacity
-    );
-    
-    // 绘制背景
-    QPainterPath bgPath;
-    bgPath.addRoundedRect(borderRect, borderRadius, borderRadius);
-    painter.fillPath(bgPath, backgroundColor);
-    
-    // 绘制边框
-    painter.setPen(QPen(borderColor, 1));
-    painter.drawPath(bgPath);
 
     QRect switchRect = calculateSwitchRect();
     QRectF sliderRect = calculateSliderRect();
 
-    // 绘制文字（左对齐，与边框保持 9px 间距）
+    // 绘制文字（左对齐）
     QFontMetrics fm(font());
     int textHeight = fm.height();
     int textY;
-    
-    // 文字左边距：边框 1px + 间距 9px = 10px
-    constexpr int contentMargin = 10;
-    
+
+    // 根据无边框模式设置不同的边距
+    int contentMargin = m_borderless ? 3 : 10;
+
     if (!m_briefTip.isEmpty()) {
-        // 有 briefTip 时，文字与上边框保持 10px 间距
-        textY = contentMargin + fm.ascent();
+        // 有 briefTip 时，文字与开关在内容区域垂直居中
+        // 内容区域顶部 = contentMargin
+        // 内容区域高度 = qMax(textHeight, SWITCH_HEIGHT)
+        int contentHeight = qMax(textHeight, SWITCH_HEIGHT);
+        textY = contentMargin + (contentHeight - textHeight) / 2 + fm.ascent();
     } else {
         textY = (height() - textHeight) / 2 + fm.ascent();
     }
@@ -352,8 +387,9 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
         painter.setFont(tipFont);
         painter.setPen(m_tipHighlightColor);
 
-        // briefTip 与上方内容保持间距
-        int tipY = textY - fm.ascent() + textHeight + TIP_TEXT_SPACING + tipFm.ascent();
+        // briefTip 位置：上边距 + 内容高度 + 间距
+        int contentHeight = qMax(fm.height(), SWITCH_HEIGHT);
+        int tipY = contentMargin + contentHeight + TIP_TEXT_SPACING + tipFm.ascent();
         painter.drawText(contentMargin, tipY, m_briefTip);
     }
 }

@@ -216,6 +216,7 @@ void QtETNetwork::initBasicSettingsPage()
     m_dhcpCheckBox = new QtETCheckBtn(networkFormWidget);
     m_dhcpCheckBox->setText(tr("启用 DHCP"));
     m_dhcpCheckBox->setChecked(true);
+    m_dhcpCheckBox->setBorderless(true);
     m_dhcpCheckBox->setToolTip(tr("自动分配虚拟IP地址"));
     networkFormLayout->addRow(tr("IP 设置:"), m_dhcpCheckBox);
 
@@ -236,12 +237,13 @@ void QtETNetwork::initBasicSettingsPage()
 
     m_lowLatencyCheckBox = new QtETCheckBtn(optionsWidget);
     m_lowLatencyCheckBox->setText(tr("低延迟优先"));
-    m_lowLatencyCheckBox->setChecked(false);
+    m_lowLatencyCheckBox->setBorderless(true);
     m_lowLatencyCheckBox->setToolTip(tr("开启后,会根据算法自动选择低延时的线路进行连接"));
 
     m_privateModeCheckBox = new QtETCheckBtn(optionsWidget);
     m_privateModeCheckBox->setText(tr("私有模式"));
     m_privateModeCheckBox->setChecked(true);
+    m_privateModeCheckBox->setBorderless(true);
     m_privateModeCheckBox->setToolTip(tr("开启后,不允许网络号和密码不相同的节点使用本节点进行数据中转"));
 
     optionsLayout->addWidget(m_lowLatencyCheckBox, 1);
@@ -335,14 +337,14 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     // 创建垂直布局
     QVBoxLayout *scrollLayout = new QVBoxLayout(scrollContent);
-    scrollLayout->setContentsMargins(20, 20, 20, 20);
+    scrollLayout->setContentsMargins(10, 10, 10, 10);
     scrollLayout->setSpacing(8);
 
     // ========== 功能开关区域（每行两个）==========
     QWidget *functionWidget = new QWidget(scrollContent);
     QGridLayout *functionGridLayout = new QGridLayout(functionWidget);
-    functionGridLayout->setHorizontalSpacing(30);
-    functionGridLayout->setVerticalSpacing(15);
+    functionGridLayout->setHorizontalSpacing(6);
+    functionGridLayout->setVerticalSpacing(6);
 
     // 初始化功能开关控件
     m_kcpProxyCheckBox = new QtETCheckBtn(functionWidget);

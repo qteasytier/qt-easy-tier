@@ -17,7 +17,7 @@ QtETMain::QtETMain(QWidget *parent)
     , ui(new Ui::QtETMain)
 {
     ui->setupUi(this);
-    setMinimumSize(640, 400);
+    setMinimumSize(680, 400);
 
 // =============== 初始化调色板 ===============
     // 设置一次调色板
