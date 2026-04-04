@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>668</width>
-    <height>474</height>
+    <width>640</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -98,7 +98,7 @@ QPushButton:disabled {
        <number>0</number>
       </property>
       <item>
-       <widget class="QPushButton" name="pushButton_2">
+       <widget class="QPushButton" name="homeBtn">
         <property name="text">
          <string/>
         </property>
@@ -118,7 +118,7 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_4">
+       <widget class="QPushButton" name="networkBtn">
         <property name="text">
          <string/>
         </property>
@@ -138,7 +138,7 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton">
+       <widget class="QPushButton" name="oneClickBtn">
         <property name="text">
          <string/>
         </property>
@@ -158,7 +158,7 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_3">
+       <widget class="QPushButton" name="webBtn">
         <property name="text">
          <string/>
         </property>
@@ -191,7 +191,7 @@ QPushButton:disabled {
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_5">
+       <widget class="QPushButton" name="gitBtn">
         <property name="text">
          <string/>
         </property>
@@ -211,7 +211,7 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_7">
+       <widget class="QPushButton" name="helpBtn">
         <property name="text">
          <string/>
         </property>
@@ -231,7 +231,7 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_6">
+       <widget class="QPushButton" name="settingsBtn">
         <property name="text">
          <string/>
         </property>

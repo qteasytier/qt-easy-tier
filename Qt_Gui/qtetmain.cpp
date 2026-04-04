@@ -17,6 +17,7 @@ QtETMain::QtETMain(QWidget *parent)
     , ui(new Ui::QtETMain)
 {
     ui->setupUi(this);
+    setMinimumSize(640, 480);
 
 // =============== 初始化调色板 ===============
     // 设置一次调色板
@@ -26,8 +27,16 @@ QtETMain::QtETMain(QWidget *parent)
     const QStyleHints *hints = QGuiApplication::styleHints();
     connect(hints, &QStyleHints::colorSchemeChanged, this, &QtETMain::onSchemeChanged);
 
-// =============== 初始化欢迎界面 ===============
+// =============== 初始化界面 ===============
     initHelloPage();
+    initNetworkPage();
+
+
+
+    connect(ui->homeBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        m_mainStackedWidget->setCurrentWidget(m_helloPage);
+    });
 }
 
 QtETMain::~QtETMain()
@@ -142,3 +151,17 @@ void QtETMain::initHelloPage()
 
     m_mainStackedWidget->setCurrentWidget(m_helloPage);
 }
+
+void QtETMain::initNetworkPage()
+{
+    // 初始化网络界面
+    m_networkPage = new QtETNetwork(this);
+    m_mainStackedWidget->addWidget(m_networkPage);
+
+    // 连接切换信号槽
+    connect(ui->networkBtn, &QPushButton::clicked, m_networkPage, [=, this]()
+    {
+        m_mainStackedWidget->setCurrentWidget(m_networkPage);
+    });
+}
+

@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QStyleHints>
 #include <QMouseEvent>
+#include <QEnterEvent>
 #include <QFontMetrics>
 #include <QEvent>
 
@@ -12,6 +13,7 @@ QtETCheckBtn::QtETCheckBtn(QWidget *parent)
     : QCheckBox(parent)
     , m_tipFontSize(9)
     , m_sliderPosition(0.0)
+    , m_borderOpacity(0.0)
     , m_pressedOnSwitch(false)
 {
     init();
@@ -21,6 +23,7 @@ QtETCheckBtn::QtETCheckBtn(const QString &text, QWidget *parent)
     : QCheckBox(text, parent)
     , m_tipFontSize(9)
     , m_sliderPosition(0.0)
+    , m_borderOpacity(0.0)
     , m_pressedOnSwitch(false)
 {
     init();
@@ -31,14 +34,22 @@ QtETCheckBtn::~QtETCheckBtn()
     if (m_animation) {
         m_animation->stop();
     }
+    if (m_borderAnimation) {
+        m_borderAnimation->stop();
+    }
 }
 
 void QtETCheckBtn::init()
 {
-    // 初始化动画
+    // 初始化滑块动画
     m_animation = new QPropertyAnimation(this, "sliderPosition", this);
     m_animation->setDuration(ANIMATION_DURATION);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
+
+    // 初始化边框高亮动画
+    m_borderAnimation = new QPropertyAnimation(this, "borderOpacity", this);
+    m_borderAnimation->setDuration(BORDER_ANIMATION_DURATION);
+    m_borderAnimation->setEasingCurve(QEasingCurve::OutCubic);
 
     // 初始化颜色
     updateColorScheme();
@@ -163,6 +174,19 @@ void QtETCheckBtn::setSliderPosition(qreal pos)
     }
 }
 
+qreal QtETCheckBtn::borderOpacity() const
+{
+    return m_borderOpacity;
+}
+
+void QtETCheckBtn::setBorderOpacity(qreal opacity)
+{
+    if (!qFuzzyCompare(m_borderOpacity, opacity)) {
+        m_borderOpacity = qBound(0.0, opacity, 1.0);
+        update();
+    }
+}
+
 QSize QtETCheckBtn::sizeHint() const
 {
     QFontMetrics fm(font());
@@ -236,25 +260,32 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     // 判断是否为暗色模式
     const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
     
-    // 根据鼠标状态和主题选择边框颜色
-    if (underMouse()) {
-        borderColor = palette().color(QPalette::Highlight);
+    // 基础边框颜色（非悬停状态）
+    QColor normalBorderColor;
+    if (isDark) {
+        normalBorderColor = palette().color(QPalette::Light);
+        // 如果颜色太深，使用更浅的颜色
+        if (normalBorderColor.lightnessF() < 0.3) {
+            normalBorderColor = QColor(100, 100, 100);
+        }
     } else {
-        // 暗色模式使用淡色边框，浅色模式使用深色边框
-        if (isDark) {
-            borderColor = palette().color(QPalette::Light);
-            // 如果颜色太深，使用更浅的颜色
-            if (borderColor.lightnessF() < 0.3) {
-                borderColor = QColor(100, 100, 100);
-            }
-        } else {
-            borderColor = palette().color(QPalette::Mid);
-            // 如果颜色太浅，使用更深的颜色
-            if (borderColor.lightnessF() > 0.9) {
-                borderColor = palette().color(QPalette::Dark);
-            }
+        normalBorderColor = palette().color(QPalette::Mid);
+        // 如果颜色太浅，使用更深的颜色
+        if (normalBorderColor.lightnessF() > 0.9) {
+            normalBorderColor = palette().color(QPalette::Dark);
         }
     }
+    
+    // 高亮边框颜色
+    QColor highlightBorderColor = palette().color(QPalette::Highlight);
+    
+    // 根据 m_borderOpacity 混合颜色
+    borderColor = QColor::fromRgbF(
+        normalBorderColor.redF() * (1 - m_borderOpacity) + highlightBorderColor.redF() * m_borderOpacity,
+        normalBorderColor.greenF() * (1 - m_borderOpacity) + highlightBorderColor.greenF() * m_borderOpacity,
+        normalBorderColor.blueF() * (1 - m_borderOpacity) + highlightBorderColor.blueF() * m_borderOpacity,
+        normalBorderColor.alphaF() * (1 - m_borderOpacity) + highlightBorderColor.alphaF() * m_borderOpacity
+    );
     
     // 绘制背景
     QPainterPath bgPath;
@@ -362,6 +393,28 @@ void QtETCheckBtn::mouseReleaseEvent(QMouseEvent *event)
     }
     
     m_pressedOnSwitch = false;
+}
+
+void QtETCheckBtn::enterEvent(QEnterEvent *event)
+{
+    QCheckBox::enterEvent(event);
+    
+    // 启动边框高亮动画（渐显）
+    m_borderAnimation->stop();
+    m_borderAnimation->setStartValue(m_borderOpacity);
+    m_borderAnimation->setEndValue(1.0);
+    m_borderAnimation->start();
+}
+
+void QtETCheckBtn::leaveEvent(QEvent *event)
+{
+    QCheckBox::leaveEvent(event);
+    
+    // 启动边框淡出动画（渐隐）
+    m_borderAnimation->stop();
+    m_borderAnimation->setStartValue(m_borderOpacity);
+    m_borderAnimation->setEndValue(0.0);
+    m_borderAnimation->start();
 }
 
 bool QtETCheckBtn::event(QEvent *event)

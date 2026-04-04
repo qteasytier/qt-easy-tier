@@ -11,6 +11,7 @@ class QtETCheckBtn : public QCheckBox
 {
     Q_OBJECT
     Q_PROPERTY(qreal sliderPosition READ sliderPosition WRITE setSliderPosition)
+    Q_PROPERTY(qreal borderOpacity READ borderOpacity WRITE setBorderOpacity)
     Q_PROPERTY(QString tipText READ tipText WRITE setTipText)
     Q_PROPERTY(QString briefTip READ briefTip WRITE setBriefTip)
     Q_PROPERTY(int tipFontSize READ tipFontSize WRITE setTipFontSize)
@@ -52,6 +53,11 @@ public:
     /// @brief 设置滑块位置（用于动画）
     void setSliderPosition(qreal pos);
 
+    /// @brief 获取边框不透明度（用于动画）
+    [[nodiscard]] qreal borderOpacity() const;
+    /// @brief 设置边框不透明度（用于动画）
+    void setBorderOpacity(qreal opacity);
+
     /// @brief 获取推荐尺寸
     [[nodiscard]] QSize sizeHint() const override;
     /// @brief 获取最小尺寸
@@ -62,6 +68,8 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void enterEvent(QEnterEvent *event) override;
+    void leaveEvent(QEvent *event) override;
     bool event(QEvent *event) override;
 
 private:
@@ -83,8 +91,10 @@ private:
     QColor m_sliderColor;           ///< 滑块颜色
     QColor m_tipHighlightColor;     ///< 提示文字高亮颜色
 
-    QPropertyAnimation *m_animation;///< 滑块动画
+    QPropertyAnimation *m_animation;        ///< 滑块动画
+    QPropertyAnimation *m_borderAnimation;  ///< 边框高亮动画
     qreal m_sliderPosition;         ///< 滑块位置 (0.0 ~ 1.0)
+    qreal m_borderOpacity;          ///< 边框高亮不透明度 (0.0 ~ 1.0)
     bool m_pressedOnSwitch;         ///< 按下时是否在开关区域
 
     // 尺寸常量
@@ -95,6 +105,7 @@ private:
     static constexpr int TEXT_SWITCH_SPACING = 8; ///< 文字与开关间距
     static constexpr int TIP_TEXT_SPACING = 4;  ///< 提示文字与控件间距
     static constexpr int ANIMATION_DURATION = 150; ///< 动画时长(ms)
+    static constexpr int BORDER_ANIMATION_DURATION = 200; ///< 边框动画时长(ms)
 };
 
 #endif // QTETCHECKBTN_H
