@@ -239,7 +239,7 @@ QStringList generateConfCommand(NetPage *netPage)
     if (netPage->isUserModeStackEnabled()) conf << "--use-smoltcp";      // 用户模式栈
     if (netPage->isP2pDisabled()) conf << "--disable-p2p";               // 禁用P2P
     if (netPage->isExitNodeEnabled()) conf << "--enable-exit-node";      // 出口节点
-    if (netPage->isSystemForwardingEnabled()) conf << "--proxy-forward-by-system";  // 系统转发
+    if (netPage->isSystemForwardingEnabled()) conf << "--proxy-forward-by-system";      // 系统转发
     if (netPage->isSymmetricNatHolePunchingDisabled()) conf << "--disable-sym-hole-punching";  // 禁用对称NAT打洞
     if (netPage->isIpv6Disabled()) conf << "--disable-ipv6";             // 禁用IPv6
 

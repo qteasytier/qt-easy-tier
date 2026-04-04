@@ -1,6 +1,6 @@
 #include "mainwindow.h"
 #include "setting.h"
-#include "qtetmain.h"
+#include "../Qt_Gui/qtetmain.h"
 #include <iostream>
 #include <QApplication>
 #include <QStyleFactory>
@@ -41,9 +41,9 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    MainWindow w(nullptr, isAutoStart);
+    //MainWindow w(nullptr, isAutoStart);
 
-    if (!isAutoStart) w.show();
+    //if (!isAutoStart) w.show();
 
     QtETMain qtetmain(nullptr);
     qtetmain.show();

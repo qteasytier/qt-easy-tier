@@ -8,11 +8,14 @@
         <file>eye.svg</file>
         <file>net.svg</file>
         <file>eye-slash.svg</file>
+        <file>net-page.svg</file>
         <file>icon.ico</file>
         <file>network.svg</file>
         <file>network-running.svg</file>
         <file>one-click.svg</file>
         <file>alipay.png</file>
         <file>wechat.png</file>
+        <file>Ubuntu-B.ttf</file>
+        <file>UbuntuMono-B.ttf</file>
     </qresource>
 </RCC>

@@ -15,7 +15,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # 设置UI、QRC文件的包含路径，用于UIC、RCC查找.ui、.qrc文件
-set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_UI)
+set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_UI ${CMAKE_SOURCE_DIR}/Qt_Items ${CMAKE_SOURCE_DIR}/Qt_Gui)
 set(CMAKE_AUTORCC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_QRC)
 
 # 查找Qt的组件
@@ -29,12 +29,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 添加头文件搜索路径
 include_directories(${CMAKE_SOURCE_DIR}/Qt_HEAD)
 include_directories(${CMAKE_SOURCE_DIR}/Sources)
+include_directories(${CMAKE_SOURCE_DIR}/Qt_Items)
+include_directories(${CMAKE_SOURCE_DIR}/Qt_Gui)
 
 # 收集源文件
 file(GLOB_RECURSE SOURCES "Sources/*.cpp" )
-file(GLOB_RECURSE QT_SOURCES "Qt_SRC/*.cpp")
-file(GLOB_RECURSE QT_HEAD "Qt_HEAD/*.h" "Qt_HEAD/*.hpp" "Sources/*.h" "Sources/*.hpp")
-file(GLOB_RECURSE QT_UI "Qt_UI/*.ui")
+file(GLOB_RECURSE QT_SOURCES "Qt_SRC/*.cpp" "Qt_Items/*.cpp" "Qt_Gui/*.cpp")
+file(GLOB_RECURSE QT_HEAD "Qt_HEAD/*.h" "Qt_HEAD/*.hpp" "Sources/*.h" "Sources/*.hpp"
+        "Qt_Items/*.h" "Qt_Gui/*.h"
+)
+file(GLOB_RECURSE QT_UI "Qt_UI/*.ui" "Qt_Items/*.ui" "Qt_Gui/*.ui")
 file(GLOB_RECURSE QT_RESOURCES "Qt_QRC/*.qrc")
 set(ALL_SOURCES ${SOURCES} ${QT_SOURCES} ${QT_HEAD} ${QT_UI} ${QT_RESOURCES})
 
