@@ -20,6 +20,7 @@
 
 #include "qtetlistwidget.h"
 #include "qtetcheckbtn.h"
+#include "qtetnodeinfo.h"
 #include "networkconf.h"
 #include "ETRunWorker.h"
 
@@ -243,6 +244,10 @@ private:
 
     // 运行状态控件
     QLabel *m_statusLabel;              /// @brief 状态标签
+    QVBoxLayout *m_nodeInfoLayout;      /// @brief 节点信息布局
+    QtETNodeInfo *m_testNodeInfo1;      /// @brief 测试节点信息控件1
+    QtETNodeInfo *m_testNodeInfo2;      /// @brief 测试节点信息控件2
+    QtETNodeInfo *m_testNodeInfo3;      /// @brief 测试节点信息控件3
 
     // 运行日志控件
     QLabel *m_logLabel;                 /// @brief 日志标签

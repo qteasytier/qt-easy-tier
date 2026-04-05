@@ -75,6 +75,10 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_calculateCidrBtn(nullptr)
     // 运行状态控件
     , m_statusLabel(nullptr)
+    , m_nodeInfoLayout(nullptr)
+    , m_testNodeInfo1(nullptr)
+    , m_testNodeInfo2(nullptr)
+    , m_testNodeInfo3(nullptr)
     // 运行日志控件
     , m_logLabel(nullptr)
     // 运行网络相关
@@ -722,11 +726,57 @@ void QtETNetwork::initAdvancedSettingsPage()
 void QtETNetwork::initRunningStatusPage()
 {
     QVBoxLayout *layout = new QVBoxLayout(m_runningStatusTab);
-    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setContentsMargins(15, 20, 15, 20);
 
-    m_statusLabel = new QLabel(tr("运行状态页面（待实现）"), m_runningStatusTab);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
+    m_statusLabel = new QLabel(tr("节点列表:"), m_runningStatusTab);
+    QFont titleLabelFont = m_statusLabel->font();
+    titleLabelFont.setPointSize(12);
+    titleLabelFont.setWeight(QFont::Bold);
+    m_statusLabel->setFont(titleLabelFont);
     layout->addWidget(m_statusLabel);
+
+    // 创建节点信息容器
+    QWidget *nodeInfoContainer = new QWidget(m_runningStatusTab);
+    m_nodeInfoLayout = new QVBoxLayout(nodeInfoContainer);
+    m_nodeInfoLayout->setContentsMargins(0, 10, 0, 0);
+    m_nodeInfoLayout->setSpacing(8);
+
+    // 创建测试节点信息控件1 - 直连节点
+    NodeInfo info1;
+    info1.hostname = QStringLiteral("MyPC-Desktop");
+    info1.virtualIp = QStringLiteral("10.144.144.1");
+    info1.connType = NodeConnType::Direct;
+    info1.latencyMs = 15;
+    info1.protocol = QStringLiteral("TCP");
+    info1.connMethod = QStringLiteral("P2P");
+    m_testNodeInfo1 = new QtETNodeInfo(info1, nodeInfoContainer);
+    m_nodeInfoLayout->addWidget(m_testNodeInfo1);
+
+    // 创建测试节点信息控件2 - 中转节点
+    NodeInfo info2;
+    info2.hostname = QStringLiteral("Remote-Server");
+    info2.virtualIp = QStringLiteral("10.144.144.5");
+    info2.connType = NodeConnType::Relay;
+    info2.latencyMs = 89;
+    info2.protocol = QStringLiteral("QUIC");
+    info2.connMethod = QStringLiteral("Relay");
+    m_testNodeInfo2 = new QtETNodeInfo(info2, nodeInfoContainer);
+    m_nodeInfoLayout->addWidget(m_testNodeInfo2);
+
+    // 创建测试节点信息控件3 - 服务器节点
+    NodeInfo info3;
+    info3.hostname = QStringLiteral("Public-Server-CN");
+    info3.virtualIp = QStringLiteral("10.144.144.100");
+    info3.connType = NodeConnType::Server;
+    info3.latencyMs = 42;
+    info3.protocol = QStringLiteral("KCP");
+    info3.connMethod = QStringLiteral("P2P");
+    m_testNodeInfo3 = new QtETNodeInfo(info3, nodeInfoContainer);
+    m_nodeInfoLayout->addWidget(m_testNodeInfo3);
+
+    m_nodeInfoLayout->addStretch();
+
+    layout->addWidget(nodeInfoContainer);
 }
 
 void QtETNetwork::initRunningLogPage()
