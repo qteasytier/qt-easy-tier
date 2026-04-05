@@ -5,6 +5,7 @@
 #include <QFontDatabase>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <set>
 
 QtETNetwork::QtETNetwork(QWidget *parent)
     : QWidget(parent)
@@ -76,9 +77,28 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_statusLabel(nullptr)
     // 运行日志控件
     , m_logLabel(nullptr)
+    // 运行网络相关
+    , m_runThread(nullptr)
+    , m_runWorker(nullptr)
+    , m_progressDialog(nullptr)
     , m_mainLayout(nullptr)
 {
     initUI();
+    
+    // 初始化运行网络的线程和 Worker
+    m_runThread = new QThread(this);
+    m_runWorker = new ETRunWorker();
+    m_runWorker->moveToThread(m_runThread);
+    
+    // 连接 Worker 信号到主线程槽
+    connect(m_runWorker, &ETRunWorker::etRunStarted, this, &QtETNetwork::onNetworkStarted, Qt::QueuedConnection);
+    connect(m_runWorker, &ETRunWorker::etRunStopped, this, &QtETNetwork::onNetworkStopped, Qt::QueuedConnection);
+    
+    // 线程结束时清理 Worker
+    connect(m_runThread, &QThread::finished, m_runWorker, &QObject::deleteLater);
+    
+    // 启动线程
+    m_runThread->start();
     
     // 启用右键菜单
     m_networksList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -89,6 +109,7 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     connect(m_networksList, &QListWidget::customContextMenuRequested, this, &QtETNetwork::onListContextMenu);
     connect(m_exportConfBtn, &QPushButton::clicked, this, &QtETNetwork::onExportConf);
     connect(m_importConfBtn, &QPushButton::clicked, this, &QtETNetwork::onImportConf);
+    connect(m_runNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onRunNetworkBtnClicked);
     
     // 设置UI控件的信号连接
     setupUIConnections();
@@ -97,7 +118,14 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     updateTabWidgetState();
 }
 
-QtETNetwork::~QtETNetwork() = default;
+QtETNetwork::~QtETNetwork()
+{
+    // 停止并清理线程
+    if (m_runThread) {
+        m_runThread->quit();
+        m_runThread->wait();
+    }
+}
 
 void QtETNetwork::initUI()
 {
@@ -788,6 +816,9 @@ void QtETNetwork::onNetworkSelected()
     if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
         loadConfToUI(currentRow);
     }
+    
+    // 更新运行按钮样式
+    updateRunButtonStyle();
 }
 
 void QtETNetwork::onListContextMenu(const QPoint &pos)
@@ -995,9 +1026,9 @@ void QtETNetwork::saveConfFromUI(const int &index)
     m_networkConfs[index].readFromUI(this);
 }
 
-void QtETNetwork::updateTabWidgetState()
+void QtETNetwork::updateTabWidgetState() const
 {
-    bool hasSelection = m_networksList->currentRow() >= 0 && m_networksList->count() > 0;
+    const bool hasSelection = m_networksList->currentRow() >= 0 && m_networksList->count() > 0;
     m_tabWidget->setEnabled(hasSelection);
 }
 
@@ -1113,11 +1144,38 @@ void QtETNetwork::loadAllNetworkConfs()
     // 从文件读取配置
     m_networkConfs = ::readAllNetworkConf();
     
+    // 从 FFI 获取实际运行的网络实例列表
+    std::vector<EasyTierFFI::KVPair> runningInstances;
+    size_t maxLen = MAX_NETWORK_INSTANCES;
+    int runningCount = EasyTierFFI::collectNetworkInfos(runningInstances, maxLen);
+    
+    // 同步运行状态：根据 FFI 实际运行状态更新配置
+    if (runningCount > 0) {
+        // 收集所有运行中的 instanceName
+        std::set<std::string> runningInstanceNames;
+        for (const auto &info : runningInstances) {
+            runningInstanceNames.insert(info.key);
+        }
+        
+        // 更新每个配置的运行状态
+        for (auto &conf : m_networkConfs) {
+            conf.setRunning(runningInstanceNames.contains(conf.getInstanceName()));
+        }
+    } else {
+        // 没有运行中的实例，所有配置都标记为未运行
+        for (auto &conf : m_networkConfs) {
+            conf.setRunning(false);
+        }
+    }
+    
     // 添加到列表
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         QString displayName = tr("网络 %1").arg(i + 1);
         m_networksList->addItem(displayName);
     }
+    
+    // 更新所有列表项的样式
+    updateAllListItemStyles();
     
     // 更新 TabWidget 状态
     updateTabWidgetState();
@@ -1126,6 +1184,9 @@ void QtETNetwork::loadAllNetworkConfs()
     if (m_networksList->count() > 0) {
         m_networksList->setCurrentRow(0);
     }
+    
+    // 更新运行按钮样式
+    updateRunButtonStyle();
 }
 
 void QtETNetwork::saveAllNetworkConfs() const
@@ -1241,4 +1302,210 @@ void QtETNetwork::onImportConf()
     updateTabWidgetState();
     
     QMessageBox::information(this, tr("导入成功"), tr("配置已成功导入"));
+}
+
+void QtETNetwork::onRunNetworkBtnClicked()
+{
+    const int &currentRow = m_networksList->currentRow();
+    
+    // 检查是否有选中的网络
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        QMessageBox::information(this, tr("提示"), tr("请先选择一个网络"));
+        return;
+    }
+    
+    NetworkConf &conf = m_networkConfs[currentRow];
+    
+    // 根据运行状态决定是启动还是停止
+    if (conf.isRunning()) {
+        // 停止网络
+        onRunNetworkBtnClicked_Stop(conf);
+    } else {
+        // 启动网络
+        onRunNetworkBtnClicked_Start(conf);
+    }
+}
+
+void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
+{
+    // 保存当前配置到 UI
+    const int &currentRow = m_networksList->currentRow();
+    if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
+        saveConfFromUI(currentRow);
+    }
+    
+    // 生成 TOML 配置
+    const std::string &tomlConfig = conf.toToml();
+    
+    // 创建进度对话框
+    if (!m_progressDialog) {
+        m_progressDialog = new QProgressDialog(this);
+        m_progressDialog->setWindowModality(Qt::WindowModal);
+        m_progressDialog->setCancelButton(nullptr);
+        m_progressDialog->setRange(0, 0);  // 无限进度条
+    }
+    m_progressDialog->setLabelText(tr("正在启动网络 \"%1\"...").arg(QString::fromStdString(conf.m_networkName)));
+    m_progressDialog->show();
+    
+    // 记录当前正在操作的实例名称（FFI 中 instance_name 是 m_instanceName）
+    m_currentRunningInstName = conf.getInstanceName();
+    
+    // 调用 Worker 启动网络
+    QMetaObject::invokeMethod(m_runWorker, "runNetwork", Qt::QueuedConnection,
+                              Q_ARG(std::string, conf.getInstanceName()),
+                              Q_ARG(std::string, tomlConfig));
+}
+
+void QtETNetwork::onRunNetworkBtnClicked_Stop(const NetworkConf &conf)
+{
+    // 创建进度对话框
+    if (!m_progressDialog) {
+        m_progressDialog = new QProgressDialog(this);
+        m_progressDialog->setWindowModality(Qt::WindowModal);
+        m_progressDialog->setCancelButton(nullptr);
+        m_progressDialog->setRange(0, 0);  // 无限进度条
+    }
+    m_progressDialog->setLabelText(tr("正在停止网络 \"%1\"...").arg(QString::fromStdString(conf.m_networkName)));
+    m_progressDialog->show();
+    
+    // 记录当前正在操作的实例名称
+    m_currentRunningInstName = conf.getInstanceName();
+    
+    // 调用 Worker 停止网络（使用 instanceName 标识）
+    QMetaObject::invokeMethod(m_runWorker, "stopNetwork", Qt::QueuedConnection,
+                              Q_ARG(std::string, conf.getInstanceName()));
+}
+
+void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, const std::string &errorMsg)
+{
+    // 关闭进度对话框
+    if (m_progressDialog) {
+        m_progressDialog->hide();
+    }
+    
+    // 查找对应的网络配置（使用 instanceName 匹配）
+    for (size_t i = 0; i < m_networkConfs.size(); ++i) {
+        if (m_networkConfs[i].getInstanceName() == instName) {
+            if (success) {
+                // 更新运行状态
+                m_networkConfs[i].setRunning(true);
+                
+                // 更新列表项样式
+                updateListItemStyle(static_cast<int>(i));
+                
+                // 更新按钮样式
+                updateRunButtonStyle();
+                
+                // 保存配置
+                saveAllNetworkConfs();
+                
+                QMessageBox::information(this, tr("启动成功"), 
+                    tr("网络 \"%1\" 已成功启动").arg(QString::fromStdString(m_networkConfs[i].m_networkName)));
+            } else {
+                QMessageBox::warning(this, tr("启动失败"), 
+                    tr("网络 \"%1\" 启动失败:\n%2").arg(QString::fromStdString(m_networkConfs[i].m_networkName)).arg(QString::fromStdString(errorMsg)));
+            }
+            return;
+        }
+    }
+}
+
+void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, const std::string &errorMsg)
+{
+    // 关闭进度对话框
+    if (m_progressDialog) {
+        m_progressDialog->hide();
+    }
+    
+    // 查找对应的网络配置（使用 instanceName 匹配）
+    for (size_t i = 0; i < m_networkConfs.size(); ++i) {
+        if (m_networkConfs[i].getInstanceName() == instName) {
+            if (success) {
+                // 更新运行状态
+                m_networkConfs[i].setRunning(false);
+                
+                // 更新列表项样式
+                updateListItemStyle(static_cast<int>(i));
+                
+                // 更新按钮样式
+                updateRunButtonStyle();
+                
+                // 保存配置
+                saveAllNetworkConfs();
+                
+                QMessageBox::information(this, tr("停止成功"), 
+                    tr("网络 \"%1\" 已成功停止").arg(QString::fromStdString(m_networkConfs[i].m_networkName)));
+            } else {
+                QMessageBox::warning(this, tr("停止失败"), 
+                    tr("网络 \"%1\" 停止失败:\n%2").arg(QString::fromStdString(m_networkConfs[i].m_networkName)).arg(QString::fromStdString(errorMsg)));
+            }
+            return;
+        }
+    }
+}
+
+void QtETNetwork::updateRunButtonStyle() const
+{
+    int currentRow = m_networksList->currentRow();
+    
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        // 没有选中网络，恢复默认样式
+        m_runNetworkBtn->setText(tr("运行网络"));
+        m_runNetworkBtn->setStyleSheet(QString());
+        return;
+    }
+    
+    const NetworkConf &conf = m_networkConfs[currentRow];
+    
+    if (conf.isRunning()) {
+        // 网络运行中，显示停止按钮样式
+        m_runNetworkBtn->setText(tr("运行中"));
+        m_runNetworkBtn->setStyleSheet(QStringLiteral(
+            R"(QPushButton {
+              color: #2ecc71;
+              font-weight: bold;
+            })"
+        ));
+    } else {
+        // 网络未运行，恢复默认样式
+        m_runNetworkBtn->setText(tr("运行网络"));
+        m_runNetworkBtn->setStyleSheet(QString());
+    }
+}
+
+void QtETNetwork::updateListItemStyle(const int &index) const
+{
+    if (index < 0 || index >= m_networksList->count()) {
+        return;
+    }
+    
+    QListWidgetItem *item = m_networksList->item(index);
+    if (!item) {
+        return;
+    }
+    
+    if (index >= 0 && index < static_cast<int>(m_networkConfs.size())) {
+        const NetworkConf &conf = m_networkConfs[index];
+        
+        if (conf.isRunning()) {
+            // 运行中：绿色粗体
+            QFont font = item->font();
+            font.setBold(true);
+            item->setFont(font);
+            item->setForeground(QColor(46, 204, 113));  // 绿色
+        } else {
+            // 未运行：恢复默认
+            QFont font = item->font();
+            font.setBold(false);
+            item->setFont(font);
+            item->setForeground(QColor());  // 默认颜色
+        }
+    }
+}
+
+void QtETNetwork::updateAllListItemStyles() const
+{
+    for (int i = 0; i < m_networksList->count(); ++i) {
+        updateListItemStyle(i);
+    }
 }

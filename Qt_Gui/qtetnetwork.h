@@ -14,11 +14,14 @@
 #include <QWheelEvent>
 #include <QMenu>
 #include <QMessageBox>
+#include <QThread>
+#include <QProgressDialog>
 #include <vector>
 
 #include "qtetlistwidget.h"
 #include "qtetcheckbtn.h"
 #include "networkconf.h"
+#include "ETRunWorker.h"
 
 /// @brief 平滑滚动事件过滤器
 /// 实现滚轮平滑滚动效果
@@ -125,9 +128,20 @@ private:
     /// @param index 网络配置索引
     void saveConfFromUI(const int& index);
     /// @brief 更新 TabWidget 的启用状态
-    void updateTabWidgetState();
+    void updateTabWidgetState() const;
     /// @brief 设置UI控件的信号连接
     void setupUIConnections();
+    /// @brief 更新运行按钮的样式（根据当前选中的网络状态）
+    void updateRunButtonStyle() const;
+    /// @brief 更新网络列表项的样式
+    /// @param index 网络配置索引
+    void updateListItemStyle(const int& index) const;
+    /// @brief 更新所有网络列表项的样式
+    void updateAllListItemStyles() const;
+    /// @brief 启动网络内部实现
+    void onRunNetworkBtnClicked_Start(const NetworkConf &conf);
+    /// @brief 停止网络内部实现
+    void onRunNetworkBtnClicked_Stop(const NetworkConf &conf);
 
 private slots:
     /// @brief 新建网络按钮点击
@@ -144,6 +158,12 @@ private slots:
     void onExportConf();
     /// @brief 导入配置按钮点击
     void onImportConf();
+    /// @brief 运行/停止网络按钮点击
+    void onRunNetworkBtnClicked();
+    /// @brief 网络启动完成处理
+    void onNetworkStarted(const std::string &instName, bool success, const std::string &errorMsg);
+    /// @brief 网络停止完成处理
+    void onNetworkStopped(const std::string &instName, bool success, const std::string &errorMsg);
 
 private:
     // 左侧面板
@@ -229,6 +249,12 @@ private:
 
     // 网络配置数据
     std::vector<NetworkConf> m_networkConfs;  /// @brief 网络配置列表
+
+    // 运行网络相关
+    QThread *m_runThread;               /// @brief 运行网络的工作线程
+    ETRunWorker *m_runWorker;           /// @brief 运行网络的工作对象
+    QProgressDialog *m_progressDialog;  /// @brief 启动进度对话框
+    std::string m_currentRunningInstName; /// @brief 当前正在操作的网络实例名称
 
     // 主布局
     QHBoxLayout *m_mainLayout;          /// @brief 主布局

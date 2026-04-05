@@ -62,6 +62,8 @@ public:
     // Getter 方法
     [[nodiscard]] const std::string& getInstanceName() const { return m_instanceName; }
     void setInstanceName(const std::string &name) { m_instanceName = name; }
+    [[nodiscard]] bool isRunning() const { return m_isRunning; }
+    void setRunning(bool running) { m_isRunning = running; }
 
 private:
     // ==================== 基础设置 ====================
@@ -102,6 +104,9 @@ private:
 
     // ==================== 实例标识 ====================
     std::string m_instanceName;             ///< 实例名称（用于 FFI 管理）
+
+    // ==================== 运行状态 ====================
+    bool m_isRunning = false;               ///< 网络运行状态
 };
 
 /**

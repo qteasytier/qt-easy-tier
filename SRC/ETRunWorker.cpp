@@ -4,6 +4,8 @@
 
 #include "ETRunWorker.h"
 #include <cstring>
+#include <iostream>
+
 
 // FFI 函数已在 easytier_ffi.h 中声明为 extern "C"
 // 这里直接使用，链接时会找到对应的符号
@@ -115,3 +117,68 @@ std::vector<std::string> getErrorMsg()
 }
 
 } // namespace EasyTierFFI
+
+// ==================== ETRunWorker 类实现 ====================
+
+ETRunWorker::ETRunWorker(QObject *parent)
+    : QObject(parent)
+{
+    // 注册 std::string 元类型，以便在跨线程信号槽中使用
+    qRegisterMetaType<std::string>("std::string");
+}
+
+void ETRunWorker::runNetwork(const std::string &instName, const std::string &tomlConfig)
+{
+    // 调用 FFI 运行网络实例
+    const bool success = EasyTierFFI::runNetworkInstance(tomlConfig);
+    
+    std::string errorMsg;
+    if (!success) {
+        errorMsg = getLastErrorMsg();
+    }
+    
+    // 发出启动完成信号
+    emit etRunStarted(instName, success, errorMsg);
+}
+
+void ETRunWorker::stopNetwork(const std::string &instName)
+{
+    // 使用 retain_network_instance 终止指定实例
+    // 传入空列表表示终止所有实例，这里我们需要保留其他实例
+    // 所以需要获取当前运行的所有实例，然后移除要停止的实例
+    
+    std::vector<EasyTierFFI::KVPair> infos;
+    size_t maxLen = MAX_NETWORK_INSTANCES;
+    int count = EasyTierFFI::collectNetworkInfos(infos, maxLen);
+    
+    // 构建要保留的实例名称列表（排除要停止的实例）
+    std::vector<std::string> retainNames;
+    if (count > 0) {
+        for (const auto &info : infos) {
+            if (info.key != instName) {
+                retainNames.push_back(info.key);
+            }
+        }
+    }
+    
+    // 调用 retain 终止指定实例
+    size_t retainLen = retainNames.size();
+    bool success = EasyTierFFI::retainNetworkInstance(retainNames, retainLen);
+    
+    std::string errorMsg;
+    if (!success) {
+        errorMsg = getLastErrorMsg();
+    }
+    
+    // 发出停止完成信号
+    emit etRunStopped(instName, success, errorMsg);
+}
+
+std::string ETRunWorker::getLastErrorMsg()
+{
+    auto errors = EasyTierFFI::getErrorMsg();
+    if (errors.empty()) {
+        return "Unknown error";
+    }
+    return errors[0];
+}

@@ -98,6 +98,9 @@ void NetworkConf::readFromJson(const QJsonObject &json)
         m_instanceName = generateInstanceName();
     }
 
+    // ==================== 运行状态 ====================
+    m_isRunning = json["is_running"].toBool(false);
+
     // ==================== 基础设置 ====================
     m_hostname = json["hostname"].toString().toStdString();
     m_networkName = json["network_name"].toString().toStdString();
@@ -165,6 +168,9 @@ QJsonObject NetworkConf::toJson() const
 
     // ==================== 实例标识 ====================
     json["instance_name"] = QString::fromStdString(m_instanceName);
+
+    // ==================== 运行状态 ====================
+    json["is_running"] = m_isRunning;
 
     // ==================== 基础设置 ====================
     json["hostname"] = QString::fromStdString(m_hostname);
@@ -235,11 +241,11 @@ std::string NetworkConf::toToml() const
 
     // ==================== 顶层字段 ====================
     // instance_name 使用网络名称
-    oss << "instance_name = \"" << m_networkName << "\"\n";
+    oss << "instance_name = \"" << m_instanceName << "\"\n";
+
     oss << "hostname = \"" << m_hostname << "\"\n";
-    oss << "instance_id = \"" << m_instanceName << "\"\n";
     oss << "dhcp = " << (m_dhcp ? "true" : "false") << "\n";
-    if (!m_ipv4.empty()) {
+    if (!m_ipv4.empty() && !m_dhcp) {
         oss << "ipv4 = \"" << m_ipv4 << "\"\n";
     }
 

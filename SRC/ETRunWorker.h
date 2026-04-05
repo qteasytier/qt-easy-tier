@@ -6,8 +6,13 @@
 #define QTEASYTIER_ETRUNWORKER_H
 
 #include "easytier_ffi.h"
+#include <QObject>
 #include <string>
 #include <vector>
+#include <QMetaType>
+
+// 注册 std::string 为 Qt 元类型，以便在信号槽中使用
+Q_DECLARE_METATYPE(std::string)
 
 #define MAX_WAIT_TIME 30000
 #define MAX_NETWORK_INSTANCES 16
@@ -110,9 +115,57 @@ namespace EasyTierFFI {
 
 }
 
-class ETRunWorker
+/**
+ * @brief EasyTier 网络运行工作类
+ *
+ * 符合 Qt Thread-Worker 规范的工作类，用于在独立线程中管理网络实例的运行和停止。
+ * 通过信号槽机制与主线程通信，避免阻塞 UI。
+ */
+class ETRunWorker : public QObject
 {
-};
+    Q_OBJECT
 
+public:
+    explicit ETRunWorker(QObject *parent = nullptr);
+    ~ETRunWorker() override = default;
+
+public slots:
+    /**
+     * @brief 运行网络实例
+     * @param instName 实例名称（网络名称）
+     * @param tomlConfig TOML 配置字符串
+     */
+    void runNetwork(const std::string &instName, const std::string &tomlConfig);
+
+    /**
+     * @brief 停止网络实例
+     * @param instName 实例名称（网络名称）
+     */
+    void stopNetwork(const std::string &instName);
+
+signals:
+    /**
+     * @brief 网络启动完成信号
+     * @param instName 实例名称
+     * @param success 是否成功
+     * @param errorMsg 错误信息（成功时为空）
+     */
+    void etRunStarted(const std::string &instName, bool success, const std::string &errorMsg);
+
+    /**
+     * @brief 网络停止完成信号
+     * @param instName 实例名称
+     * @param success 是否成功
+     * @param errorMsg 错误信息（成功时为空）
+     */
+    void etRunStopped(const std::string &instName, bool success, const std::string &errorMsg);
+
+private:
+    /**
+     * @brief 获取错误信息字符串
+     * @return 错误信息字符串
+     */
+    static std::string getLastErrorMsg();
+};
 
 #endif //QTEASYTIER_ETRUNWORKER_H
