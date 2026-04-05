@@ -16,6 +16,10 @@
 #include <QMessageBox>
 #include <QThread>
 #include <QProgressDialog>
+#include <QTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <vector>
 
 #include "qtetlistwidget.h"
@@ -143,6 +147,14 @@ private:
     void onRunNetworkBtnClicked_Start(const NetworkConf &conf);
     /// @brief 停止网络内部实现
     void onRunNetworkBtnClicked_Stop(const NetworkConf &conf);
+    /// @brief 解析网络信息JSON并更新节点列表
+    void parseAndUpdateNodeInfos(const QString &jsonStr);
+    /// @brief 将uint32_t IP地址转换为点分十进制字符串
+    static QString ipAddrToString(quint32 addr);
+    /// @brief 启动节点监测定时器
+    void startNodeMonitor() const;
+    /// @brief 停止节点监测定时器
+    void stopNodeMonitor();
 
 private slots:
     /// @brief 新建网络按钮点击
@@ -165,6 +177,10 @@ private slots:
     void onNetworkStarted(const std::string &instName, bool success, const std::string &errorMsg);
     /// @brief 网络停止完成处理
     void onNetworkStopped(const std::string &instName, bool success, const std::string &errorMsg);
+    /// @brief 网络信息收集完成处理
+    void onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos);
+    /// @brief 定时器超时，请求收集网络信息
+    void onMonitorTimerTimeout() const;
 
 private:
     // 左侧面板
@@ -244,10 +260,10 @@ private:
 
     // 运行状态控件
     QLabel *m_statusLabel;              /// @brief 状态标签
+    QWidget *m_nodeInfoContainer;       /// @brief 节点信息容器
     QVBoxLayout *m_nodeInfoLayout;      /// @brief 节点信息布局
-    QtETNodeInfo *m_testNodeInfo1;      /// @brief 测试节点信息控件1
-    QtETNodeInfo *m_testNodeInfo2;      /// @brief 测试节点信息控件2
-    QtETNodeInfo *m_testNodeInfo3;      /// @brief 测试节点信息控件3
+    QList<QtETNodeInfo*> m_nodeInfoWidgets; /// @brief 节点信息控件列表
+    QLabel *m_emptyLabel;               /// @brief 空状态提示标签
 
     // 运行日志控件
     QLabel *m_logLabel;                 /// @brief 日志标签
@@ -260,6 +276,8 @@ private:
     ETRunWorker *m_runWorker;           /// @brief 运行网络的工作对象
     QProgressDialog *m_progressDialog;  /// @brief 启动进度对话框
     std::string m_currentRunningInstName; /// @brief 当前正在操作的网络实例名称
+    QTimer *m_monitorTimer;             /// @brief 节点监测定时器
+    int m_runningNetworkCount;          /// @brief 正在运行的网络数量
 
     // 主布局
     QHBoxLayout *m_mainLayout;          /// @brief 主布局

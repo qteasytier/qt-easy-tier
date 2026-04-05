@@ -125,6 +125,9 @@ ETRunWorker::ETRunWorker(QObject *parent)
 {
     // 注册 std::string 元类型，以便在跨线程信号槽中使用
     qRegisterMetaType<std::string>("std::string");
+    // 注册 EasyTierFFI::KVPair 元类型
+    qRegisterMetaType<EasyTierFFI::KVPair>("EasyTierFFI::KVPair");
+    qRegisterMetaType<std::vector<EasyTierFFI::KVPair>>("std::vector<EasyTierFFI::KVPair>");
 }
 
 void ETRunWorker::runNetwork(const std::string &instName, const std::string &tomlConfig)
@@ -181,4 +184,13 @@ std::string ETRunWorker::getLastErrorMsg()
         return "Unknown error";
     }
     return errors[0];
+}
+
+void ETRunWorker::collectInfos()
+{
+    std::vector<EasyTierFFI::KVPair> infos;
+    size_t maxLen = MAX_NETWORK_INSTANCES;
+    EasyTierFFI::collectNetworkInfos(infos, maxLen);
+    
+    emit infosCollected(infos);
 }

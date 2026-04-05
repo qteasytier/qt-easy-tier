@@ -23,22 +23,25 @@ struct NodeInfo
     int latencyMs;              ///< 延迟（毫秒），-1表示未知
     QString protocol;           ///< 协议（如 TCP、UDP、KCP、QUIC）
     QString connMethod;         ///< 连接方式（如 P2P、Relay等）
+    bool isLocalNode;           ///< 是否为本机节点
 
     /// @brief 默认构造函数
     NodeInfo()
         : connType(NodeConnType::Direct)
         , latencyMs(-1)
+        , isLocalNode(false)
     {}
 
     /// @brief 完整构造函数
     NodeInfo(const QString &host, const QString &ip, NodeConnType type,
-             int latency, const QString &proto, const QString &method)
+             int latency, const QString &proto, const QString &method, bool local = false)
         : hostname(host)
         , virtualIp(ip)
         , connType(type)
         , latencyMs(latency)
         , protocol(proto)
         , connMethod(method)
+        , isLocalNode(local)
     {}
 };
 
@@ -65,6 +68,24 @@ private:
 
     QColor getConnTypeColor() const;
     QString getConnTypeText() const;
+};
+
+/// @brief 本机标签控件（紫色圆角背景）
+class QtETLocalLabel : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit QtETLocalLabel(QWidget *parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
+private:
+    static constexpr int BORDER_RADIUS = 6;
+    static constexpr int PADDING_H = 6;
+    static constexpr int PADDING_V = 2;
+    static constexpr int FONT_SIZE = 9;
 };
 
 /// @brief 节点信息显示控件
@@ -117,6 +138,7 @@ private:
     // 内容控件
     QLabel *m_ipHostLabel;              ///< IP和主机名标签（可选中复制）
     QtETConnTypeLabel *m_connTypeLabel; ///< 连接类型标签
+    QtETLocalLabel *m_localLabel;       ///< 本机标签
     QLabel *m_detailLabel;              ///< 详细信息标签
 
     // 颜色方案

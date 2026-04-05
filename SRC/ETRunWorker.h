@@ -143,6 +143,13 @@ public slots:
      */
     void stopNetwork(const std::string &instName);
 
+    /**
+     * @brief 收集网络信息
+     * 
+     * 收集所有运行中网络实例的状态信息，通过信号返回。
+     */
+    void collectInfos();
+
 signals:
     /**
      * @brief 网络启动完成信号
@@ -160,6 +167,12 @@ signals:
      */
     void etRunStopped(const std::string &instName, bool success, const std::string &errorMsg);
 
+    /**
+     * @brief 网络信息收集完成信号
+     * @param infos 网络信息列表（KVPair格式）
+     */
+    void infosCollected(const std::vector<EasyTierFFI::KVPair> &infos);
+
 private:
     /**
      * @brief 获取错误信息字符串
@@ -167,5 +180,9 @@ private:
      */
     static std::string getLastErrorMsg();
 };
+
+// 注册 EasyTierFFI::KVPair 为 Qt 元类型
+Q_DECLARE_METATYPE(EasyTierFFI::KVPair)
+Q_DECLARE_METATYPE(std::vector<EasyTierFFI::KVPair>)
 
 #endif //QTEASYTIER_ETRUNWORKER_H

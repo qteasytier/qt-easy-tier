@@ -75,16 +75,17 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_calculateCidrBtn(nullptr)
     // 运行状态控件
     , m_statusLabel(nullptr)
+    , m_nodeInfoContainer(nullptr)
     , m_nodeInfoLayout(nullptr)
-    , m_testNodeInfo1(nullptr)
-    , m_testNodeInfo2(nullptr)
-    , m_testNodeInfo3(nullptr)
+    , m_emptyLabel(nullptr)
     // 运行日志控件
     , m_logLabel(nullptr)
     // 运行网络相关
     , m_runThread(nullptr)
     , m_runWorker(nullptr)
     , m_progressDialog(nullptr)
+    , m_monitorTimer(nullptr)
+    , m_runningNetworkCount(0)
     , m_mainLayout(nullptr)
 {
     initUI();
@@ -97,12 +98,18 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     // 连接 Worker 信号到主线程槽
     connect(m_runWorker, &ETRunWorker::etRunStarted, this, &QtETNetwork::onNetworkStarted, Qt::QueuedConnection);
     connect(m_runWorker, &ETRunWorker::etRunStopped, this, &QtETNetwork::onNetworkStopped, Qt::QueuedConnection);
+    connect(m_runWorker, &ETRunWorker::infosCollected, this, &QtETNetwork::onInfosCollected, Qt::QueuedConnection);
     
     // 线程结束时清理 Worker
     connect(m_runThread, &QThread::finished, m_runWorker, &QObject::deleteLater);
     
     // 启动线程
     m_runThread->start();
+    
+    // 初始化节点监测定时器
+    m_monitorTimer = new QTimer(this);
+    m_monitorTimer->setInterval(2000);  // 2秒间隔
+    connect(m_monitorTimer, &QTimer::timeout, this, &QtETNetwork::onMonitorTimerTimeout);
     
     // 启用右键菜单
     m_networksList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -726,57 +733,40 @@ void QtETNetwork::initAdvancedSettingsPage()
 void QtETNetwork::initRunningStatusPage()
 {
     QVBoxLayout *layout = new QVBoxLayout(m_runningStatusTab);
-    layout->setContentsMargins(15, 20, 15, 20);
+    layout->setContentsMargins(10, 20, 10, 20);
 
-    m_statusLabel = new QLabel(tr("节点列表:"), m_runningStatusTab);
+    m_statusLabel = new QLabel(tr("请先点击运行网络"), m_runningStatusTab);
     QFont titleLabelFont = m_statusLabel->font();
     titleLabelFont.setPointSize(12);
     titleLabelFont.setWeight(QFont::Bold);
     m_statusLabel->setFont(titleLabelFont);
     layout->addWidget(m_statusLabel);
 
-    // 创建节点信息容器
-    QWidget *nodeInfoContainer = new QWidget(m_runningStatusTab);
-    m_nodeInfoLayout = new QVBoxLayout(nodeInfoContainer);
+    // 创建节点信息容器（带滚动区域）
+    QScrollArea *scrollArea = new QScrollArea(m_runningStatusTab);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+
+    m_nodeInfoContainer = new QWidget(scrollArea);
+    m_nodeInfoLayout = new QVBoxLayout(m_nodeInfoContainer);
     m_nodeInfoLayout->setContentsMargins(0, 10, 0, 0);
     m_nodeInfoLayout->setSpacing(8);
 
-    // 创建测试节点信息控件1 - 直连节点
-    NodeInfo info1;
-    info1.hostname = QStringLiteral("MyPC-Desktop");
-    info1.virtualIp = QStringLiteral("10.144.144.1");
-    info1.connType = NodeConnType::Direct;
-    info1.latencyMs = 15;
-    info1.protocol = QStringLiteral("TCP");
-    info1.connMethod = QStringLiteral("P2P");
-    m_testNodeInfo1 = new QtETNodeInfo(info1, nodeInfoContainer);
-    m_nodeInfoLayout->addWidget(m_testNodeInfo1);
-
-    // 创建测试节点信息控件2 - 中转节点
-    NodeInfo info2;
-    info2.hostname = QStringLiteral("Remote-Server");
-    info2.virtualIp = QStringLiteral("10.144.144.5");
-    info2.connType = NodeConnType::Relay;
-    info2.latencyMs = 89;
-    info2.protocol = QStringLiteral("QUIC");
-    info2.connMethod = QStringLiteral("Relay");
-    m_testNodeInfo2 = new QtETNodeInfo(info2, nodeInfoContainer);
-    m_nodeInfoLayout->addWidget(m_testNodeInfo2);
-
-    // 创建测试节点信息控件3 - 服务器节点
-    NodeInfo info3;
-    info3.hostname = QStringLiteral("Public-Server-CN");
-    info3.virtualIp = QStringLiteral("10.144.144.100");
-    info3.connType = NodeConnType::Server;
-    info3.latencyMs = 42;
-    info3.protocol = QStringLiteral("KCP");
-    info3.connMethod = QStringLiteral("P2P");
-    m_testNodeInfo3 = new QtETNodeInfo(info3, nodeInfoContainer);
-    m_nodeInfoLayout->addWidget(m_testNodeInfo3);
+    // 空状态提示标签
+    m_emptyLabel = new QLabel(tr("空空如也"), m_nodeInfoContainer);
+    QFont emptyFont = m_emptyLabel->font();
+    emptyFont.setPointSize(24);
+    m_emptyLabel->setFont(emptyFont);
+    m_emptyLabel->setAlignment(Qt::AlignCenter);
+    m_emptyLabel->setStyleSheet(QStringLiteral("color: #888888;"));
+    m_emptyLabel->hide();  // 默认隐藏
+    m_nodeInfoLayout->addWidget(m_emptyLabel, 1);
 
     m_nodeInfoLayout->addStretch();
 
-    layout->addWidget(nodeInfoContainer);
+    scrollArea->setWidget(m_nodeInfoContainer);
+    layout->addWidget(scrollArea);
 }
 
 void QtETNetwork::initRunningLogPage()
@@ -796,7 +786,7 @@ void QtETNetwork::updateFunctionGridLayout()
     }
 
     // 根据宽度计算列数
-    int width = m_functionWidget ? m_functionWidget->width() : 0;
+    const int width = m_functionWidget ? m_functionWidget->width() : 0;
     int columns = 2;  // 默认每行 2 个
 
     if (width > 1020) {
@@ -865,6 +855,26 @@ void QtETNetwork::onNetworkSelected()
     // 如果有选中的项，加载对应的配置到UI
     if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
         loadConfToUI(currentRow);
+        
+        // 清空当前节点信息显示
+        for (QtETNodeInfo *widget : m_nodeInfoWidgets) {
+            m_nodeInfoLayout->removeWidget(widget);
+            widget->deleteLater();
+        }
+        m_nodeInfoWidgets.clear();
+        
+        // 根据网络运行状态更新标签
+        if (m_networkConfs[currentRow].isRunning()) {
+            m_statusLabel->setText(tr("节点列表: 加载中..."));
+            m_emptyLabel->hide();
+            // 立即请求更新节点信息
+            if (m_runWorker) {
+                QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
+            }
+        } else {
+            m_statusLabel->setText(tr("请先点击运行网络"));
+            m_emptyLabel->hide();
+        }
     }
     
     // 更新运行按钮样式
@@ -1440,6 +1450,10 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
                 // 更新运行状态
                 m_networkConfs[i].setRunning(true);
                 
+                // 增加运行网络计数并启动监测
+                m_runningNetworkCount++;
+                startNodeMonitor();
+                
                 // 更新列表项样式
                 updateListItemStyle(static_cast<int>(i));
                 
@@ -1473,6 +1487,13 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
             if (success) {
                 // 更新运行状态
                 m_networkConfs[i].setRunning(false);
+                
+                // 减少运行网络计数，如果没有运行的网络则停止监测
+                m_runningNetworkCount--;
+                if (m_runningNetworkCount <= 0) {
+                    m_runningNetworkCount = 0;
+                    stopNodeMonitor();
+                }
                 
                 // 更新列表项样式
                 updateListItemStyle(static_cast<int>(i));
@@ -1557,5 +1578,261 @@ void QtETNetwork::updateAllListItemStyles() const
 {
     for (int i = 0; i < m_networksList->count(); ++i) {
         updateListItemStyle(i);
+    }
+}
+
+QString QtETNetwork::ipAddrToString(quint32 addr)
+{
+    // 将 uint32 IP 地址转换为点分十进制字符串
+    // addr 是网络字节序（大端），最高字节在前
+    return QString("%1.%2.%3.%4")
+        .arg((addr >> 24) & 0xFF)
+        .arg((addr >> 16) & 0xFF)
+        .arg((addr >> 8) & 0xFF)
+        .arg(addr & 0xFF);
+}
+
+void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
+{
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+    
+    QJsonObject rootObj = doc.object();
+    
+    // 获取 routes 数组
+    QJsonArray routes = rootObj["routes"].toArray();
+    if (routes.isEmpty()) {
+        return;
+    }
+    
+    // 获取 peers 数组，用于判断直连/中转
+    QJsonArray peers = rootObj["peers"].toArray();
+    
+    // 构建 peer_id 到连接信息的映射
+    QHash<qint64, QStringList> peerConnMap;  // peer_id -> 协议列表
+    QSet<qint64> directlyConnectedPeers;
+    
+    for (const QJsonValue &peerVal : peers) {
+        QJsonObject peerObj = peerVal.toObject();
+        qint64 peerId = peerObj["peer_id"].toVariant().toLongLong();
+        directlyConnectedPeers.insert(peerId);
+        
+        // 获取该节点的所有连接协议（去重）
+        QJsonArray conns = peerObj["conns"].toArray();
+        QStringList protocols;
+        QSet<QString> addedProtocols;  // 用于去重
+        for (const QJsonValue &connVal : conns) {
+            QJsonObject connObj = connVal.toObject();
+            QString tunnelType = connObj["tunnel"].toObject()["tunnel_type"].toString();
+            if (!tunnelType.isEmpty()) {
+                QString proto = tunnelType.toUpper();
+                if (!addedProtocols.contains(proto)) {
+                    protocols.append(proto);
+                    addedProtocols.insert(proto);
+                }
+            }
+        }
+        peerConnMap[peerId] = protocols;
+    }
+    
+    // 构建新的节点信息列表
+    QList<NodeInfo> newNodeInfos;
+    
+    // 解析本机节点信息 my_node_info
+    QJsonObject myNodeInfo = rootObj["my_node_info"].toObject();
+    qint64 myPeerId = myNodeInfo["peer_id"].toVariant().toLongLong();
+    
+    // 添加本机节点信息（放在第一个位置）
+    if (!myNodeInfo.isEmpty()) {
+        NodeInfo localInfo;
+        localInfo.isLocalNode = true;
+        
+        // 解析本机虚拟 IP
+        QJsonObject myIpv4 = myNodeInfo["virtual_ipv4"].toObject();
+        QJsonObject myAddrObj = myIpv4["address"].toObject();
+        quint32 myAddr = myAddrObj["addr"].toVariant().toUInt();
+        localInfo.virtualIp = ipAddrToString(myAddr);
+        
+        // 解析本机 hostname
+        localInfo.hostname = myNodeInfo["hostname"].toString();
+        
+        // 本机节点延迟为 0
+        localInfo.latencyMs = 0;
+        
+        // 本机节点的协议从 listeners 获取
+        QJsonArray listeners = myNodeInfo["listeners"].toArray();
+        QStringList localProtocols;
+        for (const QJsonValue &listenerVal : listeners) {
+            QString url = listenerVal.toObject()["url"].toString();
+            if (url.startsWith("tcp://") || url.startsWith("udp://")) {
+                QString proto = url.section("://", 0, 0).toUpper();
+                if (!localProtocols.contains(proto)) {
+                    localProtocols.append(proto);
+                }
+            }
+        }
+        localInfo.protocol = localProtocols.join(",");
+        
+        // 本机节点显示为直连
+        localInfo.connType = NodeConnType::Direct;
+        localInfo.connMethod = QStringLiteral("Local");
+        
+        newNodeInfos.append(localInfo);
+    }
+    
+    // 遍历 routes 构建其他节点信息
+    for (const QJsonValue &routeVal : routes) {
+        QJsonObject routeObj = routeVal.toObject();
+        
+        // 跳过本机节点
+        qint64 peerId = routeObj["peer_id"].toVariant().toLongLong();
+        if (peerId == myPeerId) {
+            continue;
+        }
+        
+        NodeInfo info;
+        
+        // 解析 IP 地址
+        QJsonObject ipv4Addr = routeObj["ipv4_addr"].toObject();
+        QJsonObject addressObj = ipv4Addr["address"].toObject();
+        quint32 addr = addressObj["addr"].toVariant().toUInt();
+        info.virtualIp = ipAddrToString(addr);
+        
+        // 解析 hostname
+        info.hostname = routeObj["hostname"].toString();
+        
+        // 解析延迟（path_latency 单位是 ms）
+        info.latencyMs = routeObj["path_latency"].toInt();
+        
+        // 判断是否为公共服务器
+        QJsonObject featureFlag = routeObj["feature_flag"].toObject();
+        bool isPublicServer = featureFlag["is_public_server"].toBool();
+        
+        // 判断是否直连
+        bool isDirectlyConnected = directlyConnectedPeers.contains(peerId);
+        
+        if (isPublicServer) {
+            info.connType = NodeConnType::Server;
+            // 服务器如果是直连的，也显示协议
+            if (isDirectlyConnected) {
+                info.protocol = peerConnMap[peerId].join(",");
+            }
+        } else if (isDirectlyConnected) {
+            info.connType = NodeConnType::Direct;
+            // 获取直连节点的协议
+            info.protocol = peerConnMap[peerId].join(",");
+        } else {
+            info.connType = NodeConnType::Relay;
+        }
+        
+        // 设置连接方式
+        if (info.connType == NodeConnType::Direct) {
+            info.connMethod = QStringLiteral("P2P");
+        } else if (info.connType == NodeConnType::Relay) {
+            info.connMethod = QStringLiteral("Relay");
+        } else {
+            info.connMethod = QStringLiteral("Server");
+        }
+        
+        newNodeInfos.append(info);
+    }
+    
+    // 增量更新节点信息控件
+    int oldCount = m_nodeInfoWidgets.size();
+    int newCount = newNodeInfos.size();
+    
+    // 更新已存在的卡片信息
+    for (int i = 0; i < qMin(oldCount, newCount); ++i) {
+        m_nodeInfoWidgets[i]->setNodeInfo(newNodeInfos[i]);
+    }
+    
+    // 如果节点增加，创建新卡片
+    if (newCount > oldCount) {
+        for (int i = oldCount; i < newCount; ++i) {
+            QtETNodeInfo *nodeWidget = new QtETNodeInfo(newNodeInfos[i], m_nodeInfoContainer);
+            m_nodeInfoWidgets.append(nodeWidget);
+            // 插入到 stretch 之前（考虑空状态标签）
+            int insertIndex = m_nodeInfoLayout->count() - 1;
+            m_nodeInfoLayout->insertWidget(insertIndex, nodeWidget);
+        }
+    }
+    // 如果节点减少，删除多余的卡片
+    else if (newCount < oldCount) {
+        for (int i = oldCount - 1; i >= newCount; --i) {
+            QtETNodeInfo *widget = m_nodeInfoWidgets.takeAt(i);
+            m_nodeInfoLayout->removeWidget(widget);
+            widget->deleteLater();
+        }
+    }
+    
+    // 更新空状态标签显示
+    m_emptyLabel->setVisible(m_nodeInfoWidgets.isEmpty());
+    
+    // 更新顶部标签
+    m_statusLabel->setText(m_nodeInfoWidgets.isEmpty() ? tr("节点列表: 暂无节点") : tr("节点列表:"));
+}
+
+void QtETNetwork::startNodeMonitor() const
+{
+    if (m_monitorTimer && !m_monitorTimer->isActive()) {
+        m_monitorTimer->start();
+    }
+    
+    // 更新顶部标签
+    m_statusLabel->setText(tr("节点列表: 加载中..."));
+}
+
+void QtETNetwork::stopNodeMonitor()
+{
+    if (m_monitorTimer && m_monitorTimer->isActive()) {
+        m_monitorTimer->stop();
+    }
+    
+    // 清空节点信息控件
+    for (QtETNodeInfo *widget : m_nodeInfoWidgets) {
+        m_nodeInfoLayout->removeWidget(widget);
+        widget->deleteLater();
+    }
+    m_nodeInfoWidgets.clear();
+    
+    // 隐藏空状态标签，恢复默认提示
+    m_emptyLabel->hide();
+    m_statusLabel->setText(tr("请先点击运行网络"));
+}
+
+void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos)
+{
+    // 如果没有运行中的网络，直接返回
+    if (infos.empty()) {
+        return;
+    }
+    
+    // 获取当前选中网络的实例名称
+    int currentIndex = m_networksList->currentRow();
+    if (currentIndex < 0 || currentIndex >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    const NetworkConf &currentConf = m_networkConfs[currentIndex];
+    const QString currentInstName = QString::fromStdString(currentConf.getInstanceName());
+    
+    // 查找当前网络的 JSON 信息
+    for (const auto &info : infos) {
+        if (QString::fromStdString(info.key) == currentInstName) {
+            parseAndUpdateNodeInfos(QString::fromStdString(info.value));
+            break;
+        }
+    }
+}
+
+void QtETNetwork::onMonitorTimerTimeout() const
+{
+    // 在工作线程中收集网络信息
+    if (m_runWorker) {
+        QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
     }
 }

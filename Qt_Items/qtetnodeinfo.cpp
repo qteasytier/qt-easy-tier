@@ -92,6 +92,52 @@ void QtETConnTypeLabel::paintEvent(QPaintEvent *event)
     painter.drawText(textX, textY, m_connTypeText);
 }
 
+// ==================== QtETLocalLabel ====================
+
+QtETLocalLabel::QtETLocalLabel(QWidget *parent)
+    : QWidget(parent)
+{
+    // 计算所需大小
+    QFont font;
+    font.setPointSize(FONT_SIZE);
+    font.setWeight(QFont::Bold);
+    QFontMetrics fm(font);
+    QString text = tr("本机");
+    int textWidth = fm.horizontalAdvance(text);
+    int textHeight = fm.height();
+
+    setFixedSize(textWidth + 2 * PADDING_H, textHeight + 2 * PADDING_V);
+}
+
+void QtETLocalLabel::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event)
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 紫色背景
+    QColor localColor("#9C27B0");
+
+    // 绘制圆角背景
+    QPainterPath path;
+    path.addRoundedRect(rect(), BORDER_RADIUS, BORDER_RADIUS);
+    painter.fillPath(path, localColor);
+
+    // 绘制文字
+    QFont font;
+    font.setPointSize(FONT_SIZE);
+    font.setWeight(QFont::Bold);
+    painter.setFont(font);
+    painter.setPen(Qt::white);
+
+    QString text = tr("本机");
+    QFontMetrics fm(font);
+    int textX = (width() - fm.horizontalAdvance(text)) / 2;
+    int textY = (height() - fm.height()) / 2 + fm.ascent();
+    painter.drawText(textX, textY, text);
+}
+
 // ==================== QtETNodeInfo ====================
 
 QtETNodeInfo::QtETNodeInfo(QWidget *parent)
@@ -99,6 +145,7 @@ QtETNodeInfo::QtETNodeInfo(QWidget *parent)
     , m_borderOpacity(0.0)
     , m_ipHostLabel(nullptr)
     , m_connTypeLabel(nullptr)
+    , m_localLabel(nullptr)
     , m_detailLabel(nullptr)
 {
     init();
@@ -110,6 +157,7 @@ QtETNodeInfo::QtETNodeInfo(const NodeInfo &info, QWidget *parent)
     , m_borderOpacity(0.0)
     , m_ipHostLabel(nullptr)
     , m_connTypeLabel(nullptr)
+    , m_localLabel(nullptr)
     , m_detailLabel(nullptr)
 {
     init();
@@ -148,7 +196,7 @@ void QtETNodeInfo::setupContent()
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(LINE_SPACING);
 
-    // 第一行：IP | hostname 和 连接类型标签
+    // 第一行：IP | hostname 和标签
     QHBoxLayout *firstLineLayout = new QHBoxLayout();
     firstLineLayout->setContentsMargins(0, 0, 0, 0);
     firstLineLayout->setSpacing(8);
@@ -163,19 +211,32 @@ void QtETNodeInfo::setupContent()
     ipHostFont.setWeight(QFont::Medium);
     m_ipHostLabel->setFont(ipHostFont);
 
+    // 标签容器（用于放置本机标签和连接类型标签）
+    QHBoxLayout *labelLayout = new QHBoxLayout();
+    labelLayout->setContentsMargins(0, 0, 0, 0);
+    labelLayout->setSpacing(4);
+
+    // 本机标签
+    m_localLabel = new QtETLocalLabel(contentWidget);
+    m_localLabel->setVisible(m_nodeInfo.isLocalNode);
+
     // 连接类型标签
     m_connTypeLabel = new QtETConnTypeLabel(m_nodeInfo.connType, contentWidget);
 
+    labelLayout->addWidget(m_localLabel);
+    labelLayout->addWidget(m_connTypeLabel);
+
     firstLineLayout->addWidget(m_ipHostLabel, 1);
-    firstLineLayout->addWidget(m_connTypeLabel);
+    firstLineLayout->addLayout(labelLayout);
 
     mainLayout->addLayout(firstLineLayout);
 
-    // 第二行：详细信息（蓝色小字）
+    // 第二行：详细信息（蓝色小字 #66ccff）
     m_detailLabel = new QLabel(contentWidget);
     QFont detailFont = m_detailLabel->font();
     detailFont.setPointSize(10);
     m_detailLabel->setFont(detailFont);
+    m_detailLabel->setStyleSheet(QStringLiteral("color: #66ccff; background: transparent;"));
 
     mainLayout->addWidget(m_detailLabel);
 
@@ -225,7 +286,7 @@ void QtETNodeInfo::updateColorScheme()
 
 void QtETNodeInfo::updateContent()
 {
-    if (!m_ipHostLabel || !m_connTypeLabel || !m_detailLabel) {
+    if (!m_ipHostLabel || !m_connTypeLabel || !m_detailLabel || !m_localLabel) {
         return;
     }
 
@@ -235,6 +296,9 @@ void QtETNodeInfo::updateContent()
 
     // 更新连接类型
     m_connTypeLabel->setConnType(m_nodeInfo.connType);
+    
+    // 更新本机标签可见性
+    m_localLabel->setVisible(m_nodeInfo.isLocalNode);
 
     // 构建详细信息字符串
     QStringList detailParts;
