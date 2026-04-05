@@ -31,7 +31,12 @@ include_directories(${CMAKE_SOURCE_DIR}/Qt_HEAD)
 include_directories(${CMAKE_SOURCE_DIR}/Qt_Items)
 include_directories(${CMAKE_SOURCE_DIR}/Qt_Gui)
 include_directories(${CMAKE_SOURCE_DIR}/SRC)
-include_directories(${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
+include_directories(${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/include)
+
+# 添加EasyTier Ffi 库文件搜索路径
+if(WIN32)
+    link_directories(${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/library ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows)
+endif()
 
 # 收集源文件
 file(GLOB_RECURSE HEAD "SRC/*.h" "SRC/*.hpp" "Qt_Items/*.h" "Qt_Gui/*.h")
@@ -95,12 +100,8 @@ target_compile_definitions(${ProjectName} PRIVATE
 # 链接Qt库
 target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 
-# 链接平台特定库
-if(WIN32)
-    # Windows IP Helper API 库
-    target_link_libraries(${ProjectName} PRIVATE iphlpapi)
-endif()
-# Linux 平台不需要链接额外的系统库
+# 链接EasyTier Ffi 库
+target_link_libraries(${ProjectName} PRIVATE easytier_ffi)
 
 # 设置目标属性
 if(WIN32)
