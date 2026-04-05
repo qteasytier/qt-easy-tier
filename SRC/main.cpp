@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // 检查是否已有实例运行（确保单实例）
-    QString serverName = "QtEasyTierbyViahuang";
+    QString serverName = "QtEasyTier2-by-Viahuang";
     isAlreadyRunning(serverName, isAutoStart);   // 有实例运行自动退出
 
     // 使用Breeze主题

@@ -11,14 +11,24 @@
 
 // ==================== NetworkConf 类实现 ====================
 
+NetworkConf::NetworkConf()
+{
+    // 初始化实例名称
+    m_instanceName = generateInstanceName();
+
+    // 初始化默认服务器列表
+    m_servers.push_back("tcp://public.easytier.top:11010");
+
+    // 初始化默认监听地址
+    m_listenAddresses.push_back("tcp://0.0.0.0:11010");
+    m_listenAddresses.push_back("udp://0.0.0.0:11010");
+}
+
 void NetworkConf::readFromUI(const QtETNetwork *network)
 {
     if (!network) {
         return;
     }
-
-    // 生成新的 instanceName（从 UI 读取时随机生成）
-    m_instanceName = generateInstanceName();
 
     // ==================== 基础设置 ====================
     m_hostname = network->m_hostnameEdit->text().toStdString();
@@ -84,6 +94,9 @@ void NetworkConf::readFromJson(const QJsonObject &json)
 {
     // ==================== 实例标识 ====================
     m_instanceName = json["instance_name"].toString().toStdString();
+    if (m_instanceName.empty()) {
+        m_instanceName = generateInstanceName();
+    }
 
     // ==================== 基础设置 ====================
     m_hostname = json["hostname"].toString().toStdString();
@@ -320,7 +333,7 @@ std::string NetworkConf::generateInstanceName()
 
 // ==================== 全局函数实现 ====================
 
-bool saveAllNetworkConf(const QVector<NetworkConf> &confList, QString *errorMsg)
+bool saveAllNetworkConf(const std::vector<NetworkConf> &confList, QString *errorMsg)
 {
     // 获取配置文件路径
     QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
@@ -360,9 +373,9 @@ bool saveAllNetworkConf(const QVector<NetworkConf> &confList, QString *errorMsg)
     return true;
 }
 
-QVector<NetworkConf> readAllNetworkConf()
+std::vector<NetworkConf> readAllNetworkConf()
 {
-    QVector<NetworkConf> confList;
+    std::vector<NetworkConf> confList;
 
     // 获取配置文件路径
     QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
@@ -400,7 +413,7 @@ QVector<NetworkConf> readAllNetworkConf()
         if (value.isObject()) {
             NetworkConf conf;
             conf.readFromJson(value.toObject());
-            confList.append(conf);
+            confList.push_back(conf);
         }
     }
 

@@ -3,6 +3,8 @@
 #include <QRegularExpressionValidator>
 #include <QFormLayout>
 #include <QFontDatabase>
+#include <QFileDialog>
+#include <QStandardPaths>
 
 QtETNetwork::QtETNetwork(QWidget *parent)
     : QWidget(parent)
@@ -77,6 +79,22 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_mainLayout(nullptr)
 {
     initUI();
+    
+    // 启用右键菜单
+    m_networksList->setContextMenuPolicy(Qt::CustomContextMenu);
+    
+    // 连接信号槽
+    connect(m_newNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onNewNetwork);
+    connect(m_networksList, &QListWidget::itemSelectionChanged, this, &QtETNetwork::onNetworkSelected);
+    connect(m_networksList, &QListWidget::customContextMenuRequested, this, &QtETNetwork::onListContextMenu);
+    connect(m_exportConfBtn, &QPushButton::clicked, this, &QtETNetwork::onExportConf);
+    connect(m_importConfBtn, &QPushButton::clicked, this, &QtETNetwork::onImportConf);
+    
+    // 设置UI控件的信号连接
+    setupUIConnections();
+    
+    // 初始化 TabWidget 状态（禁用）
+    updateTabWidgetState();
 }
 
 QtETNetwork::~QtETNetwork() = default;
@@ -323,7 +341,7 @@ void QtETNetwork::initBasicSettingsPage()
         QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
         if (!fontFamilies.isEmpty()) {
             QFont monoFont(fontFamilies.first());
-            monoFont.setPointSize(10);
+            monoFont.setPointSize(11);
             m_serverListWidget->setFont(monoFont);
         }
     }
@@ -646,7 +664,7 @@ void QtETNetwork::initAdvancedSettingsPage()
         QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
         if (!fontFamilies.isEmpty()) {
             QFont monoFont(fontFamilies.first());
-            monoFont.setPointSize(10);
+            monoFont.setPointSize(11);
             m_listenAddrListWidget->setFont(monoFont);
             m_whitelistListWidget->setFont(monoFont);
             m_proxyNetworkListWidget->setFont(monoFont);
@@ -735,4 +753,492 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
 
     // 更新功能开关网格布局
     updateFunctionGridLayout();
+}
+
+// ==================== 网络配置管理方法 ====================
+
+void QtETNetwork::onNewNetwork()
+{
+    // 创建新的网络配置（构造函数会自动初始化 instanceName 和默认值）
+    NetworkConf newConf;
+    
+    // 添加到配置列表
+    m_networkConfs.push_back(newConf);
+    
+    // 在列表中添加新项
+    int index = static_cast<int>(m_networkConfs.size()) - 1;
+    QString displayName = tr("网络 %1").arg(index + 1);
+    m_networksList->addItem(displayName);
+    
+    // 选中新添加的项
+    m_networksList->setCurrentRow(index);
+    
+    // 更新 TabWidget 状态
+    updateTabWidgetState();
+}
+
+void QtETNetwork::onNetworkSelected()
+{
+    int currentRow = m_networksList->currentRow();
+    
+    // 更新 TabWidget 状态
+    updateTabWidgetState();
+    
+    // 如果有选中的项，加载对应的配置到UI
+    if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
+        loadConfToUI(currentRow);
+    }
+}
+
+void QtETNetwork::onListContextMenu(const QPoint &pos)
+{
+    QListWidgetItem *item = m_networksList->itemAt(pos);
+    if (!item) {
+        return;
+    }
+    
+    QMenu contextMenu(tr("网络操作"), this);
+    QAction *deleteAction = contextMenu.addAction(tr("删除网络"));
+    deleteAction->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
+    
+    QAction *selectedAction = contextMenu.exec(m_networksList->mapToGlobal(pos));
+    
+    if (selectedAction == deleteAction) {
+        onDeleteNetwork();
+    }
+}
+
+void QtETNetwork::onDeleteNetwork()
+{
+    int currentRow = m_networksList->currentRow();
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    // 弹出确认框
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(tr("确认删除"));
+    msgBox.setText(tr("确定要删除网络 \"%1\" 吗？").arg(m_networksList->item(currentRow)->text()));
+    msgBox.setInformativeText(tr("删除后无法恢复。"));
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Cancel);
+    msgBox.setIcon(QMessageBox::Warning);
+    
+    if (msgBox.exec() != QMessageBox::Ok) {
+        return;
+    }
+    
+    // 从配置列表中删除
+    m_networkConfs.erase(m_networkConfs.begin() + currentRow);
+    
+    // 从列表中删除
+    delete m_networksList->takeItem(currentRow);
+    
+    // 更新列表项显示名称（索引值可能变化）
+    for (int i = 0; i < m_networksList->count(); ++i) {
+        m_networksList->item(i)->setText(tr("网络 %1").arg(i + 1));
+    }
+    
+    // 更新 TabWidget 状态
+    updateTabWidgetState();
+    
+    // 如果还有网络，选中第一个
+    if (m_networksList->count() > 0) {
+        m_networksList->setCurrentRow(0);
+    }
+}
+
+void QtETNetwork::onUIChanged()
+{
+    int currentRow = m_networksList->currentRow();
+    if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
+        saveConfFromUI(currentRow);
+    }
+}
+
+void QtETNetwork::loadConfToUI(const int& index) const
+{
+    if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    const NetworkConf &conf = m_networkConfs[index];
+    
+    // 阻塞信号，避免循环触发
+    m_hostnameEdit->blockSignals(true);
+    m_networkNameEdit->blockSignals(true);
+    m_networkSecretEdit->blockSignals(true);
+    m_dhcpCheckBox->blockSignals(true);
+    m_ipv4Edit->blockSignals(true);
+    m_latencyFirstCheckBox->blockSignals(true);
+    m_privateModeCheckBox->blockSignals(true);
+    m_serverListWidget->blockSignals(true);
+    m_rpcPortEdit->blockSignals(true);
+    m_foreignNetworkWhitelistCheckBox->blockSignals(true);
+    m_whitelistListWidget->blockSignals(true);
+    m_listenAddrListWidget->blockSignals(true);
+    m_proxyNetworkListWidget->blockSignals(true);
+    m_enableKcpProxyCheckBox->blockSignals(true);
+    m_disableKcpInputCheckBox->blockSignals(true);
+    m_noTunCheckBox->blockSignals(true);
+    m_enableQuicProxyCheckBox->blockSignals(true);
+    m_disableQuicInputCheckBox->blockSignals(true);
+    m_disableUdpHolePunchingCheckBox->blockSignals(true);
+    m_multiThreadCheckBox->blockSignals(true);
+    m_useSmoltcpCheckBox->blockSignals(true);
+    m_bindDeviceCheckBox->blockSignals(true);
+    m_disableP2pCheckBox->blockSignals(true);
+    m_enableExitNodeCheckBox->blockSignals(true);
+    m_systemForwardingCheckBox->blockSignals(true);
+    m_disableSymHolePunchingCheckBox->blockSignals(true);
+    m_disableIpv6CheckBox->blockSignals(true);
+    m_relayAllPeerRpcCheckBox->blockSignals(true);
+    m_enableEncryptionCheckBox->blockSignals(true);
+    m_acceptDnsCheckBox->blockSignals(true);
+    
+    // 基础设置
+    m_hostnameEdit->setText(QString::fromStdString(conf.m_hostname));
+    m_networkNameEdit->setText(QString::fromStdString(conf.m_networkName));
+    m_networkSecretEdit->setText(QString::fromStdString(conf.m_networkSecret));
+    m_dhcpCheckBox->setChecked(conf.m_dhcp);
+    m_ipv4Edit->setText(QString::fromStdString(conf.m_ipv4));
+    m_ipv4Edit->setEnabled(!conf.m_dhcp);
+    m_latencyFirstCheckBox->setChecked(conf.m_latencyFirst);
+    m_privateModeCheckBox->setChecked(conf.m_privateMode);
+    
+    // 服务器列表
+    m_serverListWidget->clear();
+    for (const auto &server : conf.m_servers) {
+        m_serverListWidget->addItem(QString::fromStdString(server));
+    }
+    
+    // 高级设置 - 功能开关
+    m_enableKcpProxyCheckBox->setChecked(conf.m_enableKcpProxy);
+    m_disableKcpInputCheckBox->setChecked(conf.m_disableKcpInput);
+    m_noTunCheckBox->setChecked(conf.m_noTun);
+    m_enableQuicProxyCheckBox->setChecked(conf.m_enableQuicProxy);
+    m_disableQuicInputCheckBox->setChecked(conf.m_disableQuicInput);
+    m_disableUdpHolePunchingCheckBox->setChecked(conf.m_disableUdpHolePunching);
+    m_multiThreadCheckBox->setChecked(conf.m_multiThread);
+    m_useSmoltcpCheckBox->setChecked(conf.m_useSmoltcp);
+    m_bindDeviceCheckBox->setChecked(conf.m_bindDevice);
+    m_disableP2pCheckBox->setChecked(conf.m_disableP2p);
+    m_enableExitNodeCheckBox->setChecked(conf.m_enableExitNode);
+    m_systemForwardingCheckBox->setChecked(conf.m_systemForwarding);
+    m_disableSymHolePunchingCheckBox->setChecked(conf.m_disableSymHolePunching);
+    m_disableIpv6CheckBox->setChecked(conf.m_disableIpv6);
+    m_relayAllPeerRpcCheckBox->setChecked(conf.m_relayAllPeerRpc);
+    m_enableEncryptionCheckBox->setChecked(conf.m_enableEncryption);
+    m_acceptDnsCheckBox->setChecked(conf.m_acceptDns);
+    
+    // RPC 端口
+    m_rpcPortEdit->setText(QString::number(conf.m_rpcPort));
+    
+    // 网络白名单
+    m_foreignNetworkWhitelistCheckBox->setChecked(conf.m_foreignNetworkWhitelistEnabled);
+    m_whitelistListWidget->clear();
+    for (const auto &item : conf.m_foreignNetworkWhitelist) {
+        m_whitelistListWidget->addItem(QString::fromStdString(item));
+    }
+    
+    // 监听地址
+    m_listenAddrListWidget->clear();
+    for (const auto &addr : conf.m_listenAddresses) {
+        m_listenAddrListWidget->addItem(QString::fromStdString(addr));
+    }
+    
+    // 子网代理 CIDR
+    m_proxyNetworkListWidget->clear();
+    for (const auto &cidr : conf.m_proxyNetworks) {
+        m_proxyNetworkListWidget->addItem(QString::fromStdString(cidr));
+    }
+    
+    // 恢复信号
+    m_hostnameEdit->blockSignals(false);
+    m_networkNameEdit->blockSignals(false);
+    m_networkSecretEdit->blockSignals(false);
+    m_dhcpCheckBox->blockSignals(false);
+    m_ipv4Edit->blockSignals(false);
+    m_latencyFirstCheckBox->blockSignals(false);
+    m_privateModeCheckBox->blockSignals(false);
+    m_serverListWidget->blockSignals(false);
+    m_rpcPortEdit->blockSignals(false);
+    m_foreignNetworkWhitelistCheckBox->blockSignals(false);
+    m_whitelistListWidget->blockSignals(false);
+    m_listenAddrListWidget->blockSignals(false);
+    m_proxyNetworkListWidget->blockSignals(false);
+    m_enableKcpProxyCheckBox->blockSignals(false);
+    m_disableKcpInputCheckBox->blockSignals(false);
+    m_noTunCheckBox->blockSignals(false);
+    m_enableQuicProxyCheckBox->blockSignals(false);
+    m_disableQuicInputCheckBox->blockSignals(false);
+    m_disableUdpHolePunchingCheckBox->blockSignals(false);
+    m_multiThreadCheckBox->blockSignals(false);
+    m_useSmoltcpCheckBox->blockSignals(false);
+    m_bindDeviceCheckBox->blockSignals(false);
+    m_disableP2pCheckBox->blockSignals(false);
+    m_enableExitNodeCheckBox->blockSignals(false);
+    m_systemForwardingCheckBox->blockSignals(false);
+    m_disableSymHolePunchingCheckBox->blockSignals(false);
+    m_disableIpv6CheckBox->blockSignals(false);
+    m_relayAllPeerRpcCheckBox->blockSignals(false);
+    m_enableEncryptionCheckBox->blockSignals(false);
+    m_acceptDnsCheckBox->blockSignals(false);
+}
+
+void QtETNetwork::saveConfFromUI(const int &index)
+{
+    if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    // 直接调用 readFromUI 读取当前 UI 数据
+    m_networkConfs[index].readFromUI(this);
+}
+
+void QtETNetwork::updateTabWidgetState()
+{
+    bool hasSelection = m_networksList->currentRow() >= 0 && m_networksList->count() > 0;
+    m_tabWidget->setEnabled(hasSelection);
+}
+
+void QtETNetwork::setupUIConnections()
+{
+    // 基础设置控件
+    connect(m_hostnameEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    connect(m_networkNameEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    connect(m_networkSecretEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    connect(m_dhcpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_ipv4Edit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    connect(m_latencyFirstCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_privateModeCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    
+    // 服务器列表变化
+    connect(m_addServerBtn, &QPushButton::clicked, this, [this]() {
+        QString server = m_serverEdit->text().trimmed();
+        if (!server.isEmpty()) {
+            m_serverListWidget->addItem(server);
+            m_serverEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeServerBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_serverListWidget->currentItem();
+        if (item) {
+            delete m_serverListWidget->takeItem(m_serverListWidget->row(item));
+            onUIChanged();
+        }
+    });
+    
+    // 高级设置 - 功能开关
+    connect(m_enableKcpProxyCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableKcpInputCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_noTunCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_enableQuicProxyCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableQuicInputCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableUdpHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_multiThreadCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_useSmoltcpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_bindDeviceCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableP2pCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_enableExitNodeCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_systemForwardingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableSymHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableIpv6CheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_relayAllPeerRpcCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_enableEncryptionCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_acceptDnsCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    
+    // RPC 端口
+    connect(m_rpcPortEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    
+    // 网络白名单
+    connect(m_foreignNetworkWhitelistCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_addWhitelistBtn, &QPushButton::clicked, this, [this]() {
+        QString item = m_foreignNetworkWhitelistEdit->text().trimmed();
+        if (!item.isEmpty()) {
+            m_whitelistListWidget->addItem(item);
+            m_foreignNetworkWhitelistEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeWhitelistBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_whitelistListWidget->currentItem();
+        if (item) {
+            delete m_whitelistListWidget->takeItem(m_whitelistListWidget->row(item));
+            onUIChanged();
+        }
+    });
+    
+    // 监听地址
+    connect(m_addListenAddrBtn, &QPushButton::clicked, this, [this]() {
+        QString addr = m_listenAddrEdit->text().trimmed();
+        if (!addr.isEmpty()) {
+            m_listenAddrListWidget->addItem(addr);
+            m_listenAddrEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeListenAddrBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_listenAddrListWidget->currentItem();
+        if (item) {
+            delete m_listenAddrListWidget->takeItem(m_listenAddrListWidget->row(item));
+            onUIChanged();
+        }
+    });
+    
+    // 子网代理 CIDR
+    connect(m_addProxyNetworkBtn, &QPushButton::clicked, this, [this]() {
+        QString cidr = m_proxyNetworkEdit->text().trimmed();
+        if (!cidr.isEmpty()) {
+            m_proxyNetworkListWidget->addItem(cidr);
+            m_proxyNetworkEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeProxyNetworkBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_proxyNetworkListWidget->currentItem();
+        if (item) {
+            delete m_proxyNetworkListWidget->takeItem(m_proxyNetworkListWidget->row(item));
+            onUIChanged();
+        }
+    });
+}
+
+void QtETNetwork::loadAllNetworkConfs()
+{
+    // 清空现有数据
+    m_networksList->clear();
+    m_networkConfs.clear();
+    
+    // 从文件读取配置
+    m_networkConfs = ::readAllNetworkConf();
+    
+    // 添加到列表
+    for (size_t i = 0; i < m_networkConfs.size(); ++i) {
+        QString displayName = tr("网络 %1").arg(i + 1);
+        m_networksList->addItem(displayName);
+    }
+    
+    // 更新 TabWidget 状态
+    updateTabWidgetState();
+    
+    // 如果有网络配置，默认选中第一项
+    if (m_networksList->count() > 0) {
+        m_networksList->setCurrentRow(0);
+    }
+}
+
+void QtETNetwork::saveAllNetworkConfs() const
+{
+    // 保存到文件
+    QString errorMsg;
+    if (!::saveAllNetworkConf(m_networkConfs, &errorMsg)) {
+        qWarning() << "保存网络配置失败:" << errorMsg;
+    }
+}
+
+void QtETNetwork::onExportConf()
+{
+    // 检查是否有选中的配置
+    int currentRow = m_networksList->currentRow();
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        QMessageBox::information(this, tr("提示"), tr("请先选择一个配置"));
+        return;
+    }
+    
+    // 获取用户主目录
+    QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString defaultPath = homePath + "/qtet-config.json";
+    
+    // 获取保存文件路径
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        tr("导出配置"),
+        defaultPath,
+        tr("JSON 文件 (*.json);;所有文件 (*)")
+    );
+    
+    if (filePath.isEmpty()) {
+        return;  // 用户取消了选择
+    }
+    
+    // 获取当前配置的 JSON 对象，并删除 hostname 和 instance_name
+    QJsonObject json = m_networkConfs[currentRow].toJson();
+    json.remove("hostname");
+    json.remove("instance_name");
+    QJsonDocument doc(json);
+    
+    // 写入文件
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, tr("导出失败"), tr("无法写入文件: %1").arg(filePath));
+        return;
+    }
+    
+    file.write(doc.toJson(QJsonDocument::Indented));
+    file.close();
+    
+    QMessageBox::information(this, tr("导出成功"), tr("配置已导出到: %1").arg(filePath));
+}
+
+void QtETNetwork::onImportConf()
+{
+    // 获取用户主目录
+    const QString &homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    
+    // 选择要导入的文件
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        tr("导入配置"),
+        homePath,
+        tr("JSON 文件 (*.json);;所有文件 (*)")
+    );
+    
+    if (filePath.isEmpty()) {
+        return;  // 用户取消了选择
+    }
+    
+    // 读取文件内容
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, tr("导入失败"), tr("无法读取文件: %1").arg(filePath));
+        return;
+    }
+
+    const QByteArray &jsonData = file.readAll();
+    file.close();
+    
+    // 解析 JSON
+    QJsonParseError parseError;
+    const QJsonDocument &doc = QJsonDocument::fromJson(jsonData, &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError) {
+        QMessageBox::warning(this, tr("导入失败"), tr("JSON 解析错误: %1").arg(parseError.errorString()));
+        return;
+    }
+    
+    if (!doc.isObject()) {
+        QMessageBox::warning(this, tr("导入失败"), tr("配置文件格式错误"));
+        return;
+    }
+    
+    // 创建新的网络配置并导入（构造函数会自动生成 instanceName）
+    NetworkConf newConf;
+    newConf.readFromJson(doc.object());
+    
+    // 添加到配置列表
+    m_networkConfs.push_back(newConf);
+    
+    // 在列表中添加新项
+    const int &index = static_cast<int>(m_networkConfs.size()) - 1;
+    const QString &displayName = tr("网络 %1").arg(index + 1);
+    m_networksList->addItem(displayName);
+    
+    // 选中新添加的项
+    m_networksList->setCurrentRow(index);
+    
+    // 更新 TabWidget 状态
+    updateTabWidgetState();
+    
+    QMessageBox::information(this, tr("导入成功"), tr("配置已成功导入"));
 }

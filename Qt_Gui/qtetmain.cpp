@@ -62,6 +62,10 @@ QtETMain::QtETMain(QWidget *parent)
 
 QtETMain::~QtETMain()
 {
+    // 保存网络配置
+    if (m_networkPage) {
+        m_networkPage->saveAllNetworkConfs();
+    }
     delete ui;
 }
 
@@ -172,6 +176,9 @@ void QtETMain::initNetworkPage()
     // 初始化网络界面
     m_networkPage = new QtETNetwork(this);
     m_mainStackedWidget->addWidget(m_networkPage);
+    
+    // 加载保存的网络配置
+    m_networkPage->loadAllNetworkConfs();
 
     // 连接切换信号槽
     connect(ui->networkBtn, &QPushButton::clicked, m_networkPage, [=, this]()

@@ -69,6 +69,13 @@ public:
     /// @brief 获取最小尺寸
     [[nodiscard]] QSize minimumSizeHint() const override;
 
+    /// @brief 重写 setChecked，确保滑块位置正确更新
+    void setChecked(bool checked);
+
+public slots:
+    /// @brief 设置选中状态（槽函数版本）
+    void setCheckedSlot(bool checked);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;

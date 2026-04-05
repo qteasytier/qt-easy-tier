@@ -9,7 +9,6 @@
 #include <vector>
 #include <random>
 #include <QStandardPaths>
-#include <QVector>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -22,9 +21,12 @@ class NetworkConf
 {
     // 声明 QtETNetwork 为友元，允许其直接访问私有成员
     friend class QtETNetwork;
+    // 声明全局保存/读取函数为友元
+    friend bool saveAllNetworkConf(const std::vector<NetworkConf>&, QString*);
+    friend std::vector<NetworkConf> readAllNetworkConf();
 
 public:
-    NetworkConf() = default;
+    NetworkConf();
     ~NetworkConf() = default;
 
     /**
@@ -111,13 +113,13 @@ private:
  * @return true 成功
  * @return false 失败
  */
-bool saveAllNetworkConf(const QVector<NetworkConf> &confList, QString *errorMsg = nullptr);
+bool saveAllNetworkConf(const std::vector<NetworkConf> &confList, QString *errorMsg = nullptr);
 
 /**
  * @brief 从配置文件中读取所有网络配置信息
  *
  * @return 网络配置类的列表
  */
-QVector<NetworkConf> readAllNetworkConf();
+std::vector<NetworkConf> readAllNetworkConf();
 
 #endif //QTEASYTIER_NETWORKCONF_H

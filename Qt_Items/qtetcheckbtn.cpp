@@ -203,6 +203,23 @@ void QtETCheckBtn::setBorderless(bool borderless)
     }
 }
 
+void QtETCheckBtn::setChecked(bool checked)
+{
+    // 调用父类的 setChecked
+    QCheckBox::setChecked(checked);
+    
+    // 启动滑块动画
+    m_animation->stop();
+    m_animation->setStartValue(m_sliderPosition);
+    m_animation->setEndValue(checked ? 1.0 : 0.0);
+    m_animation->start();
+}
+
+void QtETCheckBtn::setCheckedSlot(bool checked)
+{
+    setChecked(checked);
+}
+
 QSize QtETCheckBtn::sizeHint() const
 {
     QFontMetrics fm(font());

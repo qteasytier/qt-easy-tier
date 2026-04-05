@@ -167,29 +167,6 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="webBtn">
-        <property name="toolTip">
-         <string>Web 控制台</string>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="icon">
-         <iconset resource="../Qt_QRC/icons.qrc">
-          <normaloff>:/icons/net.svg</normaloff>:/icons/net.svg</iconset>
-        </property>
-        <property name="iconSize">
-         <size>
-          <width>32</width>
-          <height>32</height>
-         </size>
-        </property>
-        <property name="autoExclusive">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPushButton" name="serversBtn">
         <property name="text">
          <string/>

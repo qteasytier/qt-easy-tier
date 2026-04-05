@@ -12,13 +12,16 @@
 #include <QAction>
 #include <QScrollBar>
 #include <QWheelEvent>
+#include <QMenu>
+#include <QMessageBox>
+#include <vector>
 
 #include "qtetlistwidget.h"
 #include "qtetcheckbtn.h"
 #include "networkconf.h"
 
 /// @brief 平滑滚动事件过滤器
-/// 实现滚轮平滑滚动动画效果
+/// 实现滚轮平滑滚动效果
 class SmoothScrollFilter : public QObject
 {
     Q_OBJECT
@@ -108,6 +111,40 @@ private:
     /// @brief 重写 resizeEvent 监听宽度变化
     void resizeEvent(QResizeEvent *event) override;
 
+public:
+    /// @brief 加载所有网络配置到UI
+    void loadAllNetworkConfs();
+    /// @brief 保存所有网络配置到文件
+    void saveAllNetworkConfs() const;
+
+private:
+    /// @brief 将指定索引的网络配置加载到UI
+    /// @param index 网络配置索引
+    void loadConfToUI(const int& index) const;
+    /// @brief 从UI保存配置到指定索引的网络配置
+    /// @param index 网络配置索引
+    void saveConfFromUI(const int& index);
+    /// @brief 更新 TabWidget 的启用状态
+    void updateTabWidgetState();
+    /// @brief 设置UI控件的信号连接
+    void setupUIConnections();
+
+private slots:
+    /// @brief 新建网络按钮点击
+    void onNewNetwork();
+    /// @brief 网络列表选中项变化
+    void onNetworkSelected();
+    /// @brief 网络列表右键菜单
+    void onListContextMenu(const QPoint &pos);
+    /// @brief 删除网络
+    void onDeleteNetwork();
+    /// @brief UI控件值变化时保存到当前配置
+    void onUIChanged();
+    /// @brief 导出配置按钮点击
+    void onExportConf();
+    /// @brief 导入配置按钮点击
+    void onImportConf();
+
 private:
     // 左侧面板
     QFrame *m_leftFrame;                /// @brief 左侧面板容器
@@ -189,6 +226,9 @@ private:
 
     // 运行日志控件
     QLabel *m_logLabel;                 /// @brief 日志标签
+
+    // 网络配置数据
+    std::vector<NetworkConf> m_networkConfs;  /// @brief 网络配置列表
 
     // 主布局
     QHBoxLayout *m_mainLayout;          /// @brief 主布局
