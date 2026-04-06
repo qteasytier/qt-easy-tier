@@ -1266,39 +1266,77 @@ void QtETNetwork::onExportConf()
         QMessageBox::information(this, tr("提示"), tr("请先选择一个配置"));
         return;
     }
-    
+
+    // 弹出对话框让用户选择导出格式
+    QMessageBox formatDialog(this);
+    formatDialog.setWindowTitle(tr("选择导出格式"));
+    formatDialog.setText(tr("请选择要导出的配置格式："));
+    formatDialog.setInformativeText(tr("JSON 格式：QtEasyTier 使用，可导入到本程序\n"
+                                        "TOML 格式：EasyTier 官方格式，可用于命令行启动"));
+    formatDialog.setIcon(QMessageBox::Question);
+
+    QPushButton *jsonBtn = formatDialog.addButton(tr("JSON 格式"), QMessageBox::AcceptRole);
+    QPushButton *tomlBtn = formatDialog.addButton(tr("TOML 格式"), QMessageBox::AcceptRole);
+    QPushButton *cancelBtn = formatDialog.addButton(QMessageBox::Cancel);
+    formatDialog.setDefaultButton(jsonBtn);
+
+    formatDialog.exec();
+
+    // 判断用户选择
+    QAbstractButton *clickedBtn = formatDialog.clickedButton();
+    if (clickedBtn == cancelBtn) {
+        return;  // 用户取消
+    }
+
+    bool isJsonFormat = (clickedBtn == jsonBtn);
+
     // 获取用户主目录
     QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    QString defaultPath = homePath + "/qtet-config.json";
-    
+    QString defaultPath;
+    QString filter;
+
+    if (isJsonFormat) {
+        defaultPath = homePath + "/qtet-config.json";
+        filter = tr("JSON 文件 (*.json);;所有文件 (*)");
+    } else {
+        defaultPath = homePath + "/easytier-config.toml";
+        filter = tr("TOML 文件 (*.toml);;所有文件 (*)");
+    }
+
     // 获取保存文件路径
     QString filePath = QFileDialog::getSaveFileName(
         this,
         tr("导出配置"),
         defaultPath,
-        tr("JSON 文件 (*.json);;所有文件 (*)")
+        filter
     );
-    
+
     if (filePath.isEmpty()) {
         return;  // 用户取消了选择
     }
-    
-    // 获取当前配置的 JSON 对象，并删除 hostname 和 instance_name
-    QJsonObject json = m_networkConfs[currentRow].toJson();
-    json.remove("hostname");
-    json.remove("instance_name");
-    QJsonDocument doc(json);
-    
+
     // 写入文件
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         QMessageBox::warning(this, tr("导出失败"), tr("无法写入文件: %1").arg(filePath));
         return;
     }
-    
-    file.write(doc.toJson(QJsonDocument::Indented));
+
+    if (isJsonFormat) {
+        // 导出 JSON 格式：删除 hostname 和 instance_name
+        QJsonObject json = m_networkConfs[currentRow].toJson();
+        json.remove("hostname");
+        json.remove("instance_name");
+        QJsonDocument doc(json);
+        file.write(doc.toJson(QJsonDocument::Indented));
+    } else {
+        // 导出 TOML 格式
+        std::string tomlContent = m_networkConfs[currentRow].toToml();
+        file.write(tomlContent.c_str());
+    }
+
     file.close();
-    
+
     QMessageBox::information(this, tr("导出成功"), tr("配置已导出到: %1").arg(filePath));
 }
 
@@ -1810,13 +1848,13 @@ void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos
     }
     
     // 获取当前选中网络的实例名称
-    int currentIndex = m_networksList->currentRow();
+    const int &currentIndex = m_networksList->currentRow();
     if (currentIndex < 0 || currentIndex >= static_cast<int>(m_networkConfs.size())) {
         return;
     }
     
     const NetworkConf &currentConf = m_networkConfs[currentIndex];
-    const QString currentInstName = QString::fromStdString(currentConf.getInstanceName());
+    const QString &currentInstName = QString::fromStdString(currentConf.getInstanceName());
     
     // 查找当前网络的 JSON 信息
     for (const auto &info : infos) {

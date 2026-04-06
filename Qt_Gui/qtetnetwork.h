@@ -14,6 +14,8 @@
 #include <QWheelEvent>
 #include <QMenu>
 #include <QMessageBox>
+#include <QAbstractButton>
+#include <QFileDialog>
 #include <QThread>
 #include <QProgressDialog>
 #include <QTimer>
