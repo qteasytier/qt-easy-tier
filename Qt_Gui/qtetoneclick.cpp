@@ -843,33 +843,52 @@ void QtETOneClick::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &info
                 closeProgressDialog();
             }
             
-            parsePeerInfo(peers, routes);
+            parsePeerInfo(peers, routes, root);
             break;
         }
     }
 }
 
 /// @brief 将 uint32_t IP 地址转换为点分十进制字符串
+/// addr 是网络字节序（大端），最高字节在前
 static QString ipAddrToString(quint32 addr)
 {
     return QString("%1.%2.%3.%4")
-        .arg((addr >> 0) & 0xFF)
-        .arg((addr >> 8) & 0xFF)
+        .arg((addr >> 24) & 0xFF)
         .arg((addr >> 16) & 0xFF)
-        .arg((addr >> 24) & 0xFF);
+        .arg((addr >> 8) & 0xFF)
+        .arg(addr & 0xFF);
 }
 
-void QtETOneClick::parsePeerInfo(const QJsonArray& peers, const QJsonArray& routes)
+void QtETOneClick::parsePeerInfo(const QJsonArray& peers, const QJsonArray& routes, const QJsonObject& root)
 {
     Q_UNUSED(peers);  // peers 用于连接检测，在此函数中不使用
     
     if (m_currentRole == UserRole::Host) {
-        // 房主模式：计算联机人数（只计算有虚拟 IP 且不是公共服务器的节点）
-        int count = 0;
+        // 房主模式：显示本机虚拟 IP 并计算联机人数
         
-        // 获取本机 peer_id 用于排除
-        QJsonObject myNodeInfo = routes.isEmpty() ? QJsonObject() : 
-            routes.first().toObject();  // routes 中第一个通常不包含本机，需要从 my_node_info 获取
+        // 从 my_node_info 获取本机虚拟 IP
+        QJsonObject myNodeInfo = root.value("my_node_info").toObject();
+        QString localIp;
+        
+        if (!myNodeInfo.isEmpty()) {
+            QJsonObject myIpv4 = myNodeInfo.value("virtual_ipv4").toObject();
+            QJsonObject myAddrObj = myIpv4.value("address").toObject();
+            quint32 myAddr = myAddrObj.value("addr").toVariant().toUInt();
+            if (myAddr != 0) {
+                localIp = ipAddrToString(myAddr);
+            }
+        }
+        
+        // 更新本机 IP 显示
+        if (localIp != m_lastHostIp) {
+            m_hostIpEdit->setText(localIp);
+            m_lastHostIp = localIp;
+            std::clog << "房主本机IP: " << localIp.toStdString() << std::endl;
+        }
+        
+        // 计算联机人数（只计算有虚拟 IP 且不是公共服务器的节点）
+        int count = 0;
         
         for (const auto &routeVal : routes) {
             if (!routeVal.isObject()) continue;

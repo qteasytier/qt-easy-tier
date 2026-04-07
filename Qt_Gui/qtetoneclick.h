@@ -60,7 +60,8 @@ private:
     /// @brief 解析节点信息
     /// @param peers 直连节点数组（用于连接检测）
     /// @param routes 路由节点数组（用于计算联机人数和查找房主 IP）
-    void parsePeerInfo(const QJsonArray& peers, const QJsonArray& routes);
+    /// @param root JSON 根对象（用于获取本机信息）
+    void parsePeerInfo(const QJsonArray& peers, const QJsonArray& routes, const QJsonObject& root);
 
     // ==================== 联机码相关 ====================
     /// @brief Base32 编码
