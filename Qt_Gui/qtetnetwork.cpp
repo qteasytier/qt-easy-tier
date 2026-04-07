@@ -863,10 +863,15 @@ void QtETNetwork::onNetworkSelected()
         }
         m_nodeInfoWidgets.clear();
         
-        // 根据网络运行状态更新标签
+        // 根据网络运行状态更新节点信息显示
         if (m_networkConfs[currentRow].isRunning()) {
-            m_statusLabel->setText(tr("节点列表: 加载中..."));
-            m_emptyLabel->hide();
+            // 如果有缓存的节点信息，直接显示；否则显示加载中
+            if (!m_networkConfs[currentRow].m_runningStatus.isEmpty()) {
+                updateCurrentNetworkUI();
+            } else {
+                m_statusLabel->setText(tr("节点列表: 加载中..."));
+                m_emptyLabel->hide();
+            }
             // 立即请求更新节点信息
             if (m_runWorker) {
                 QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
@@ -1432,6 +1437,14 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
         saveConfFromUI(currentRow);
     }
     
+    // 清空该网络配置的运行状态
+    for (auto &networkConf : m_networkConfs) {
+        if (networkConf.getInstanceName() == conf.getInstanceName()) {
+            networkConf.m_runningStatus.clear();
+            break;
+        }
+    }
+    
     // 生成 TOML 配置
     const std::string &tomlConfig = conf.toToml();
     
@@ -1456,6 +1469,14 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
 
 void QtETNetwork::onRunNetworkBtnClicked_Stop(const NetworkConf &conf)
 {
+    // 清空该网络配置的运行状态
+    for (auto &networkConf : m_networkConfs) {
+        if (networkConf.getInstanceName() == conf.getInstanceName()) {
+            networkConf.m_runningStatus.clear();
+            break;
+        }
+    }
+    
     // 创建进度对话框
     if (!m_progressDialog) {
         m_progressDialog = new QProgressDialog(this);
@@ -1628,13 +1649,15 @@ QString QtETNetwork::ipAddrToString(quint32 addr)
         .arg(addr & 0xFF);
 }
 
-void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
+QVector<NodeInfo> QtETNetwork::parseNodeInfosFromJson(const QString &jsonStr)
 {
+    QVector<NodeInfo> nodeInfos;
+    
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
     
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-        return;
+        return nodeInfos;
     }
     
     QJsonObject rootObj = doc.object();
@@ -1642,7 +1665,7 @@ void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
     // 获取 routes 数组
     QJsonArray routes = rootObj["routes"].toArray();
     if (routes.isEmpty()) {
-        return;
+        return nodeInfos;
     }
     
     // 获取 peers 数组，用于判断直连/中转
@@ -1674,9 +1697,6 @@ void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
         }
         peerConnMap[peerId] = protocols;
     }
-    
-    // 构建新的节点信息列表
-    QList<NodeInfo> newNodeInfos;
     
     // 解析本机节点信息 my_node_info
     QJsonObject myNodeInfo = rootObj["my_node_info"].toObject();
@@ -1717,7 +1737,7 @@ void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
         localInfo.connType = NodeConnType::Direct;
         localInfo.connMethod = QStringLiteral("Local");
         
-        newNodeInfos.append(localInfo);
+        nodeInfos.append(localInfo);
     }
     
     // 遍历 routes 构建其他节点信息
@@ -1774,22 +1794,36 @@ void QtETNetwork::parseAndUpdateNodeInfos(const QString &jsonStr)
             info.connMethod = QStringLiteral("Server");
         }
         
-        newNodeInfos.append(info);
+        nodeInfos.append(info);
     }
+    
+    return nodeInfos;
+}
+
+void QtETNetwork::updateCurrentNetworkUI()
+{
+    // 获取当前选中网络
+    const int currentIndex = m_networksList->currentRow();
+    if (currentIndex < 0 || currentIndex >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    const NetworkConf &currentConf = m_networkConfs[currentIndex];
+    const QVector<NodeInfo> &nodeInfos = currentConf.m_runningStatus;
     
     // 增量更新节点信息控件
     int oldCount = m_nodeInfoWidgets.size();
-    int newCount = newNodeInfos.size();
+    int newCount = nodeInfos.size();
     
     // 更新已存在的卡片信息
     for (int i = 0; i < qMin(oldCount, newCount); ++i) {
-        m_nodeInfoWidgets[i]->setNodeInfo(newNodeInfos[i]);
+        m_nodeInfoWidgets[i]->setNodeInfo(nodeInfos[i]);
     }
     
     // 如果节点增加，创建新卡片
     if (newCount > oldCount) {
         for (int i = oldCount; i < newCount; ++i) {
-            QtETNodeInfo *nodeWidget = new QtETNodeInfo(newNodeInfos[i], m_nodeInfoContainer);
+            QtETNodeInfo *nodeWidget = new QtETNodeInfo(nodeInfos[i], m_nodeInfoContainer);
             m_nodeInfoWidgets.append(nodeWidget);
             // 插入到 stretch 之前（考虑空状态标签）
             int insertIndex = m_nodeInfoLayout->count() - 1;
@@ -1847,22 +1881,22 @@ void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos
         return;
     }
     
-    // 获取当前选中网络的实例名称
-    const int &currentIndex = m_networksList->currentRow();
-    if (currentIndex < 0 || currentIndex >= static_cast<int>(m_networkConfs.size())) {
-        return;
-    }
-    
-    const NetworkConf &currentConf = m_networkConfs[currentIndex];
-    const QString &currentInstName = QString::fromStdString(currentConf.getInstanceName());
-    
-    // 查找当前网络的 JSON 信息
-    for (const auto &info : infos) {
-        if (QString::fromStdString(info.key) == currentInstName) {
-            parseAndUpdateNodeInfos(QString::fromStdString(info.value));
-            break;
+    // 遍历所有网络配置，匹配 instance_name 并更新 m_runningStatus
+    for (auto &conf : m_networkConfs) {
+        const QString &instName = QString::fromStdString(conf.getInstanceName());
+        
+        // 遍历收集到的信息，查找匹配的网络实例
+        for (const auto &info : infos) {
+            if (QString::fromStdString(info.key) == instName) {
+                // 解析 JSON 并存入 m_runningStatus
+                conf.m_runningStatus = parseNodeInfosFromJson(QString::fromStdString(info.value));
+                break;
+            }
         }
     }
+    
+    // 根据 UI 当前选中的网络配置刷新节点信息显示
+    updateCurrentNetworkUI();
 }
 
 void QtETNetwork::onMonitorTimerTimeout() const

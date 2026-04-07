@@ -149,8 +149,10 @@ private:
     void onRunNetworkBtnClicked_Start(const NetworkConf &conf);
     /// @brief 停止网络内部实现
     void onRunNetworkBtnClicked_Stop(const NetworkConf &conf);
-    /// @brief 解析网络信息JSON并更新节点列表
-    void parseAndUpdateNodeInfos(const QString &jsonStr);
+    /// @brief 解析网络信息JSON并返回节点列表
+    static QVector<NodeInfo> parseNodeInfosFromJson(const QString &jsonStr);
+    /// @brief 根据当前选中网络的 m_runningStatus 更新节点列表 UI
+    void updateCurrentNetworkUI();
     /// @brief 将uint32_t IP地址转换为点分十进制字符串
     static QString ipAddrToString(quint32 addr);
     /// @brief 启动节点监测定时器
