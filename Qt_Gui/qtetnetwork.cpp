@@ -79,7 +79,7 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_nodeInfoLayout(nullptr)
     , m_emptyLabel(nullptr)
     // 运行日志控件
-    , m_logLabel(nullptr)
+    , m_logTextEdit(nullptr)
     // 运行网络相关
     , m_runThread(nullptr)
     , m_runWorker(nullptr)
@@ -772,11 +772,36 @@ void QtETNetwork::initRunningStatusPage()
 void QtETNetwork::initRunningLogPage()
 {
     QVBoxLayout *layout = new QVBoxLayout(m_runningLogTab);
-    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setContentsMargins(5, 5, 5, 5);
 
-    m_logLabel = new QLabel(tr("运行日志页面（待实现）"), m_runningLogTab);
-    m_logLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(m_logLabel);
+    // 创建日志文本框
+    m_logTextEdit = new QTextEdit(m_runningLogTab);
+    m_logTextEdit->setReadOnly(true);
+    m_logTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);  // 自动换行
+    m_logTextEdit->setPlaceholderText(tr("运行日志将在此显示..."));
+    
+    // 设置 UbuntuMono 字体
+    int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
+    if (fontId != -1) {
+        QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
+        if (!fontFamilies.isEmpty()) {
+            QFont monoFont(fontFamilies.first());
+            monoFont.setPointSize(11);
+            m_logTextEdit->setFont(monoFont);
+        }
+    }
+    
+    // 设置样式
+    m_logTextEdit->setStyleSheet(QStringLiteral(
+        "QTextEdit {"
+        "  background-color: #1e1e1e;"
+        "  color: #d4d4d4;"
+        "  border: 1px solid #3c3c3c;"
+        "  border-radius: 5px;"
+        "}"
+    ));
+    
+    layout->addWidget(m_logTextEdit);
 }
 
 void QtETNetwork::updateFunctionGridLayout()
@@ -872,6 +897,8 @@ void QtETNetwork::onNetworkSelected()
                 m_statusLabel->setText(tr("节点列表: 加载中..."));
                 m_emptyLabel->hide();
             }
+            // 更新日志显示
+            updateCurrentNetworkLogUI();
             // 立即请求更新节点信息
             if (m_runWorker) {
                 QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
@@ -879,6 +906,8 @@ void QtETNetwork::onNetworkSelected()
         } else {
             m_statusLabel->setText(tr("请先点击运行网络"));
             m_emptyLabel->hide();
+            // 网络未运行时清空日志显示
+            m_logTextEdit->clear();
         }
     }
     
@@ -1437,10 +1466,11 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
         saveConfFromUI(currentRow);
     }
     
-    // 清空该网络配置的运行状态
+    // 清空该网络配置的运行状态和日志
     for (auto &networkConf : m_networkConfs) {
         if (networkConf.getInstanceName() == conf.getInstanceName()) {
             networkConf.m_runningStatus.clear();
+            networkConf.m_runningLog.clear();
             break;
         }
     }
@@ -1469,10 +1499,11 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
 
 void QtETNetwork::onRunNetworkBtnClicked_Stop(const NetworkConf &conf)
 {
-    // 清空该网络配置的运行状态
+    // 清空该网络配置的运行状态和日志
     for (auto &networkConf : m_networkConfs) {
         if (networkConf.getInstanceName() == conf.getInstanceName()) {
             networkConf.m_runningStatus.clear();
+            networkConf.m_runningLog.clear();
             break;
         }
     }
@@ -1846,6 +1877,237 @@ void QtETNetwork::updateCurrentNetworkUI()
     m_statusLabel->setText(m_nodeInfoWidgets.isEmpty() ? tr("节点列表: 暂无节点") : tr("节点列表:"));
 }
 
+void QtETNetwork::parseAndUpdateRunningLogs(NetworkConf &conf, const QString &jsonStr)
+{
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+    
+    QJsonObject rootObj = doc.object();
+    
+    // 获取 events 数组
+    QJsonArray events = rootObj["events"].toArray();
+    if (events.isEmpty()) {
+        return;
+    }
+    
+    // 收集所有新日志的时间戳（原始格式）
+    QSet<QString> existingTimestamps;
+    for (const QString &cachedLog : conf.m_runningLog) {
+        // 从缓存的日志中提取时间戳
+        // 格式：<span style='color:#66ccff'>[04-05 08:52:59]</span>
+        int startIdx = cachedLog.indexOf(QStringLiteral(">["));
+        int endIdx = cachedLog.indexOf(QStringLiteral("]</span>"));
+        if (startIdx >= 0 && endIdx > startIdx) {
+            QString formattedTime = cachedLog.mid(startIdx + 2, endIdx - startIdx - 2);
+            existingTimestamps.insert(formattedTime);
+        }
+    }
+    
+    // 遍历事件数组，增量添加新日志
+    for (const QJsonValue &eventVal : events) {
+        QString eventStr = eventVal.toString();
+        if (eventStr.isEmpty()) {
+            continue;
+        }
+        
+        // 解析事件 JSON
+        QJsonParseError eventParseError;
+        QJsonDocument eventDoc = QJsonDocument::fromJson(eventStr.toUtf8(), &eventParseError);
+        if (eventParseError.error != QJsonParseError::NoError || !eventDoc.isObject()) {
+            continue;
+        }
+        
+        QJsonObject eventObj = eventDoc.object();
+        QString time = eventObj["time"].toString();
+        QJsonObject event = eventObj["event"].toObject();
+        
+        // 将原始时间转换为格式化时间，用于检查是否已存在
+        // 原始格式：2026-04-05T08:52:59.046875300+08:00
+        // 格式化后：04-05 08:52:59
+        QString formattedTime;
+        int tIndex = time.indexOf('T');
+        if (tIndex >= 0) {
+            QString fullDate = time.left(tIndex);
+            QStringList dateParts = fullDate.split('-');
+            if (dateParts.size() >= 3) {
+                formattedTime = dateParts[1] + "-" + dateParts[2] + " ";
+            }
+            if (time.length() > tIndex + 9) {
+                formattedTime += time.mid(tIndex + 1, 8);
+            }
+        }
+        
+        // 检查是否已存在
+        if (existingTimestamps.contains(formattedTime)) {
+            continue;
+        }
+        
+        // 格式化并添加日志
+        QString formattedLog = formatLogEntry(time, event);
+        if (!formattedLog.isEmpty()) {
+            conf.m_runningLog.append(formattedLog);
+            existingTimestamps.insert(formattedTime);
+        }
+    }
+    
+    // 检查日志数量限制
+    while (conf.m_runningLog.size() > MAX_LOG_COUNT) {
+        conf.m_runningLog.removeFirst();
+    }
+}
+
+QString QtETNetwork::formatLogEntry(const QString &time, const QJsonObject &eventObj)
+{
+    // 格式化时间，包含日期
+    // 原始格式：2026-04-05T08:52:59.046875300+08:00
+    // 目标格式：04-05 08:52:59
+    QString formattedTime = time;
+    QString datePart;
+    QString timePart;
+    int tIndex = time.indexOf('T');
+    if (tIndex >= 0) {
+        // 提取日期部分：2026-04-05 -> 04-05
+        QString fullDate = time.left(tIndex);
+        QStringList dateParts = fullDate.split('-');
+        if (dateParts.size() >= 3) {
+            datePart = dateParts[1] + "-" + dateParts[2];
+        }
+        // 提取时间部分：HH:MM:SS
+        if (time.length() > tIndex + 9) {
+            timePart = time.mid(tIndex + 1, 8);
+        }
+    }
+    formattedTime = datePart + " " + timePart;
+    
+    // 解析事件类型和内容
+    QString eventText;
+    
+    // 获取事件的键（事件类型）
+    QStringList keys = eventObj.keys();
+    if (keys.isEmpty()) {
+        return QString();
+    }
+    
+    const QString &eventType = keys.first();
+    const QJsonValue &eventData = eventObj[eventType];
+    
+    // 根据不同事件类型格式化输出
+    if (eventType == QStringLiteral("TunDeviceReady")) {
+        eventText = QStringLiteral("TUN 设备就绪: %1").arg(eventData.toString());
+    } else if (eventType == QStringLiteral("DhcpIpv4Changed")) {
+        if (eventData.isArray()) {
+            QJsonArray arr = eventData.toArray();
+            QString oldIp = arr.at(0).toString(QStringLiteral("无"));
+            QString newIp = arr.at(1).toString();
+            eventText = QStringLiteral("DHCP IP 变更: %1 -> %2").arg(oldIp, newIp);
+        }
+    } else if (eventType == QStringLiteral("PeerAdded")) {
+        eventText = QStringLiteral("节点加入: peer_id=%1").arg(eventData.toVariant().toLongLong());
+    } else if (eventType == QStringLiteral("PeerRemoved")) {
+        eventText = QStringLiteral("节点离开: peer_id=%1").arg(eventData.toVariant().toLongLong());
+    } else if (eventType == QStringLiteral("PeerConnAdded")) {
+        QJsonObject connObj = eventData.toObject();
+        QString tunnel = connObj["tunnel"].toObject()["tunnel_type"].toString().toUpper();
+        QString remoteAddr = connObj["tunnel"].toObject()["remote_addr"].toObject()["url"].toString();
+        qint64 peerId = connObj["peer_id"].toVariant().toLongLong();
+        eventText = QStringLiteral("连接建立: [%1] peer_id=%2 %3").arg(tunnel).arg(peerId).arg(remoteAddr);
+    } else if (eventType == QStringLiteral("PeerConnRemoved")) {
+        QJsonObject connObj = eventData.toObject();
+        QString tunnel = connObj["tunnel"].toObject()["tunnel_type"].toString().toUpper();
+        qint64 peerId = connObj["peer_id"].toVariant().toLongLong();
+        eventText = QStringLiteral("连接断开: [%1] peer_id=%2").arg(tunnel).arg(peerId);
+    } else if (eventType == QStringLiteral("Connecting")) {
+        eventText = QStringLiteral("正在连接: %1").arg(eventData.toString());
+    } else if (eventType == QStringLiteral("ConnectError")) {
+        if (eventData.isArray()) {
+            QJsonArray arr = eventData.toArray();
+            QString addr = arr.at(0).toString();
+            QString errMsg = arr.at(1).toString();
+            eventText = QStringLiteral("连接错误: %1 - %2").arg(addr, errMsg);
+        } else {
+            eventText = QStringLiteral("连接错误: %1").arg(eventData.toString());
+        }
+    } else if (eventType == QStringLiteral("ConnectionAccepted")) {
+        if (eventData.isArray()) {
+            QJsonArray arr = eventData.toArray();
+            QString localAddr = arr.at(0).toString();
+            QString remoteAddr = arr.at(1).toString();
+            eventText = QStringLiteral("连接接受: %1 <- %2").arg(localAddr, remoteAddr);
+        }
+    } else if (eventType == QStringLiteral("ListenerAdded")) {
+        eventText = QStringLiteral("监听器添加: %1").arg(eventData.toString());
+    } else if (eventType == QStringLiteral("ListenerRemoved")) {
+        eventText = QStringLiteral("监听器移除: %1").arg(eventData.toString());
+    } else if (eventType == QStringLiteral("ProxyCidrsUpdated")) {
+        if (eventData.isArray()) {
+            QJsonArray arr = eventData.toArray();
+            QStringList added, removed;
+            if (arr.size() > 0 && arr.at(0).isArray()) {
+                for (const auto &v : arr.at(0).toArray()) {
+                    added.append(v.toString());
+                }
+            }
+            if (arr.size() > 1 && arr.at(1).isArray()) {
+                for (const auto &v : arr.at(1).toArray()) {
+                    removed.append(v.toString());
+                }
+            }
+            if (!added.isEmpty()) {
+                eventText = QStringLiteral("子网代理添加: %1").arg(added.join(", "));
+            } else if (!removed.isEmpty()) {
+                eventText = QStringLiteral("子网代理移除: %1").arg(removed.join(", "));
+            } else {
+                eventText = QStringLiteral("子网代理更新");
+            }
+        }
+    } else {
+        // 其他事件类型，显示原始 JSON
+        QString eventDataStr;
+        if (eventData.isObject()) {
+            eventDataStr = QString::fromUtf8(QJsonDocument(eventData.toObject()).toJson(QJsonDocument::Compact));
+        } else if (eventData.isArray()) {
+            eventDataStr = QString::fromUtf8(QJsonDocument(eventData.toArray()).toJson(QJsonDocument::Compact));
+        } else {
+            eventDataStr = eventData.toVariant().toString();
+        }
+        eventText = QStringLiteral("%1: %2").arg(eventType, eventDataStr);
+    }
+    
+    // 使用 HTML 格式，时间戳用蓝色高亮
+    return QStringLiteral("<span style='color:#66ccff'>[%1]</span> %2").arg(formattedTime, eventText.toHtmlEscaped());
+}
+
+void QtETNetwork::updateCurrentNetworkLogUI()
+{
+    // 获取当前选中网络
+    const int currentIndex = m_networksList->currentRow();
+    if (currentIndex < 0 || currentIndex >= static_cast<int>(m_networkConfs.size())) {
+        m_logTextEdit->clear();
+        return;
+    }
+    
+    const NetworkConf &currentConf = m_networkConfs[currentIndex];
+    const QStringList &logs = currentConf.m_runningLog;
+    
+    // 构建日志 HTML 文本
+    QString logText;
+    for (const QString &log : logs) {
+        logText += log + QStringLiteral("<br>");
+    }
+    
+    // 更新文本框内容（使用 HTML 格式）
+    m_logTextEdit->setHtml(logText);
+    
+    // 滚动到底部
+    QTextCursor cursor = m_logTextEdit->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    m_logTextEdit->setTextCursor(cursor);
+}
+
 void QtETNetwork::startNodeMonitor() const
 {
     if (m_monitorTimer && !m_monitorTimer->isActive()) {
@@ -1881,15 +2143,18 @@ void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos
         return;
     }
     
-    // 遍历所有网络配置，匹配 instance_name 并更新 m_runningStatus
+    // 遍历所有网络配置，匹配 instance_name 并更新 m_runningStatus 和 m_runningLog
     for (auto &conf : m_networkConfs) {
         const QString &instName = QString::fromStdString(conf.getInstanceName());
         
         // 遍历收集到的信息，查找匹配的网络实例
         for (const auto &info : infos) {
             if (QString::fromStdString(info.key) == instName) {
+                const QString &jsonStr = QString::fromStdString(info.value);
                 // 解析 JSON 并存入 m_runningStatus
-                conf.m_runningStatus = parseNodeInfosFromJson(QString::fromStdString(info.value));
+                conf.m_runningStatus = parseNodeInfosFromJson(jsonStr);
+                // 解析日志并增量更新 m_runningLog
+                parseAndUpdateRunningLogs(conf, jsonStr);
                 break;
             }
         }
@@ -1897,6 +2162,8 @@ void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos
     
     // 根据 UI 当前选中的网络配置刷新节点信息显示
     updateCurrentNetworkUI();
+    // 刷新日志显示
+    updateCurrentNetworkLogUI();
 }
 
 void QtETNetwork::onMonitorTimerTimeout() const

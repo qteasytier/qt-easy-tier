@@ -110,6 +110,7 @@ private:
     // ==================== 运行状态 ====================
     bool m_isRunning = false;               ///< 网络运行状态
     QVector<NodeInfo> m_runningStatus;      ///< 运行时节点信息列表
+    QStringList m_runningLog;               ///< 运行时日志列表（最多300条）
 };
 
 /**

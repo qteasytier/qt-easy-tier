@@ -22,6 +22,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QTextEdit>
 #include <vector>
 
 #include "qtetlistwidget.h"
@@ -153,6 +154,12 @@ private:
     static QVector<NodeInfo> parseNodeInfosFromJson(const QString &jsonStr);
     /// @brief 根据当前选中网络的 m_runningStatus 更新节点列表 UI
     void updateCurrentNetworkUI();
+    /// @brief 解析运行日志JSON并增量更新到 m_runningLog
+    static void parseAndUpdateRunningLogs(NetworkConf &conf, const QString &jsonStr);
+    /// @brief 根据当前选中网络的 m_runningLog 更新日志 UI
+    void updateCurrentNetworkLogUI();
+    /// @brief 格式化单条日志条目
+    static QString formatLogEntry(const QString &time, const QJsonObject &eventObj);
     /// @brief 将uint32_t IP地址转换为点分十进制字符串
     static QString ipAddrToString(quint32 addr);
     /// @brief 启动节点监测定时器
@@ -283,7 +290,10 @@ private:
     QLabel *m_emptyLabel;               /// @brief 空状态提示标签
 
     // 运行日志控件
-    QLabel *m_logLabel;                 /// @brief 日志标签
+    QTextEdit *m_logTextEdit;           /// @brief 日志文本框
+
+    // 常量
+    static constexpr int MAX_LOG_COUNT = 300;  /// @brief 最大日志缓存数量
 
     // 网络配置数据
     std::vector<NetworkConf> m_networkConfs;  /// @brief 网络配置列表
