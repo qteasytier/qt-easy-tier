@@ -290,6 +290,25 @@ elseif(APPLE)
             )
         ")
     endif()
+
+    # 可选：尝试使用 macdeployqt 进行部署（如果可用）
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt)
+    if(MACDEPLOYQT_EXECUTABLE)
+        install(CODE "
+            message(STATUS \"使用macdeployqt部署Qt运行时...\")
+            execute_process(
+                COMMAND \"${MACDEPLOYQT_EXECUTABLE}\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app\"
+                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+                RESULT_VARIABLE deploy_result
+            )
+            if(NOT deploy_result EQUAL 0)
+                message(WARNING \"macdeployqt执行失败，返回码: \${deploy_result}\")
+            endif()
+        ")
+    else()
+        message(STATUS "未找到macdeployqt工具，跳过自动部署。请确保目标系统已安装Qt运行时。")
+    endif()
 elseif(LINUX)
     # 安装EasyTier目录
     install(CODE "
