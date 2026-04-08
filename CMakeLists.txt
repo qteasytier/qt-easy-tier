@@ -39,6 +39,16 @@ if(WIN32)
                 ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/library
                 ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows
     )
+elseif(APPLE)
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+        link_directories(
+                    ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64
+        )
+    else()
+        link_directories(
+                    ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64
+        )
+    endif()
 else()
     link_directories(
                 ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/linux
@@ -137,6 +147,24 @@ if(WIN32)
             $<TARGET_FILE_DIR:${ProjectName}>
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
+elseif(APPLE)
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+        # 复制EasyTier macOS arm64版本到目标目录
+        add_custom_command(TARGET ${ProjectName} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64
+                $<TARGET_FILE_DIR:${ProjectName}>
+                COMMENT "复制EasyTier macOS arm64 到 ${ProjectName} 目录..."
+        )
+    else()
+        # 复制EasyTier macOS x86_64版本到目标目录
+        add_custom_command(TARGET ${ProjectName} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64
+                $<TARGET_FILE_DIR:${ProjectName}>
+                COMMENT "复制EasyTier macOS x86_64 到 ${ProjectName} 目录..."
+        )
+    endif()
 elseif(LINUX)
     # 复制EasyTier Linux版本到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
@@ -212,6 +240,56 @@ if(WIN32)
                 \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         )
     ")
+elseif(APPLE)
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+        # 安装EasyTier目录
+        install(CODE "
+            message(STATUS \"部署EasyTier macOS arm64...\")
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
+                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+            )
+        ")
+
+        # 设置可执行权限
+        install(CODE "
+            message(STATUS \"设置EasyTier可执行权限...\")
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-core\"
+            )
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-cli\"
+            )
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-web-embed\"
+            )
+        ")
+    else()
+        # 安装EasyTier目录
+        install(CODE "
+            message(STATUS \"部署EasyTier macOS x86_64...\")
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
+                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+            )
+        ")
+
+        # 设置可执行权限
+        install(CODE "
+            message(STATUS \"设置EasyTier可执行权限...\")
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-core\"
+            )
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-cli\"
+            )
+            execute_process(
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-web-embed\"
+            )
+        ")
+    endif()
 elseif(LINUX)
     # 安装EasyTier目录
     install(CODE "
