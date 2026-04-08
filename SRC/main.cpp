@@ -19,7 +19,7 @@ void isAlreadyRunning(const QString& serverName, const bool &isAutoStart);
 #ifdef Q_OS_MACOS
 
 // mac提权防止创建tun失败
-bool relaunchAsRoot() {
+void relaunchAsRoot() {
     QString path = QCoreApplication::applicationFilePath();
 
     QString appleScript = QString(
