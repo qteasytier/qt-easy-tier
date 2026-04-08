@@ -98,6 +98,13 @@ if(WIN32)
             ${ALL_SOURCES}
             ${GENERATED_RC_FILE}
     )
+elseif(APPLE)
+    qt_add_executable(${ProjectName}
+            MACOSX_BUNDLE
+            MANUAL_FINALIZATION
+            ${ALL_SOURCES}
+            ${QT_RESOURCES}
+    )
 else()
     qt_add_executable(${ProjectName}
             MANUAL_FINALIZATION
