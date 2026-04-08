@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "qtetlistwidget.h"
+#include "qtetpushbtn.h"
 
 /// @brief 服务器信息结构体
 struct ServerInfo
@@ -106,7 +107,7 @@ private:
 
     // 底部按钮区域
     QWidget *m_bottomWidget = nullptr;
-    QPushButton *m_addBtn = nullptr;        ///< 添加服务器按钮
+    QtETPushBtn *m_addBtn = nullptr;        ///< 添加服务器按钮
 
     // 右键菜单
     QMenu *m_contextMenu = nullptr;

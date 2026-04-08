@@ -27,6 +27,7 @@
 #include <QJsonObject>
 
 class QtETCheckBtn;
+class QtETPushBtn;
 
 /**
  * @brief 设置页面类
@@ -130,11 +131,11 @@ private:
 
     // ========== 版本显示控件 ==========
     QLabel *m_versionLabel = nullptr;               ///< QtEasyTier 版本标签
-    QPushButton *m_checkUpdateBtn = nullptr;        ///< 检查更新按钮
+    QtETPushBtn *m_checkUpdateBtn = nullptr;        ///< 检查更新按钮
 
     // ========== 操作按钮 ==========
-    QPushButton *m_discardBtn = nullptr;            ///< 丢弃按钮
-    QPushButton *m_saveBtn = nullptr;               ///< 保存按钮
+    QtETPushBtn *m_discardBtn = nullptr;            ///< 丢弃按钮
+    QtETPushBtn *m_saveBtn = nullptr;               ///< 保存按钮
 
     // ========== 设置值 ==========
     bool m_hideOnTray = true;           ///< 隐藏到托盘

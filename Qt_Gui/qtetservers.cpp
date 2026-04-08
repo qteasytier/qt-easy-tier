@@ -152,7 +152,7 @@ void QtETServers::initButtonArea()
     bottomLayout->addStretch();
 
     // 添加服务器按钮
-    m_addBtn = new QPushButton(m_bottomWidget);
+    m_addBtn = new QtETPushBtn(m_bottomWidget);
     m_addBtn->setMinimumWidth(120);
     QFont btnFont;
     btnFont.setPointSize(11);

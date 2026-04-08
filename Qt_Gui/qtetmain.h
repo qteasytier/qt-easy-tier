@@ -8,6 +8,7 @@
 
 #include "qtetnetwork.h"
 #include "qtetoneclick.h"
+#include "qtetpushbtn.h"
 #include "qtetsettings.h"
 #include "qtetservers.h"
 
@@ -47,10 +48,10 @@ private:
     QtETSettings* m_settingsPage = nullptr;
 
     // ======== 欢迎界面控件 ========
-    QPushButton *m_aboutUsBtn = nullptr;     // 关于项目
-    QPushButton *m_aboutETBtn = nullptr;     // 关于EasyTier
-    QPushButton *m_donateBtn = nullptr;      // 捐赠
-    QPushButton *m_notClickBtn = nullptr;    // "千万别点"彩蛋
+    QtETPushBtn *m_aboutUsBtn = nullptr;     // 关于项目
+    QtETPushBtn *m_aboutETBtn = nullptr;     // 关于EasyTier
+    QtETPushBtn *m_donateBtn = nullptr;      // 捐赠
+    QtETPushBtn *m_notClickBtn = nullptr;    // "千万别点"彩蛋
 
     // ======== 系统托盘 ========
     QSystemTrayIcon *m_trayIcon = nullptr;   // 系统托盘图标

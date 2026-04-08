@@ -15,6 +15,7 @@
 #include <QJsonArray>
 #include <vector>
 #include "qtetcheckbtn.h"
+#include "qtetpushbtn.h"
 
 /// @brief 服务器信息结构体（与 QtETServers 中的一致）
 struct ServerInfoData
@@ -74,8 +75,8 @@ private:
 
     // 底部按钮
     QDialogButtonBox *m_buttonBox = nullptr;
-    QPushButton *m_selectAllBtn = nullptr;
-    QPushButton *m_deselectAllBtn = nullptr;
+    QtETPushBtn *m_selectAllBtn = nullptr;
+    QtETPushBtn *m_deselectAllBtn = nullptr;
 
     // 服务器数据
     std::vector<ServerInfoData> m_servers;      ///< 服务器收藏列表

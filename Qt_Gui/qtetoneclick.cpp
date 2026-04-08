@@ -138,7 +138,7 @@ void QtETOneClick::initFormArea()
     m_contentLayout->addWidget(m_formWidget, 0, Qt::AlignTop);
 
     // 一键联机按钮
-    m_oneClickBtn = new QPushButton(this);
+    m_oneClickBtn = new QtETPushBtn(this);
     m_oneClickBtn->setMinimumWidth(200);
     m_oneClickBtn->setMaximumWidth(200);
     QFont btnFont;
@@ -165,7 +165,7 @@ void QtETOneClick::initServerArea()
     m_serverEdit = new QLineEdit(m_serverWidget);
 
     // 添加按钮
-    m_addServerBtn = new QPushButton(m_serverWidget);
+    m_addServerBtn = new QtETPushBtn(m_serverWidget);
     m_addServerBtn->setMinimumWidth(100);
     m_addServerBtn->setMaximumWidth(100);
     m_addServerBtn->setText(QStringLiteral("添加"));
@@ -179,12 +179,12 @@ void QtETOneClick::initServerArea()
     QVBoxLayout *btnLayout = new QVBoxLayout();
     
     // 删除按钮
-    m_removeServerBtn = new QPushButton(m_serverWidget);
+    m_removeServerBtn = new QtETPushBtn(m_serverWidget);
     m_removeServerBtn->setText(QStringLiteral("删除"));
     m_removeServerBtn->setEnabled(false);  // 默认禁用
 
     // 公共服务器列表按钮
-    m_publicServerBtn = new QPushButton(m_serverWidget);
+    m_publicServerBtn = new QtETPushBtn(m_serverWidget);
     m_publicServerBtn->setText(QStringLiteral("服务器列表"));
 
     btnLayout->addWidget(m_removeServerBtn);

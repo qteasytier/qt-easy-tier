@@ -4,6 +4,7 @@
 
 #include "qtetsettings.h"
 #include "qtetcheckbtn.h"
+#include "qtetpushbtn.h"
 
 #include <QMessageBox>
 #include <QDesktopServices>
@@ -130,7 +131,7 @@ void QtETSettings::initUI()
     m_versionLabel->setFont(versionFont);
     m_versionLabel->setAlignment(Qt::AlignLeft);
 
-    m_checkUpdateBtn = new QPushButton(tr("检查更新"), this);
+    m_checkUpdateBtn = new QtETPushBtn(tr("检查更新"), this);
     m_checkUpdateBtn->setFixedWidth(120);
 
     versionLayout->addWidget(m_versionLabel);
@@ -164,11 +165,11 @@ void QtETSettings::initUI()
 
     buttonLayout->addStretch();
 
-    m_discardBtn = new QPushButton(tr("丢弃"), this);
+    m_discardBtn = new QtETPushBtn(tr("丢弃"), this);
     m_discardBtn->setFixedWidth(80);
     m_discardBtn->setEnabled(false);
 
-    m_saveBtn = new QPushButton(tr("保存"), this);
+    m_saveBtn = new QtETPushBtn(tr("保存"), this);
     m_saveBtn->setFixedWidth(80);
     m_saveBtn->setEnabled(false);
 

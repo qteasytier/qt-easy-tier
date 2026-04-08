@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include "qtetcheckbtn.h"
+#include "qtetpushbtn.h"
 #include "ETRunWorker.h"
 
 class QtETOneClick : public QWidget
@@ -99,15 +100,15 @@ private:
     QLabel *m_hostIpLabel = nullptr;        ///< 房主虚拟 IP 标签
 
     // 一键联机按钮
-    QPushButton *m_oneClickBtn = nullptr;
+    QtETPushBtn *m_oneClickBtn = nullptr;
 
     // 服务器地址区域
     QWidget *m_serverWidget = nullptr;
     QLineEdit *m_serverEdit = nullptr;      ///< 服务器地址输入框
-    QPushButton *m_addServerBtn = nullptr;  ///< 添加服务器按钮
+    QtETPushBtn *m_addServerBtn = nullptr;  ///< 添加服务器按钮
     QListWidget *m_serverListWidget = nullptr; ///< 服务器列表
-    QPushButton *m_removeServerBtn = nullptr;  ///< 删除服务器按钮
-    QPushButton *m_publicServerBtn = nullptr;  ///< 公共服务器列表按钮
+    QtETPushBtn *m_removeServerBtn = nullptr;  ///< 删除服务器按钮
+    QtETPushBtn *m_publicServerBtn = nullptr;  ///< 公共服务器列表按钮
 
     // 底部按钮区域
     QWidget *m_bottomWidget = nullptr;

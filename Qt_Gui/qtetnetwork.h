@@ -30,6 +30,7 @@
 
 #include "qtetlistwidget.h"
 #include "qtetcheckbtn.h"
+#include "qtetpushbtn.h"
 #include "qtetnodeinfo.h"
 #include "networkconf.h"
 #include "ETRunWorker.h"
@@ -226,10 +227,10 @@ private:
     QFrame *m_leftFrame;                /// @brief 左侧面板容器
     QVBoxLayout *m_leftLayout;          /// @brief 左侧布局
     QtETListWidget *m_networksList;     /// @brief 网络列表
-    QPushButton *m_newNetworkBtn;       /// @brief 新建网络按钮
-    QPushButton *m_runNetworkBtn;       /// @brief 运行网络按钮
-    QPushButton *m_importConfBtn;       /// @brief 导入配置按钮
-    QPushButton *m_exportConfBtn;       /// @brief 导出配置按钮
+    QtETPushBtn *m_newNetworkBtn;       /// @brief 新建网络按钮
+    QtETPushBtn *m_runNetworkBtn;       /// @brief 运行网络按钮
+    QtETPushBtn *m_importConfBtn;       /// @brief 导入配置按钮
+    QtETPushBtn *m_exportConfBtn;       /// @brief 导出配置按钮
 
     // 右侧面板
     QTabWidget *m_tabWidget;            /// @brief 选项卡容器
@@ -247,10 +248,10 @@ private:
     QtETCheckBtn *m_latencyFirstCheckBox;   /// @brief 低延迟优先开关 (latency_first)
     QtETCheckBtn *m_privateModeCheckBox;    /// @brief 私有模式开关 (private_mode)
     QLineEdit *m_serverEdit;            /// @brief 服务器地址输入框
-    QPushButton *m_addServerBtn;        /// @brief 添加服务器按钮
+    QtETPushBtn *m_addServerBtn;        /// @brief 添加服务器按钮
     QListWidget *m_serverListWidget;    /// @brief 服务器列表
-    QPushButton *m_removeServerBtn;     /// @brief 删除服务器按钮
-    QPushButton *m_publicServerBtn;     /// @brief 公共服务器列表按钮
+    QtETPushBtn *m_removeServerBtn;     /// @brief 删除服务器按钮
+    QtETPushBtn *m_publicServerBtn;     /// @brief 公共服务器列表按钮
 
     // 高级设置控件 - 功能开关
     QWidget *m_functionWidget;                          /// @brief 功能开关容器
@@ -277,22 +278,22 @@ private:
     // 高级设置控件 - 网络白名单
     QtETCheckBtn *m_foreignNetworkWhitelistCheckBox;    /// @brief 启用网络白名单 (foreign_network_whitelist)
     QLineEdit *m_foreignNetworkWhitelistEdit;           /// @brief 网络白名单输入框
-    QPushButton *m_addWhitelistBtn;                     /// @brief 添加白名单按钮
+    QtETPushBtn *m_addWhitelistBtn;                     /// @brief 添加白名单按钮
     QListWidget *m_whitelistListWidget;                 /// @brief 白名单列表
-    QPushButton *m_removeWhitelistBtn;                  /// @brief 删除白名单按钮
+    QtETPushBtn *m_removeWhitelistBtn;                  /// @brief 删除白名单按钮
 
     // 高级设置控件 - 监听地址
     QLineEdit *m_listenAddrEdit;        /// @brief 监听地址输入框
-    QPushButton *m_addListenAddrBtn;    /// @brief 添加监听地址按钮
+    QtETPushBtn *m_addListenAddrBtn;    /// @brief 添加监听地址按钮
     QListWidget *m_listenAddrListWidget;/// @brief 监听地址列表
-    QPushButton *m_removeListenAddrBtn; /// @brief 删除监听地址按钮
+    QtETPushBtn *m_removeListenAddrBtn; /// @brief 删除监听地址按钮
 
     // 高级设置控件 - 子网代理 CIDR
     QLineEdit *m_proxyNetworkEdit;           /// @brief 子网代理 CIDR 输入框 (proxy_network)
-    QPushButton *m_addProxyNetworkBtn;       /// @brief 添加 CIDR 按钮
+    QtETPushBtn *m_addProxyNetworkBtn;       /// @brief 添加 CIDR 按钮
     QListWidget *m_proxyNetworkListWidget;   /// @brief CIDR 列表
-    QPushButton *m_removeProxyNetworkBtn;    /// @brief 删除 CIDR 按钮
-    QPushButton *m_calculateCidrBtn;         /// @brief 打开 CIDR 计算器按钮
+    QtETPushBtn *m_removeProxyNetworkBtn;    /// @brief 删除 CIDR 按钮
+    QtETPushBtn *m_calculateCidrBtn;         /// @brief 打开 CIDR 计算器按钮
 
     // 运行状态控件
     QLabel *m_statusLabel;              /// @brief 状态标签

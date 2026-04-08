@@ -188,10 +188,10 @@ void QtETNetwork::initLeftPanel()
     m_leftLayout->addWidget(m_networksList);
 
     // 创建按钮
-    m_newNetworkBtn = new QPushButton(tr("新建网络"), m_leftFrame);
-    m_runNetworkBtn = new QPushButton(tr("运行网络"), m_leftFrame);
-    m_importConfBtn = new QPushButton(tr("导入配置"), m_leftFrame);
-    m_exportConfBtn = new QPushButton(tr("导出配置"), m_leftFrame);
+    m_newNetworkBtn = new QtETPushBtn(tr("新建网络"), m_leftFrame);
+    m_runNetworkBtn = new QtETPushBtn(tr("运行网络"), m_leftFrame);
+    m_importConfBtn = new QtETPushBtn(tr("导入配置"), m_leftFrame);
+    m_exportConfBtn = new QtETPushBtn(tr("导出配置"), m_leftFrame);
 
     m_leftLayout->addWidget(m_newNetworkBtn);
     m_leftLayout->addWidget(m_runNetworkBtn);
@@ -348,7 +348,7 @@ void QtETNetwork::initBasicSettingsPage()
     QHBoxLayout *addServerLayout = new QHBoxLayout();
     m_serverEdit = new QLineEdit(serverWidget);
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
-    m_addServerBtn = new QPushButton(tr("添加"), serverWidget);
+    m_addServerBtn = new QtETPushBtn(tr("添加"), serverWidget);
     m_addServerBtn->setMinimumWidth(80);
     addServerLayout->addWidget(m_serverEdit, 1);
     addServerLayout->addWidget(m_addServerBtn);
@@ -360,7 +360,7 @@ void QtETNetwork::initBasicSettingsPage()
     m_serverListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     // 添加默认服务器
     m_serverListWidget->addItem(QStringLiteral("tcp://public.easytier.top:11010"));
-    m_removeServerBtn = new QPushButton(tr("删除"), serverWidget);
+    m_removeServerBtn = new QtETPushBtn(tr("删除"), serverWidget);
     m_removeServerBtn->setMinimumWidth(80);
     m_removeServerBtn->setEnabled(false);
     serverListLayout->addWidget(m_serverListWidget, 1);
@@ -368,7 +368,7 @@ void QtETNetwork::initBasicSettingsPage()
     serverLayout->addLayout(serverListLayout);
 
     // 公共服务器按钮
-    m_publicServerBtn = new QPushButton(tr("服务器收藏列表"), serverWidget);
+    m_publicServerBtn = new QtETPushBtn(tr("服务器收藏列表"), serverWidget);
     serverLayout->addWidget(m_publicServerBtn);
 
     scrollLayout->addWidget(serverWidget);
@@ -587,7 +587,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     QHBoxLayout *addWhitelistLayout = new QHBoxLayout();
     m_foreignNetworkWhitelistEdit = new QLineEdit(whitelistControlsWidget);
     m_foreignNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
-    m_addWhitelistBtn = new QPushButton(tr("添加"), whitelistControlsWidget);
+    m_addWhitelistBtn = new QtETPushBtn(tr("添加"), whitelistControlsWidget);
     m_addWhitelistBtn->setMinimumWidth(80);
     addWhitelistLayout->addWidget(m_foreignNetworkWhitelistEdit, 1);
     addWhitelistLayout->addWidget(m_addWhitelistBtn);
@@ -596,7 +596,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     QHBoxLayout *whitelistListLayout = new QHBoxLayout();
     m_whitelistListWidget = new QListWidget(whitelistControlsWidget);
     m_whitelistListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_removeWhitelistBtn = new QPushButton(tr("删除"), whitelistControlsWidget);
+    m_removeWhitelistBtn = new QtETPushBtn(tr("删除"), whitelistControlsWidget);
     m_removeWhitelistBtn->setMinimumWidth(80);
     m_removeWhitelistBtn->setEnabled(false);
     whitelistListLayout->addWidget(m_whitelistListWidget, 1);
@@ -620,7 +620,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     QHBoxLayout *addListenAddrLayout = new QHBoxLayout();
     m_listenAddrEdit = new QLineEdit(listenAddrWidget);
     m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址与端口"));
-    m_addListenAddrBtn = new QPushButton(tr("添加"), listenAddrWidget);
+    m_addListenAddrBtn = new QtETPushBtn(tr("添加"), listenAddrWidget);
     m_addListenAddrBtn->setMinimumWidth(80);
     addListenAddrLayout->addWidget(m_listenAddrEdit, 1);
     addListenAddrLayout->addWidget(m_addListenAddrBtn);
@@ -631,7 +631,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_listenAddrListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     m_listenAddrListWidget->addItem(QStringLiteral("tcp://0.0.0.0:11010"));
     m_listenAddrListWidget->addItem(QStringLiteral("udp://0.0.0.0:11010"));
-    m_removeListenAddrBtn = new QPushButton(tr("删除"), listenAddrWidget);
+    m_removeListenAddrBtn = new QtETPushBtn(tr("删除"), listenAddrWidget);
     m_removeListenAddrBtn->setMinimumWidth(80);
     m_removeListenAddrBtn->setEnabled(false);
     listenAddrListLayout->addWidget(m_listenAddrListWidget, 1);
@@ -652,7 +652,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     QHBoxLayout *addCidrLayout = new QHBoxLayout();
     m_proxyNetworkEdit = new QLineEdit(cidrWidget);
     m_proxyNetworkEdit->setPlaceholderText(tr("请输入子网代理 CIDR"));
-    m_addProxyNetworkBtn = new QPushButton(tr("添加"), cidrWidget);
+    m_addProxyNetworkBtn = new QtETPushBtn(tr("添加"), cidrWidget);
     m_addProxyNetworkBtn->setMinimumWidth(80);
     addCidrLayout->addWidget(m_proxyNetworkEdit, 1);
     addCidrLayout->addWidget(m_addProxyNetworkBtn);
@@ -661,14 +661,14 @@ void QtETNetwork::initAdvancedSettingsPage()
     QHBoxLayout *cidrListLayout = new QHBoxLayout();
     m_proxyNetworkListWidget = new QListWidget(cidrWidget);
     m_proxyNetworkListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_removeProxyNetworkBtn = new QPushButton(tr("删除"), cidrWidget);
+    m_removeProxyNetworkBtn = new QtETPushBtn(tr("删除"), cidrWidget);
     m_removeProxyNetworkBtn->setMinimumWidth(80);
     m_removeProxyNetworkBtn->setEnabled(false);
     cidrListLayout->addWidget(m_proxyNetworkListWidget, 1);
     cidrListLayout->addWidget(m_removeProxyNetworkBtn);
     cidrLayout->addLayout(cidrListLayout);
 
-    m_calculateCidrBtn = new QPushButton(tr("打开 CIDR 计算器"), cidrWidget);
+    m_calculateCidrBtn = new QtETPushBtn(tr("打开 CIDR 计算器"), cidrWidget);
     cidrLayout->addWidget(m_calculateCidrBtn);
 
     scrollLayout->addWidget(cidrWidget);

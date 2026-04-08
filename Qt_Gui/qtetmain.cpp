@@ -1,6 +1,7 @@
 #include "ui_qtetmain.h"
 #include "qtetmain.h"
 #include "qtetcheckbtn.h"
+#include "qtetpushbtn.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -368,13 +369,13 @@ void QtETMain::initHelloPage()
     QGridLayout *buttonGrid = new QGridLayout();
     buttonGrid->setSpacing(6);
 
-    m_aboutUsBtn = new QPushButton("关于项目", this);
+    m_aboutUsBtn = new QtETPushBtn("关于项目", this);
     m_aboutUsBtn->setFixedWidth(125);
-    m_aboutETBtn = new QPushButton("关于 EasyTier", this);
+    m_aboutETBtn = new QtETPushBtn("关于 EasyTier", this);
     m_aboutETBtn->setFixedWidth(125);
-    m_donateBtn = new QPushButton("捐赠", this);
+    m_donateBtn = new QtETPushBtn("捐赠", this);
     m_donateBtn->setFixedWidth(125);
-    m_notClickBtn = new QPushButton("千万别点", this);
+    m_notClickBtn = new QtETPushBtn("千万别点", this);
     m_notClickBtn->setFixedWidth(125);
 
     buttonGrid->addWidget(m_aboutUsBtn, 0, 0);

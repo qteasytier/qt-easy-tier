@@ -67,9 +67,9 @@ void QtETPublicServerDialog::initUI()
     auto *selectionBtnLayout = new QHBoxLayout();
     selectionBtnLayout->setSpacing(6);
 
-    m_selectAllBtn = new QPushButton(tr("全选"), this);
+    m_selectAllBtn = new QtETPushBtn(tr("全选"), this);
     m_selectAllBtn->setMinimumWidth(80);
-    m_deselectAllBtn = new QPushButton(tr("全不选"), this);
+    m_deselectAllBtn = new QtETPushBtn(tr("全不选"), this);
     m_deselectAllBtn->setMinimumWidth(80);
 
     selectionBtnLayout->addStretch();
