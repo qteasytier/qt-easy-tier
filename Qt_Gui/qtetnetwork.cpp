@@ -127,6 +127,7 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     connect(m_newNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onNewNetwork);
     connect(m_networksList, &QListWidget::itemSelectionChanged, this, &QtETNetwork::onNetworkSelected);
     connect(m_networksList, &QListWidget::customContextMenuRequested, this, &QtETNetwork::onListContextMenu);
+    connect(m_networksList, &QListWidget::itemDoubleClicked, this, &QtETNetwork::onListDoubleClicked);
     connect(m_exportConfBtn, &QPushButton::clicked, this, &QtETNetwork::onExportConf);
     connect(m_importConfBtn, &QPushButton::clicked, this, &QtETNetwork::onImportConf);
     connect(m_runNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onRunNetworkBtnClicked);
@@ -854,8 +855,11 @@ void QtETNetwork::onNewNetwork()
     
     // 在列表中添加新项
     int index = static_cast<int>(m_networkConfs.size()) - 1;
-    QString displayName = tr("网络 %1").arg(index + 1);
+    QString displayName = getNetworkDisplayName(index);
     m_networksList->addItem(displayName);
+    
+    // 设置默认图标（未运行状态）
+    updateListItemStyle(index);
     
     // 选中新添加的项
     m_networksList->setCurrentRow(index);
@@ -931,12 +935,16 @@ void QtETNetwork::onListContextMenu(const QPoint &pos)
     }
     
     QMenu contextMenu(tr("网络操作"), this);
+    QAction *renameAction = contextMenu.addAction(tr("重命名"));
+    renameAction->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
     QAction *deleteAction = contextMenu.addAction(tr("删除网络"));
     deleteAction->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
     
     QAction *selectedAction = contextMenu.exec(m_networksList->mapToGlobal(pos));
     
-    if (selectedAction == deleteAction) {
+    if (selectedAction == renameAction) {
+        onRenameNetwork();
+    } else if (selectedAction == deleteAction) {
         onDeleteNetwork();
     }
 }
@@ -969,7 +977,7 @@ void QtETNetwork::onDeleteNetwork()
     
     // 更新列表项显示名称（索引值可能变化）
     for (int i = 0; i < m_networksList->count(); ++i) {
-        m_networksList->item(i)->setText(tr("网络 %1").arg(i + 1));
+        m_networksList->item(i)->setText(getNetworkDisplayName(i));
     }
     
     // 更新 TabWidget 状态
@@ -1310,7 +1318,7 @@ void QtETNetwork::loadAllNetworkConfs()
     
     // 添加到列表
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
-        QString displayName = tr("网络 %1").arg(i + 1);
+        QString displayName = getNetworkDisplayName(static_cast<int>(i));
         m_networksList->addItem(displayName);
     }
     
@@ -1470,8 +1478,11 @@ void QtETNetwork::onImportConf()
     
     // 在列表中添加新项
     const int &index = static_cast<int>(m_networkConfs.size()) - 1;
-    const QString &displayName = tr("网络 %1").arg(index + 1);
+    const QString &displayName = getNetworkDisplayName(index);
     m_networksList->addItem(displayName);
+    
+    // 设置默认图标（未运行状态）
+    updateListItemStyle(index);
     
     // 选中新添加的项
     m_networksList->setCurrentRow(index);
@@ -2211,5 +2222,92 @@ void QtETNetwork::onMonitorTimerTimeout() const
     // 在工作线程中收集网络信息
     if (m_runWorker) {
         QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
+    }
+}
+
+QString QtETNetwork::getNetworkDisplayName(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
+        return tr("网络 %1").arg(index + 1);
+    }
+    
+    const NetworkConf &conf = m_networkConfs[index];
+    // 如果有标签且不为空，优先使用标签
+    if (!conf.m_networkLabel.empty()) {
+        return QString::fromStdString(conf.m_networkLabel);
+    }
+    // 否则使用默认的"网络x"
+    return tr("网络 %1").arg(index + 1);
+}
+
+void QtETNetwork::updateListItemDisplayName(int index) const
+{
+    if (index < 0 || index >= m_networksList->count()) {
+        return;
+    }
+    
+    QListWidgetItem *item = m_networksList->item(index);
+    if (item) {
+        item->setText(getNetworkDisplayName(index));
+    }
+}
+
+void QtETNetwork::onRenameNetwork()
+{
+    int currentRow = m_networksList->currentRow();
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    // 获取当前显示名称作为默认值
+    QString currentName = getNetworkDisplayName(currentRow);
+    
+    // 弹出输入对话框
+    bool ok = false;
+    QString newName = QInputDialog::getText(this, tr("重命名网络"),
+                                            tr("请输入新的网络名称:"),
+                                            QLineEdit::Normal, currentName, &ok);
+    
+    if (ok && !newName.trimmed().isEmpty()) {
+        // 更新配置
+        m_networkConfs[currentRow].m_networkLabel = newName.trimmed().toStdString();
+        
+        // 更新列表显示
+        updateListItemDisplayName(currentRow);
+        
+        // 保存配置
+        saveAllNetworkConfs();
+    }
+}
+
+void QtETNetwork::onListDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) {
+        return;
+    }
+    
+    int currentRow = m_networksList->row(item);
+    if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    // 获取当前显示名称作为默认值
+    QString currentName = getNetworkDisplayName(currentRow);
+    
+    // 弹出输入对话框
+    bool ok = false;
+    QString newName = QInputDialog::getText(this, tr("重命名网络"),
+                                            tr("请输入新的网络名称:"),
+                                            QLineEdit::Normal, currentName, &ok);
+    
+    if (ok && !newName.trimmed().isEmpty()) {
+        // 更新配置
+        m_networkConfs[currentRow].m_networkLabel = newName.trimmed().toStdString();
+        
+        // 更新列表显示
+        updateListItemDisplayName(currentRow);
+        
+        // 保存配置
+        saveAllNetworkConfs();
     }
 }

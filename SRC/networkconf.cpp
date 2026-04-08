@@ -92,6 +92,7 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     if (m_instanceName.empty()) {
         m_instanceName = generateInstanceName();
     }
+    m_networkLabel = json["network_label"].toString().toStdString();
 
     // ==================== 运行状态 ====================
     m_isRunning = json["is_running"].toBool(false);
@@ -162,6 +163,7 @@ QJsonObject NetworkConf::toJson() const
 
     // ==================== 实例标识 ====================
     json["instance_name"] = QString::fromStdString(m_instanceName);
+    json["network_label"] = QString::fromStdString(m_networkLabel);
 
     // ==================== 运行状态 ====================
     json["is_running"] = m_isRunning;

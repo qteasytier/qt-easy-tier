@@ -105,6 +105,7 @@ private:
 
     // ==================== 实例标识 ====================
     std::string m_instanceName;             ///< 实例名称（用于 FFI 管理）
+    std::string m_networkLabel;             ///< 网络标签（用户自定义显示名称）
 
     // ==================== 运行状态 ====================
     bool m_isRunning = false;               ///< 网络运行状态

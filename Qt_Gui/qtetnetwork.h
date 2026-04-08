@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include <QAbstractButton>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QThread>
 #include <QProgressDialog>
 #include <QTimer>
@@ -169,6 +170,13 @@ private:
     void startNodeMonitor() const;
     /// @brief 停止节点监测定时器
     void stopNodeMonitor();
+    /// @brief 获取网络显示名称（优先使用标签，否则使用"网络x"）
+    /// @param index 网络配置索引
+    /// @return 显示名称
+    QString getNetworkDisplayName(int index) const;
+    /// @brief 更新指定索引的列表项显示名称
+    /// @param index 网络配置索引
+    void updateListItemDisplayName(int index) const;
 
 signals:
     /// @brief 网络启动完成信号
@@ -192,6 +200,10 @@ private slots:
     void onListContextMenu(const QPoint &pos);
     /// @brief 删除网络
     void onDeleteNetwork();
+    /// @brief 重命名网络标签
+    void onRenameNetwork();
+    /// @brief 网络列表双击编辑
+    void onListDoubleClicked(QListWidgetItem *item);
     /// @brief UI控件值变化时保存到当前配置
     void onUIChanged();
     /// @brief 导出配置按钮点击
