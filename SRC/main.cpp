@@ -55,8 +55,9 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
 #ifdef Q_OS_MACOS
+    app.setQuitOnLastWindowClosed(false); 
     if (!ensureRootPrivileges(isAutoStart)) {
-        return 0;
+        std::exit(0);
     }
 #endif
 
@@ -83,11 +84,11 @@ int main(int argc, char *argv[])
     palette.setColor(QPalette::HighlightedText, QColor("#000000"));
     app.setPalette(palette);
 
-    //MainWindow w(nullptr, isAutoStart);
-
-    //if (!isAutoStart) w.show();
+    QIcon appIcon(QStringLiteral(":/icons/icon.png"));
+    app.setWindowIcon(appIcon);
 
     QtETMain qtetmain(nullptr);
+    qtetmain.setWindowIcon(appIcon);
     qtetmain.show();
 
     return app.exec();
