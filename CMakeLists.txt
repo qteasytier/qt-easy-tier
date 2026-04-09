@@ -137,7 +137,7 @@ target_link_libraries(${ProjectName} PRIVATE easytier_ffi)
 if(APPLE)
     # 统一使用@rpath查找FFI动态库，避免构建机绝对路径被写入二进制
     set_target_properties(${ProjectName} PROPERTIES
-            BUILD_RPATH "@loader_path"
+            BUILD_RPATH "@loader_path;@executable_path/../Frameworks"
             INSTALL_RPATH "@executable_path/../Frameworks"
     )
 endif()
@@ -191,6 +191,16 @@ elseif(APPLE)
             COMMENT "复制EasyTier macOS 到 ${ProjectName} 目录..."
     )
 
+        # FFI动态库应放在Frameworks目录，供@rpath加载
+        add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+            $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE_DIR:${ProjectName}>/libeasytier_ffi.dylib
+            $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks/libeasytier_ffi.dylib
+            COMMENT "复制EasyTier FFI动态库到Frameworks目录..."
+        )
+
     # 读取源dylib原始install name，用于修正主程序中的依赖引用
     set(EASYTIER_FFI_SOURCE_DYLIB "${EASYTIER_MACOS_DIR}/libeasytier_ffi.dylib")
     execute_process(
@@ -213,7 +223,7 @@ elseif(APPLE)
 
     # 修正FFI动态库id和主程序依赖，避免dyld按绝对路径加载
     add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib $<TARGET_FILE_DIR:${ProjectName}>/libeasytier_ffi.dylib
+            COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks/libeasytier_ffi.dylib
             COMMAND install_name_tool -change ${EASYTIER_FFI_ORIGINAL_ID} @rpath/libeasytier_ffi.dylib $<TARGET_FILE:${ProjectName}>
             COMMENT "修正EasyTier FFI动态库install name和可执行文件引用..."
     )
@@ -294,12 +304,14 @@ if(WIN32)
     ")
 elseif(APPLE)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+        set(EASYTIER_INSTALL_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64")
+
         # 安装EasyTier目录
         install(CODE "
             message(STATUS \"部署EasyTier macOS arm64...\")
             execute_process(
                 COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/bin/macos/arm64\"
+                    \"${EASYTIER_INSTALL_MACOS_DIR}\"
                     \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
             )
         ")
@@ -317,13 +329,33 @@ elseif(APPLE)
                 COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
             )
         ")
+
+        # FFI动态库放到Frameworks目录，匹配@rpath
+        install(CODE "
+            message(STATUS \"部署EasyTier FFI动态库到Frameworks...\")
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E make_directory
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks\"
+            )
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
+                    \"${EASYTIER_INSTALL_MACOS_DIR}/libeasytier_ffi.dylib\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
+            )
+            execute_process(
+                COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
+            )
+        ")
     else()
+        set(EASYTIER_INSTALL_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64")
+
         # 安装EasyTier目录
         install(CODE "
             message(STATUS \"部署EasyTier macOS x86_64...\")
             execute_process(
                 COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/bin/macos/x86_64\"
+                    \"${EASYTIER_INSTALL_MACOS_DIR}\"
                     \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
             )
         ")
@@ -339,6 +371,24 @@ elseif(APPLE)
             )
             execute_process(
                 COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
+            )
+        ")
+
+        # FFI动态库放到Frameworks目录，匹配@rpath
+        install(CODE "
+            message(STATUS \"部署EasyTier FFI动态库到Frameworks...\")
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E make_directory
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks\"
+            )
+            execute_process(
+                COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
+                    \"${EASYTIER_INSTALL_MACOS_DIR}/libeasytier_ffi.dylib\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
+            )
+            execute_process(
+                COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
             )
         ")
     endif()
