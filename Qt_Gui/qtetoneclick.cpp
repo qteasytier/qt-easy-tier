@@ -172,10 +172,9 @@ void QtETOneClick::initServerArea()
     m_addServerBtn->setText(QStringLiteral("添加"));
 
     // 服务器列表
-    m_serverListWidget = new QtETListWidget(m_serverWidget);
+    m_serverListWidget = new QListWidget(m_serverWidget);
     m_serverListWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_serverListWidget->setMaximumHeight(120);
-    m_serverListWidget->setEmptyText(tr("暂无服务器"));
 
     // 右侧按钮布局
     QVBoxLayout *btnLayout = new QVBoxLayout();

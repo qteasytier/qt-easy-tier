@@ -19,7 +19,7 @@
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
 #include "qtetlineedit.h"
-#include "qtetlistwidget.h"
+#include <QListWidget>
 #include "ETRunWorker.h"
 
 class QtETOneClick : public QWidget
@@ -106,7 +106,7 @@ private:
     QWidget *m_serverWidget = nullptr;
     QtETLineEdit *m_serverEdit = nullptr;      ///< 服务器地址输入框
     QtETPushBtn *m_addServerBtn = nullptr;  ///< 添加服务器按钮
-    QtETListWidget *m_serverListWidget = nullptr; ///< 服务器列表
+    QListWidget *m_serverListWidget = nullptr; ///< 服务器列表
     QtETPushBtn *m_removeServerBtn = nullptr;  ///< 删除服务器按钮
     QtETPushBtn *m_publicServerBtn = nullptr;  ///< 公共服务器列表按钮
 

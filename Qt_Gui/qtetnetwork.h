@@ -28,7 +28,7 @@
 #include <vector>
 
 #include "qtetlabellist.h"
-#include "qtetlistwidget.h"
+#include <QListWidget>
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
 #include "qtetnodeinfo.h"
@@ -251,7 +251,7 @@ private:
     QtETCheckBtn *m_privateModeCheckBox;    /// @brief 私有模式开关 (private_mode)
     QtETLineEdit *m_serverEdit;                /// @brief 服务器地址输入框
     QtETPushBtn *m_addServerBtn;            /// @brief 添加服务器按钮
-    QtETListWidget *m_serverListWidget;     /// @brief 服务器列表（卡片式样式）
+    QListWidget *m_serverListWidget;     /// @brief 服务器列表
     QtETPushBtn *m_removeServerBtn;         /// @brief 删除服务器按钮
     QtETPushBtn *m_publicServerBtn;     /// @brief 公共服务器列表按钮
 
@@ -281,19 +281,19 @@ private:
     QtETCheckBtn *m_foreignNetworkWhitelistCheckBox;    /// @brief 启用网络白名单 (foreign_network_whitelist)
     QtETLineEdit *m_foreignNetworkWhitelistEdit;           /// @brief 网络白名单输入框
     QtETPushBtn *m_addWhitelistBtn;                     /// @brief 添加白名单按钮
-    QtETListWidget *m_whitelistListWidget;              /// @brief 白名单列表（卡片式样式）
+    QListWidget *m_whitelistListWidget;              /// @brief 白名单列表
     QtETPushBtn *m_removeWhitelistBtn;                  /// @brief 删除白名单按钮
 
     // 高级设置控件 - 监听地址
     QtETLineEdit *m_listenAddrEdit;            /// @brief 监听地址输入框
     QtETPushBtn *m_addListenAddrBtn;        /// @brief 添加监听地址按钮
-    QtETListWidget *m_listenAddrListWidget; /// @brief 监听地址列表（卡片式样式）
+    QListWidget *m_listenAddrListWidget; /// @brief 监听地址列表
     QtETPushBtn *m_removeListenAddrBtn;     /// @brief 删除监听地址按钮
 
     // 高级设置控件 - 子网代理 CIDR
     QtETLineEdit *m_proxyNetworkEdit;               /// @brief 子网代理 CIDR 输入框 (proxy_network)
     QtETPushBtn *m_addProxyNetworkBtn;           /// @brief 添加 CIDR 按钮
-    QtETListWidget *m_proxyNetworkListWidget;    /// @brief CIDR 列表（卡片式样式）
+    QListWidget *m_proxyNetworkListWidget;    /// @brief CIDR 列表
     QtETPushBtn *m_removeProxyNetworkBtn;        /// @brief 删除 CIDR 按钮
     QtETPushBtn *m_calculateCidrBtn;             /// @brief 打开 CIDR 计算器按钮
 

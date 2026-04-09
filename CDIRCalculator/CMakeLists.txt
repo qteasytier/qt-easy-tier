@@ -28,6 +28,10 @@ file(GLOB_RECURSE CALCU_SRC "*.cpp" "*.h" "../Qt_QRC/*.qrc" )
 set(QT_ITEMS_SRC
     "${CMAKE_SOURCE_DIR}/Qt_Items/qtetlineedit.cpp"
     "${CMAKE_SOURCE_DIR}/Qt_Items/qtetlineedit.h"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetpushbtn.cpp"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetpushbtn.h"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtettabwidget.cpp"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtettabwidget.h"
 )
 qt_add_executable(CIDRCalculator
         MANUAL_FINALIZATION

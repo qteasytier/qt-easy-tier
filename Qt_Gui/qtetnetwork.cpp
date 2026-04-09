@@ -349,8 +349,7 @@ void QtETNetwork::initBasicSettingsPage()
 
     // 服务器列表和删除按钮
     QHBoxLayout *serverListLayout = new QHBoxLayout();
-    m_serverListWidget = new QtETListWidget(serverWidget);
-    m_serverListWidget->setEmptyText(tr("暂无服务器"));
+    m_serverListWidget = new QListWidget(serverWidget);
     m_serverListWidget->setMinimumHeight(80);
 
     m_removeServerBtn = new QtETPushBtn(tr("删除"), serverWidget);
@@ -592,9 +591,8 @@ void QtETNetwork::initAdvancedSettingsPage()
     whitelistControlsLayout->addLayout(addWhitelistLayout);
 
     QHBoxLayout *whitelistListLayout = new QHBoxLayout();
-    m_whitelistListWidget = new QtETListWidget(whitelistControlsWidget);
+    m_whitelistListWidget = new QListWidget(whitelistControlsWidget);
     m_whitelistListWidget->setMinimumHeight(80);
-    m_whitelistListWidget->setEmptyText(tr("暂无白名单"));
     m_removeWhitelistBtn = new QtETPushBtn(tr("删除"), whitelistControlsWidget);
     m_removeWhitelistBtn->setMinimumWidth(80);
     m_removeWhitelistBtn->setEnabled(false);
@@ -626,8 +624,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     listenAddrLayout->addLayout(addListenAddrLayout);
 
     QHBoxLayout *listenAddrListLayout = new QHBoxLayout();
-    m_listenAddrListWidget = new QtETListWidget(listenAddrWidget);
-    m_listenAddrListWidget->setEmptyText(tr("暂无监听地址"));
+    m_listenAddrListWidget = new QListWidget(listenAddrWidget);
     m_listenAddrListWidget->setMinimumHeight(80);
 
     m_removeListenAddrBtn = new QtETPushBtn(tr("删除"), listenAddrWidget);
@@ -658,9 +655,8 @@ void QtETNetwork::initAdvancedSettingsPage()
     cidrLayout->addLayout(addCidrLayout);
 
     QHBoxLayout *cidrListLayout = new QHBoxLayout();
-    m_proxyNetworkListWidget = new QtETListWidget(cidrWidget);
+    m_proxyNetworkListWidget = new QListWidget(cidrWidget);
     m_proxyNetworkListWidget->setMinimumHeight(80);
-    m_proxyNetworkListWidget->setEmptyText(tr("暂无子网代理"));
     m_removeProxyNetworkBtn = new QtETPushBtn(tr("删除"), cidrWidget);
     m_removeProxyNetworkBtn->setMinimumWidth(80);
     m_removeProxyNetworkBtn->setEnabled(false);

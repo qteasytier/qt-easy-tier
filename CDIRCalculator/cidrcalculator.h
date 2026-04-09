@@ -2,8 +2,6 @@
 #define CIDRCALCULATOR_H
 
 #include <QMainWindow>
-#include <QTabWidget>
-#include <QPushButton>
 #include <QLabel>
 #include <QTextEdit>
 #include <QGridLayout>
@@ -18,7 +16,9 @@
 #include <QDebug>
 #include <vector>
 
+#include "qtettabwidget.h"
 #include "qtetlineedit.h"
+#include "qtetpushbtn.h"
 
 class CIDRCalculator : public QMainWindow
 {
@@ -53,12 +53,12 @@ private:
     quint32 getBroadcastAddress(quint32 ip, int prefix);
 
     // UI组件
-    QTabWidget *tabWidget;
+    QtETTabWidget *tabWidget;
 
     // CIDR到范围页面
     QWidget *cidrToRangeTab;
     QtETLineEdit *cidrInput;
-    QPushButton *cidrCalculateBtn;
+    QtETPushBtn *cidrCalculateBtn;
     QtETLineEdit *startIPOutput;
     QtETLineEdit *endIPOutput;
     QtETLineEdit *totalIPsOutput;
@@ -67,9 +67,9 @@ private:
     QWidget *rangeToCIDRTab;
     QtETLineEdit *rangeStartInput;
     QtETLineEdit *rangeEndInput;
-    QPushButton *rangeCalculateBtn;
+    QtETPushBtn *rangeCalculateBtn;
     QtETLineEdit *cidrResultsOutput;
-    QPushButton *copyCIDRBtn;
+    QtETPushBtn *copyCIDRBtn;
 };
 
 #endif // CIDRCALCULATOR_H

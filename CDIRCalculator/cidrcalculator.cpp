@@ -47,7 +47,7 @@ void CIDRCalculator::setupUI()
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
     // 创建TabWidget
-    tabWidget = new QTabWidget();
+    tabWidget = new QtETTabWidget();
 
     // ========== 第一页：CIDR到范围 ==========
     cidrToRangeTab = new QWidget();
@@ -60,7 +60,7 @@ void CIDRCalculator::setupUI()
     QLabel *cidrLabel = new QLabel("请输入CIDR (例如: 192.168.1.0/24):");
     cidrInput = new QtETLineEdit();
     cidrInput->setPlaceholderText("例如: 192.168.1.0/24");
-    cidrCalculateBtn = new QPushButton("计算");
+    cidrCalculateBtn = new QtETPushBtn("计算");
 
     inputLayout->addWidget(cidrLabel);
     inputLayout->addWidget(cidrInput);
@@ -107,7 +107,7 @@ void CIDRCalculator::setupUI()
     rangeEndInput->setPlaceholderText("例如: 192.168.1.255");
     rangeInputLayout->addWidget(rangeEndInput, 1, 1);
 
-    rangeCalculateBtn = new QPushButton("计算CIDR");
+    rangeCalculateBtn = new QtETPushBtn("计算CIDR");
     rangeInputLayout->addWidget(rangeCalculateBtn, 2, 0, 1, 2);
 
     // 输出组
@@ -121,7 +121,7 @@ void CIDRCalculator::setupUI()
     cidrResultsOutput->setText("CIDR计算结果将显示在这里...");
     rangeOutputLayout->addWidget(cidrResultsOutput);
 
-    copyCIDRBtn = new QPushButton("复制CIDR");
+    copyCIDRBtn = new QtETPushBtn("复制CIDR");
 
     // 布局
     rangeLayout->addWidget(rangeInputGroup, 0, 0);
