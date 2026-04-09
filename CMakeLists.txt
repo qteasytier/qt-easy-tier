@@ -70,9 +70,10 @@ add_subdirectory(CDIRCalculator)
 # 设置程序输出路径（统一构建输出目录）
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# macOS设置图标路径
+# macOS设置程序属性
 if(APPLE)
     set(MACOS_APP_ICON "${CMAKE_SOURCE_DIR}/assets/qtet.icns")
+    set(MACOS_INFO_PLIST "${CMAKE_SOURCE_DIR}/assets/Info.plist")
 endif()
 
 # Windows系统下自动生成rc文件并嵌入manifest
@@ -142,6 +143,7 @@ if(WIN32)
 elseif(APPLE)
     get_filename_component(MACOS_APP_ICON_NAME ${MACOS_APP_ICON} NAME)
     set_target_properties(${ProjectName} PROPERTIES
+            MACOSX_BUNDLE_INFO_PLIST ${MACOS_INFO_PLIST}
             MACOSX_BUNDLE_ICON_FILE ${MACOS_APP_ICON_NAME}
             RESOURCE ${MACOS_APP_ICON}
     )

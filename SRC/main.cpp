@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
 #ifdef Q_OS_MACOS
-    app.setQuitOnLastWindowClosed(false); 
+    // app.setQuitOnLastWindowClosed(false); 
     if (!ensureRootPrivileges(isAutoStart)) {
         std::exit(0);
     }
