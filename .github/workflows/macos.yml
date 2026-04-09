@@ -1,0 +1,17 @@
+name: macos-build
+on:
+  push:
+    branches: [ main ]
+jobs:
+   build:
+    name: macos build
+    runs-on: macos-latest
+    steps:
+    - name: Print a greeting
+      env:
+        MY_VAR: Hi there! My name is
+        FIRST_NAME: Mona
+        MIDDLE_NAME: The
+        LAST_NAME: Octocat
+      run: |
+        echo $MY_VAR $FIRST_NAME $MIDDLE_NAME $LAST_NAME.

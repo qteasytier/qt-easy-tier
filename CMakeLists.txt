@@ -268,8 +268,8 @@ elseif(APPLE)
             message(STATUS \"部署EasyTier macOS arm64...\")
             execute_process(
                 COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/bin/macos/arm64\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
             )
         ")
 
@@ -277,13 +277,13 @@ elseif(APPLE)
         install(CODE "
             message(STATUS \"设置EasyTier可执行权限...\")
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-core\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-core\"
             )
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-cli\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-cli\"
             )
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-web-embed\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
             )
         ")
     else()
@@ -292,8 +292,8 @@ elseif(APPLE)
             message(STATUS \"部署EasyTier macOS x86_64...\")
             execute_process(
                 COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+                    \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/bin/macos/x86_64\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
             )
         ")
 
@@ -301,13 +301,13 @@ elseif(APPLE)
         install(CODE "
             message(STATUS \"设置EasyTier可执行权限...\")
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-core\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-core\"
             )
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-cli\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-cli\"
             )
             execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-web-embed\"
+                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
             )
         ")
     endif()
