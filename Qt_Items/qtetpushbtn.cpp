@@ -60,12 +60,8 @@ void QtETPushBtn::updateColorScheme()
         m_pressedBorderColor = QColor("#3399dd");
     } else {
         // 浅色模式
-        m_backgroundColor = palette().color(QPalette::Button);
-        m_normalBorderColor = palette().color(QPalette::Mid);
-        // 如果颜色太浅，使用更深的颜色
-        if (m_normalBorderColor.lightnessF() > 0.9) {
-            m_normalBorderColor = palette().color(QPalette::Dark);
-        }
+        m_backgroundColor = QColor(240, 240, 240);
+        m_normalBorderColor = QColor(180, 180, 180);
         m_highlightBorderColor = QColor("#66ccff");
         m_pressedBorderColor = QColor("#3399dd");
     }

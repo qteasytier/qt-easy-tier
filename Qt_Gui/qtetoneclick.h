@@ -7,9 +7,7 @@
 #include <QGridLayout>
 #include <QFormLayout>
 #include <QLabel>
-#include <QLineEdit>
 #include <QPushButton>
-#include <QListWidget>
 #include <QThread>
 #include <QTimer>
 #include <QProgressDialog>
@@ -20,6 +18,8 @@
 #include <string>
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
+#include "qtetlineedit.h"
+#include "qtetlistwidget.h"
 #include "ETRunWorker.h"
 
 class QtETOneClick : public QWidget
@@ -94,8 +94,8 @@ private:
 
     // 表单区域
     QWidget *m_formWidget = nullptr;
-    QLineEdit *m_roomIdEdit = nullptr;      ///< 联机码输入/显示框
-    QLineEdit *m_hostIpEdit = nullptr;      ///< 房主虚拟 IP 显示框
+    QtETLineEdit *m_roomIdEdit = nullptr;      ///< 联机码输入/显示框
+    QtETLineEdit *m_hostIpEdit = nullptr;      ///< 房主虚拟 IP 显示框
     QLabel *m_roomIdLabel = nullptr;        ///< 联机码标签
     QLabel *m_hostIpLabel = nullptr;        ///< 房主虚拟 IP 标签
 
@@ -104,9 +104,9 @@ private:
 
     // 服务器地址区域
     QWidget *m_serverWidget = nullptr;
-    QLineEdit *m_serverEdit = nullptr;      ///< 服务器地址输入框
+    QtETLineEdit *m_serverEdit = nullptr;      ///< 服务器地址输入框
     QtETPushBtn *m_addServerBtn = nullptr;  ///< 添加服务器按钮
-    QListWidget *m_serverListWidget = nullptr; ///< 服务器列表
+    QtETListWidget *m_serverListWidget = nullptr; ///< 服务器列表
     QtETPushBtn *m_removeServerBtn = nullptr;  ///< 删除服务器按钮
     QtETPushBtn *m_publicServerBtn = nullptr;  ///< 公共服务器列表按钮
 

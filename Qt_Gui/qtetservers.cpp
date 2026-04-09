@@ -1,5 +1,5 @@
 #include "qtetservers.h"
-#include "qtetlistwidget.h"
+#include "qtetlabellist.h"
 
 #include <QFont>
 #include <QMessageBox>
@@ -26,12 +26,12 @@ ServerDialog::ServerDialog(QWidget *parent)
     layout->setContentsMargins(20, 20, 20, 20);
 
     // 服务器名称输入框
-    m_nameEdit = new QLineEdit(this);
+    m_nameEdit = new QtETLineEdit(this);
     m_nameEdit->setPlaceholderText(tr("请输入服务器名称"));
     layout->addRow(tr("名称："), m_nameEdit);
 
     // 服务器地址输入框
-    m_addressEdit = new QLineEdit(this);
+    m_addressEdit = new QtETLineEdit(this);
     m_addressEdit->setPlaceholderText(tr("例如：tcp://example.com:27773"));
     layout->addRow(tr("地址："), m_addressEdit);
 
@@ -124,7 +124,7 @@ void QtETServers::initTitleArea()
 void QtETServers::initListArea()
 {
     // 服务器列表
-    m_serverListWidget = new QtETListWidget(this);
+    m_serverListWidget = new QtETLabelList(this);
     m_serverListWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     // 设置右键菜单策略
@@ -259,7 +259,7 @@ void QtETServers::updateList()
     m_serverListWidget->clear();
 
     for (const auto &server : m_servers) {
-        auto *item = new QtETListWidgetItem();
+        auto *item = new QtETLabelListItem();
         // 显示格式：名称 (地址)
         item->setText(QString("%1 (%2)").arg(server.name, server.address));
         item->setIcon(QIcon(":/icons/server.svg"));

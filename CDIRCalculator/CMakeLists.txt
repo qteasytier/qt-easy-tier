@@ -16,14 +16,23 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 添加头文件搜索路径（包含Qt_Items以使用QtETLineEdit）
+include_directories(${CMAKE_SOURCE_DIR}/Qt_Items)
+
 # 设置程序输出路径与主项目保持一致
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
 # 构建CIDR计算器
 file(GLOB_RECURSE CALCU_SRC "*.cpp" "*.h" "../Qt_QRC/*.qrc" )
+# 添加Qt_Items中需要的源文件
+set(QT_ITEMS_SRC
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetlineedit.cpp"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetlineedit.h"
+)
 qt_add_executable(CIDRCalculator
         MANUAL_FINALIZATION
         ${CALCU_SRC}
+        ${QT_ITEMS_SRC}
 )
 target_link_libraries(CIDRCalculator PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 

@@ -58,7 +58,7 @@ void CIDRCalculator::setupUI()
     QVBoxLayout *inputLayout = new QVBoxLayout(inputGroup);
 
     QLabel *cidrLabel = new QLabel("请输入CIDR (例如: 192.168.1.0/24):");
-    cidrInput = new QLineEdit();
+    cidrInput = new QtETLineEdit();
     cidrInput->setPlaceholderText("例如: 192.168.1.0/24");
     cidrCalculateBtn = new QPushButton("计算");
 
@@ -71,17 +71,17 @@ void CIDRCalculator::setupUI()
     QGridLayout *outputLayout = new QGridLayout(outputGroup);
 
     outputLayout->addWidget(new QLabel("起始IP:"), 0, 0);
-    startIPOutput = new QLineEdit();
+    startIPOutput = new QtETLineEdit();
     startIPOutput->setReadOnly(true);
     outputLayout->addWidget(startIPOutput, 0, 1);
 
     outputLayout->addWidget(new QLabel("结束IP:"), 1, 0);
-    endIPOutput = new QLineEdit();
+    endIPOutput = new QtETLineEdit();
     endIPOutput->setReadOnly(true);
     outputLayout->addWidget(endIPOutput, 1, 1);
 
     outputLayout->addWidget(new QLabel("IP总数:"), 2, 0);
-    totalIPsOutput = new QLineEdit();
+    totalIPsOutput = new QtETLineEdit();
     totalIPsOutput->setReadOnly(true);
     outputLayout->addWidget(totalIPsOutput, 2, 1);
 
@@ -98,12 +98,12 @@ void CIDRCalculator::setupUI()
     QGridLayout *rangeInputLayout = new QGridLayout(rangeInputGroup);
 
     rangeInputLayout->addWidget(new QLabel("起始IP:"), 0, 0);
-    rangeStartInput = new QLineEdit();
+    rangeStartInput = new QtETLineEdit();
     rangeStartInput->setPlaceholderText("例如: 192.168.1.0");
     rangeInputLayout->addWidget(rangeStartInput, 0, 1);
 
     rangeInputLayout->addWidget(new QLabel("结束IP:"), 1, 0);
-    rangeEndInput = new QLineEdit();
+    rangeEndInput = new QtETLineEdit();
     rangeEndInput->setPlaceholderText("例如: 192.168.1.255");
     rangeInputLayout->addWidget(rangeEndInput, 1, 1);
 
@@ -114,9 +114,10 @@ void CIDRCalculator::setupUI()
     QGroupBox *rangeOutputGroup = new QGroupBox("CIDR结果");
     QVBoxLayout *rangeOutputLayout = new QVBoxLayout(rangeOutputGroup);
 
-    cidrResultsOutput = new QLineEdit();
+    cidrResultsOutput = new QtETLineEdit();
     cidrResultsOutput->setReadOnly(true);
-    cidrResultsOutput->setStyleSheet("font-size: 12px; color: #66ccff; padding: 5px; border: 1px solid #66ccff;");
+    // 不设置border，让QtETLineEdit自定义绘制处理边框
+    cidrResultsOutput->setStyleSheet("font-size: 12px;");
     cidrResultsOutput->setText("CIDR计算结果将显示在这里...");
     rangeOutputLayout->addWidget(cidrResultsOutput);
 

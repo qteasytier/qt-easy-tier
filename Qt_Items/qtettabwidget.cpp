@@ -158,8 +158,12 @@ void QtETTabBar::init()
     connect(this, &QTabBar::currentChanged, this, [this](int index) {
         if (index >= 0) {
             animateIndicatorTo(index);
+            // 切换后，如果鼠标不在新的 Tab 上，清除悬停状态
+            // 这样可以避免之前的 Tab 保持高亮背景
         }
         m_previousIndex = index;
+        // 强制完整重绘
+        update();
     });
 
     // 设置固定高度
@@ -174,13 +178,13 @@ void QtETTabBar::updateColorScheme()
         m_textColor = QColor(220, 220, 220);
         m_textInactiveColor = QColor(140, 140, 140);
         m_indicatorColor = QColor("#66ccff");
-        m_hoverBackgroundColor = QColor(60, 60, 60, 80);
+        m_hoverBackgroundColor = QColor(60, 60, 60, 120);
         m_selectedBackgroundColor = QColor(70, 70, 70, 50);
     } else {
         m_textColor = QColor(50, 50, 50);
         m_textInactiveColor = QColor(130, 130, 130);
         m_indicatorColor = QColor("#66ccff");
-        m_hoverBackgroundColor = QColor(0, 0, 0, 15);
+        m_hoverBackgroundColor = QColor(0, 0, 0, 25);
         m_selectedBackgroundColor = QColor(102, 204, 255, 30);
     }
 
@@ -293,7 +297,8 @@ void QtETTabBar::paintEvent(QPaintEvent *event)
     for (int i = 0; i < count(); ++i) {
         QRect tabRect = calculateTabRect(i);
         bool isSelected = (i == currentIndex());
-        bool isHovered = (i == m_hoveredTabIndex);
+        // 选中状态的 tab 不显示悬停背景，避免视觉混乱
+        bool isHovered = (i == m_hoveredTabIndex) && !isSelected;
 
         // 绘制选中或悬停背景
         if (isSelected) {
@@ -316,7 +321,21 @@ void QtETTabBar::paintEvent(QPaintEvent *event)
         int textY = (TAB_HEIGHT - fm.height()) / 2 + fm.ascent();
 
         painter.setFont(font());
-        painter.setPen(isSelected ? m_textColor : m_textInactiveColor);
+        // 悬停时非选中 tab 的文字颜色也变亮
+        QColor textColor;
+        if (isSelected) {
+            textColor = m_textColor;
+        } else if (isHovered) {
+            // 悬停时使用介于活动和非活动之间的颜色
+            textColor = QColor(
+                (m_textColor.red() + m_textInactiveColor.red()) / 2,
+                (m_textColor.green() + m_textInactiveColor.green()) / 2,
+                (m_textColor.blue() + m_textInactiveColor.blue()) / 2
+            );
+        } else {
+            textColor = m_textInactiveColor;
+        }
+        painter.setPen(textColor);
         painter.drawText(textX, textY, text);
     }
 
@@ -361,6 +380,33 @@ void QtETTabBar::resizeEvent(QResizeEvent *event)
     }
 
     update();
+}
+
+void QtETTabBar::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() != Qt::LeftButton) {
+        QTabBar::mousePressEvent(event);
+        return;
+    }
+
+    // 使用自定义的 calculateTabRect 检测点击位置
+    int clickedIndex = -1;
+    for (int i = 0; i < count(); ++i) {
+        QRect tabRect = calculateTabRect(i);
+        if (tabRect.contains(event->pos())) {
+            clickedIndex = i;
+            break;
+        }
+    }
+
+    if (clickedIndex >= 0 && clickedIndex != currentIndex()) {
+        // 清除之前的悬停状态，设置新的悬停索引为点击的索引
+        m_hoveredTabIndex = clickedIndex;
+        setCurrentIndex(clickedIndex);
+    }
+
+    // 接受事件，防止基类处理
+    event->accept();
 }
 
 void QtETTabBar::mouseMoveEvent(QMouseEvent *event)

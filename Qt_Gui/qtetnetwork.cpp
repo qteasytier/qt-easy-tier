@@ -6,6 +6,7 @@
 #include <QFontDatabase>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QStyleHints>
 #include <set>
 
 // 节点列表状态提示字符串
@@ -181,7 +182,7 @@ void QtETNetwork::initLeftPanel()
     m_leftLayout->addWidget(networksLabel);
 
     // 创建网络列表
-    m_networksList = new QtETListWidget(m_leftFrame);
+    m_networksList = new QtETLabelList(m_leftFrame);
     m_networksList->setMinimumSize(160, 0);
     m_networksList->setMaximumSize(160, QWIDGETSIZE_MAX);
 
@@ -238,6 +239,10 @@ void QtETNetwork::initBasicSettingsPage()
     QScrollArea *scrollArea = new QScrollArea(m_basicSettingsTab);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    // 设置透明背景
+    scrollArea->setAutoFillBackground(false);
+    scrollArea->viewport()->setAutoFillBackground(false);
 
     // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
     SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
@@ -246,6 +251,7 @@ void QtETNetwork::initBasicSettingsPage()
     // 创建滚动区内容部件
     QWidget *scrollContent = new QWidget(scrollArea);
     scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    scrollContent->setAutoFillBackground(false);
 
     // 设置全局字体大小为10px
     QFont contentFont = scrollContent->font();
@@ -264,32 +270,19 @@ void QtETNetwork::initBasicSettingsPage()
     networkFormLayout->setVerticalSpacing(15);
 
     // 用户名输入框
-    m_hostnameEdit = new QLineEdit(networkFormWidget);
+    m_hostnameEdit = new QtETLineEdit(networkFormWidget);
     m_hostnameEdit->setPlaceholderText(tr("请输入用户名（默认为本机名称）"));
     networkFormLayout->addRow(tr("用户名:"), m_hostnameEdit);
 
     // 网络号输入框
-    m_networkNameEdit = new QLineEdit(networkFormWidget);
+    m_networkNameEdit = new QtETLineEdit(networkFormWidget);
     m_networkNameEdit->setPlaceholderText(tr("请输入网络名称"));
     networkFormLayout->addRow(tr("网络号:"), m_networkNameEdit);
 
-    // 密码输入框（行内小眼睛图标）
-    m_networkSecretEdit = new QLineEdit(networkFormWidget);
+    // 密码输入框（使用QtETLineEdit内置的密码切换按钮）
+    m_networkSecretEdit = new QtETLineEdit(networkFormWidget);
     m_networkSecretEdit->setPlaceholderText(tr("请输入密码"));
     m_networkSecretEdit->setEchoMode(QLineEdit::Password);
-
-    // 添加行内显示/隐藏密码按钮
-    QAction *togglePasswordAction = m_networkSecretEdit->addAction(QIcon(QStringLiteral(":/icons/eye-slash.svg")), QLineEdit::TrailingPosition);
-    togglePasswordAction->setCheckable(true);
-    connect(togglePasswordAction, &QAction::toggled, this, [this, togglePasswordAction](bool checked) {
-        if (checked) {
-            m_networkSecretEdit->setEchoMode(QLineEdit::Normal);
-            togglePasswordAction->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
-        } else {
-            m_networkSecretEdit->setEchoMode(QLineEdit::Password);
-            togglePasswordAction->setIcon(QIcon(QStringLiteral(":/icons/eye-slash.svg")));
-        }
-    });
 
     networkFormLayout->addRow(tr("密码:"), m_networkSecretEdit);
 
@@ -302,7 +295,7 @@ void QtETNetwork::initBasicSettingsPage()
     networkFormLayout->addRow(tr("IP 设置:"), m_dhcpCheckBox);
 
     // IPv4 地址输入框
-    m_ipv4Edit = new QLineEdit(networkFormWidget);
+    m_ipv4Edit = new QtETLineEdit(networkFormWidget);
     m_ipv4Edit->setPlaceholderText(tr("请输入 IPv4 地址"));
     m_ipv4Edit->setEnabled(false);
     // 设置 IP 地址验证器
@@ -346,7 +339,7 @@ void QtETNetwork::initBasicSettingsPage()
 
     // 服务器输入框和添加按钮
     QHBoxLayout *addServerLayout = new QHBoxLayout();
-    m_serverEdit = new QLineEdit(serverWidget);
+    m_serverEdit = new QtETLineEdit(serverWidget);
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
     m_addServerBtn = new QtETPushBtn(tr("添加"), serverWidget);
     m_addServerBtn->setMinimumWidth(80);
@@ -356,10 +349,10 @@ void QtETNetwork::initBasicSettingsPage()
 
     // 服务器列表和删除按钮
     QHBoxLayout *serverListLayout = new QHBoxLayout();
-    m_serverListWidget = new QListWidget(serverWidget);
-    m_serverListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    // 添加默认服务器
-    m_serverListWidget->addItem(QStringLiteral("tcp://public.easytier.top:11010"));
+    m_serverListWidget = new QtETListWidget(serverWidget);
+    m_serverListWidget->setEmptyText(tr("暂无服务器"));
+    m_serverListWidget->setMinimumHeight(80);
+
     m_removeServerBtn = new QtETPushBtn(tr("删除"), serverWidget);
     m_removeServerBtn->setMinimumWidth(80);
     m_removeServerBtn->setEnabled(false);
@@ -410,6 +403,10 @@ void QtETNetwork::initAdvancedSettingsPage()
     QScrollArea *scrollArea = new QScrollArea(m_advancedSettingsTab);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    // 设置透明背景
+    scrollArea->setAutoFillBackground(false);
+    scrollArea->viewport()->setAutoFillBackground(false);
 
     // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
     SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
@@ -418,6 +415,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     // 创建滚动区内容部件
     QWidget *scrollContent = new QWidget(scrollArea);
     scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    scrollContent->setAutoFillBackground(false);
 
     // 设置全局字体大小为10px
     QFont contentFont = scrollContent->font();
@@ -585,7 +583,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     whitelistControlsLayout->setContentsMargins(0, 0, 0, 0);
 
     QHBoxLayout *addWhitelistLayout = new QHBoxLayout();
-    m_foreignNetworkWhitelistEdit = new QLineEdit(whitelistControlsWidget);
+    m_foreignNetworkWhitelistEdit = new QtETLineEdit(whitelistControlsWidget);
     m_foreignNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
     m_addWhitelistBtn = new QtETPushBtn(tr("添加"), whitelistControlsWidget);
     m_addWhitelistBtn->setMinimumWidth(80);
@@ -594,8 +592,9 @@ void QtETNetwork::initAdvancedSettingsPage()
     whitelistControlsLayout->addLayout(addWhitelistLayout);
 
     QHBoxLayout *whitelistListLayout = new QHBoxLayout();
-    m_whitelistListWidget = new QListWidget(whitelistControlsWidget);
-    m_whitelistListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_whitelistListWidget = new QtETListWidget(whitelistControlsWidget);
+    m_whitelistListWidget->setMinimumHeight(80);
+    m_whitelistListWidget->setEmptyText(tr("暂无白名单"));
     m_removeWhitelistBtn = new QtETPushBtn(tr("删除"), whitelistControlsWidget);
     m_removeWhitelistBtn->setMinimumWidth(80);
     m_removeWhitelistBtn->setEnabled(false);
@@ -618,7 +617,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     listenAddrLayout->addWidget(listenAddrTitle);
 
     QHBoxLayout *addListenAddrLayout = new QHBoxLayout();
-    m_listenAddrEdit = new QLineEdit(listenAddrWidget);
+    m_listenAddrEdit = new QtETLineEdit(listenAddrWidget);
     m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址与端口"));
     m_addListenAddrBtn = new QtETPushBtn(tr("添加"), listenAddrWidget);
     m_addListenAddrBtn->setMinimumWidth(80);
@@ -627,10 +626,10 @@ void QtETNetwork::initAdvancedSettingsPage()
     listenAddrLayout->addLayout(addListenAddrLayout);
 
     QHBoxLayout *listenAddrListLayout = new QHBoxLayout();
-    m_listenAddrListWidget = new QListWidget(listenAddrWidget);
-    m_listenAddrListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_listenAddrListWidget->addItem(QStringLiteral("tcp://0.0.0.0:11010"));
-    m_listenAddrListWidget->addItem(QStringLiteral("udp://0.0.0.0:11010"));
+    m_listenAddrListWidget = new QtETListWidget(listenAddrWidget);
+    m_listenAddrListWidget->setEmptyText(tr("暂无监听地址"));
+    m_listenAddrListWidget->setMinimumHeight(80);
+
     m_removeListenAddrBtn = new QtETPushBtn(tr("删除"), listenAddrWidget);
     m_removeListenAddrBtn->setMinimumWidth(80);
     m_removeListenAddrBtn->setEnabled(false);
@@ -650,7 +649,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     cidrLayout->addWidget(cidrTitle);
 
     QHBoxLayout *addCidrLayout = new QHBoxLayout();
-    m_proxyNetworkEdit = new QLineEdit(cidrWidget);
+    m_proxyNetworkEdit = new QtETLineEdit(cidrWidget);
     m_proxyNetworkEdit->setPlaceholderText(tr("请输入子网代理 CIDR"));
     m_addProxyNetworkBtn = new QtETPushBtn(tr("添加"), cidrWidget);
     m_addProxyNetworkBtn->setMinimumWidth(80);
@@ -659,8 +658,9 @@ void QtETNetwork::initAdvancedSettingsPage()
     cidrLayout->addLayout(addCidrLayout);
 
     QHBoxLayout *cidrListLayout = new QHBoxLayout();
-    m_proxyNetworkListWidget = new QListWidget(cidrWidget);
-    m_proxyNetworkListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_proxyNetworkListWidget = new QtETListWidget(cidrWidget);
+    m_proxyNetworkListWidget->setMinimumHeight(80);
+    m_proxyNetworkListWidget->setEmptyText(tr("暂无子网代理"));
     m_removeProxyNetworkBtn = new QtETPushBtn(tr("删除"), cidrWidget);
     m_removeProxyNetworkBtn->setMinimumWidth(80);
     m_removeProxyNetworkBtn->setEnabled(false);
@@ -734,12 +734,16 @@ void QtETNetwork::initRunningStatusPage()
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scrollArea->setFrameShape(QFrame::NoFrame);
+    // 设置透明背景
+    scrollArea->setAutoFillBackground(false);
+    scrollArea->viewport()->setAutoFillBackground(false);
 
     // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
     SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
     scrollArea->viewport()->installEventFilter(smoothFilter);
 
     m_nodeInfoContainer = new QWidget(scrollArea);
+    m_nodeInfoContainer->setAutoFillBackground(false);
     m_nodeInfoLayout = new QVBoxLayout(m_nodeInfoContainer);
     m_nodeInfoLayout->setContentsMargins(0, 10, 0, 0);
     m_nodeInfoLayout->setSpacing(8);
@@ -786,11 +790,26 @@ void QtETNetwork::initRunningLogPage()
         }
     }
     
-    // 设置样式
+    // 设置透明背景（使用调色板）
+    m_logTextEdit->setAutoFillBackground(false);
+    QPalette logPalette = m_logTextEdit->palette();
+    logPalette.setColor(QPalette::Base, Qt::transparent);
+    // 根据当前主题设置文字颜色
+    const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+    logPalette.setColor(QPalette::Text, isDark ? QColor(0xd4, 0xd4, 0xd4) : QColor(0x30, 0x30, 0x30));
+    m_logTextEdit->setPalette(logPalette);
+
+    // 监听主题变化，更新日志文字颜色
+    connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
+        QPalette palette = m_logTextEdit->palette();
+        const bool dark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+        palette.setColor(QPalette::Text, dark ? QColor(0xd4, 0xd4, 0xd4) : QColor(0x30, 0x30, 0x30));
+        m_logTextEdit->setPalette(palette);
+    });
+
+    // 设置样式（边框和圆角）
     m_logTextEdit->setStyleSheet(QStringLiteral(
         "QTextEdit {"
-        "  background-color: #1e1e1e;"
-        "  color: #d4d4d4;"
         "  border: 1px solid #3c3c3c;"
         "  border-radius: 5px;"
         "}"

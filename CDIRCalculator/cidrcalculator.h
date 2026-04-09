@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QTabWidget>
-#include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
 #include <QTextEdit>
@@ -18,6 +17,8 @@
 #include <QRegularExpressionValidator>
 #include <QDebug>
 #include <vector>
+
+#include "qtetlineedit.h"
 
 class CIDRCalculator : public QMainWindow
 {
@@ -56,18 +57,18 @@ private:
 
     // CIDR到范围页面
     QWidget *cidrToRangeTab;
-    QLineEdit *cidrInput;
+    QtETLineEdit *cidrInput;
     QPushButton *cidrCalculateBtn;
-    QLineEdit *startIPOutput;
-    QLineEdit *endIPOutput;
-    QLineEdit *totalIPsOutput;
+    QtETLineEdit *startIPOutput;
+    QtETLineEdit *endIPOutput;
+    QtETLineEdit *totalIPsOutput;
 
     // 范围到CIDR页面
     QWidget *rangeToCIDRTab;
-    QLineEdit *rangeStartInput;
-    QLineEdit *rangeEndInput;
+    QtETLineEdit *rangeStartInput;
+    QtETLineEdit *rangeEndInput;
     QPushButton *rangeCalculateBtn;
-    QLineEdit *cidrResultsOutput;
+    QtETLineEdit *cidrResultsOutput;
     QPushButton *copyCIDRBtn;
 };
 

@@ -6,7 +6,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-#include <QLineEdit>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -15,8 +14,9 @@
 #include <QJsonArray>
 #include <vector>
 
-#include "qtetlistwidget.h"
+#include "qtetlabellist.h"
 #include "qtetpushbtn.h"
+#include "qtetlineedit.h"
 
 /// @brief 服务器信息结构体
 struct ServerInfo
@@ -59,8 +59,8 @@ public:
     [[nodiscard]] ServerInfo serverInfo() const;
 
 private:
-    QLineEdit *m_nameEdit = nullptr;        ///< 服务器名称输入框
-    QLineEdit *m_addressEdit = nullptr;     ///< 服务器地址输入框
+    QtETLineEdit *m_nameEdit = nullptr;        ///< 服务器名称输入框
+    QtETLineEdit *m_addressEdit = nullptr;     ///< 服务器地址输入框
 };
 
 /// @brief 服务器收藏页面
@@ -103,7 +103,7 @@ private:
     QLabel *m_rightIconLabel = nullptr;
 
     // 列表区域
-    QtETListWidget *m_serverListWidget = nullptr;
+    QtETLabelList *m_serverListWidget = nullptr;
 
     // 底部按钮区域
     QWidget *m_bottomWidget = nullptr;

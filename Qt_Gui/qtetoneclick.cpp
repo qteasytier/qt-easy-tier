@@ -1,6 +1,7 @@
 #include "qtetoneclick.h"
 #include "qtetpublicserverdialog.h"
 #include <QFont>
+#include <QFontDatabase>
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -115,7 +116,7 @@ void QtETOneClick::initFormArea()
     m_roomIdLabel->setFont(labelFont);
     m_roomIdLabel->setText(QStringLiteral("联机码："));
 
-    m_roomIdEdit = new QLineEdit(m_formWidget);
+    m_roomIdEdit = new QtETLineEdit(m_formWidget);
     m_roomIdEdit->setFont(labelFont);
     m_roomIdEdit->setAlignment(Qt::AlignCenter);  // 文字居中
     m_roomIdEdit->setReadOnly(false);  // 默认房客模式，可输入
@@ -126,7 +127,7 @@ void QtETOneClick::initFormArea()
     m_hostIpLabel->setFont(labelFont);
     m_hostIpLabel->setText(QStringLiteral("房主虚拟IP："));
 
-    m_hostIpEdit = new QLineEdit(m_formWidget);
+    m_hostIpEdit = new QtETLineEdit(m_formWidget);
     m_hostIpEdit->setFont(labelFont);
     m_hostIpEdit->setAlignment(Qt::AlignCenter);  // 文字居中
     m_hostIpEdit->setReadOnly(true);  // 只读，显示房主 IP
@@ -162,7 +163,7 @@ void QtETOneClick::initServerArea()
     serverLabel->setText(QStringLiteral("服务器地址："));
 
     // 服务器地址输入框
-    m_serverEdit = new QLineEdit(m_serverWidget);
+    m_serverEdit = new QtETLineEdit(m_serverWidget);
 
     // 添加按钮
     m_addServerBtn = new QtETPushBtn(m_serverWidget);
@@ -171,9 +172,10 @@ void QtETOneClick::initServerArea()
     m_addServerBtn->setText(QStringLiteral("添加"));
 
     // 服务器列表
-    m_serverListWidget = new QListWidget(m_serverWidget);
+    m_serverListWidget = new QtETListWidget(m_serverWidget);
     m_serverListWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_serverListWidget->setMaximumHeight(120);
+    m_serverListWidget->setEmptyText(tr("暂无服务器"));
 
     // 右侧按钮布局
     QVBoxLayout *btnLayout = new QVBoxLayout();
@@ -200,6 +202,17 @@ void QtETOneClick::initServerArea()
     // 添加默认公共服务器
     m_serverListWidget->addItem(QStringLiteral("wss://qtet-public.070219.xyz"));
     m_serverListWidget->addItem(QStringLiteral("tcp://qtet-public2.070219.xyz:27773"));
+
+    // 设置服务器列表的字体为 UbuntuMono
+    int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
+    if (fontId != -1) {
+        QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
+        if (!fontFamilies.isEmpty()) {
+            QFont monoFont(fontFamilies.first());
+            monoFont.setPointSize(11);
+            m_serverListWidget->setFont(monoFont);
+        }
+    }
 
     m_contentLayout->addWidget(m_serverWidget);
 }

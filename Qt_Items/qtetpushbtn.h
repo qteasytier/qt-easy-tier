@@ -53,7 +53,7 @@ private:
     // 尺寸常量
     static constexpr int BORDER_RADIUS = 5;         ///< 边框圆角
     static constexpr int BORDER_WIDTH = 1;          ///< 边框宽度
-    static constexpr int CONTENT_MARGIN = 8;        ///< 内容边距（上下左右）
+    static constexpr int CONTENT_MARGIN = 7;        ///< 内容边距（上下左右）
     static constexpr int BORDER_ANIMATION_DURATION = 200;  ///< 边框动画时长(ms)
 };
 
