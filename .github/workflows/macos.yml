@@ -35,5 +35,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: QtEasyTier-macos
-          path: Install
+          path: |
+            Install/
+            !Install/bin
           if-no-files-found: error
