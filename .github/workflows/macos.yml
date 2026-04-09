@@ -1,18 +1,39 @@
 name: macos-build
+
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: 
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
 jobs:
-   build:
-    name: macos build
+  build:
+    name: macos build (Qt 6.10.1)
     runs-on: macos-latest
+
     steps:
-    - name: Print a greeting
-      env:
-        MY_VAR: Hi there! My name is
-        FIRST_NAME: Mona
-        MIDDLE_NAME: The
-        LAST_NAME: Octocat
-      run: |
-        echo $MY_VAR $FIRST_NAME $MIDDLE_NAME $LAST_NAME.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.1
+          cache: true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Install
+        run: cmake --install build --config Release
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtEasyTier-macos
+          path: Install/QtEasyTier.app
+          if-no-files-found: error
