@@ -9,4 +9,5 @@
     CFBundleVersion = "";
     LSApplicationCategoryType = "";
     LSUIElement = 1;
+    CFBundleIconFile=${MACOSX_BUNDLE_ICON_FILE};
 }
