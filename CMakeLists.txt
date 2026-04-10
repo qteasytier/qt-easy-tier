@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 2.0.0 LANGUAGES CXX)
+project(${ProjectName} VERSION 2.0.1 LANGUAGES CXX)
 
 # 缓存变量：是否将配置保存到程序目录（便携模式）
 set(SAVE_CONF_IN_APP_DIR false CACHE BOOL "Save configuration in application directory (portable mode)")
