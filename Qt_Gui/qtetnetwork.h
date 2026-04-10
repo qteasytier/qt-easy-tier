@@ -210,7 +210,7 @@ private slots:
     /// @brief 重命名网络标签
     void onRenameNetwork();
     /// @brief 网络列表双击编辑
-    void onListDoubleClicked(QListWidgetItem *item);
+    void onListDoubleClicked();
     /// @brief UI控件值变化时保存到当前配置
     void onUIChanged();
     /// @brief 导出配置按钮点击

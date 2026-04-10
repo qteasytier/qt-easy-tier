@@ -7,7 +7,8 @@
 class QPushButton;  // 前向声明
 
 /// @brief 自定义行编辑控件
-/// 参考 QtETCheckBtn 和 QtETPushBtn 的边框和背景样式
+/// 完全自定义绘制边框和背景，不使用 QSS
+/// 文本输入使用 QLineEdit 原生功能（仅用于输入处理），通过 QPalette 设置颜色
 /// 支持悬停边框高亮动画效果、聚焦状态高亮、密码显示切换
 class QtETLineEdit : public QLineEdit
 {
@@ -27,6 +28,11 @@ public:
     void setEchoModeToggleEnabled(bool enabled);
     /// @brief 获取是否启用密码模式切换按钮
     [[nodiscard]] bool isEchoModeToggleEnabled() const;
+
+    /// @brief 获取推荐尺寸
+    [[nodiscard]] QSize sizeHint() const override;
+    /// @brief 获取最小尺寸
+    [[nodiscard]] QSize minimumSizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -62,7 +68,8 @@ private:
     // 尺寸常量
     static constexpr int BORDER_RADIUS = 5;         ///< 边框圆角
     static constexpr int BORDER_WIDTH = 1;          ///< 边框宽度
-    static constexpr int CONTENT_MARGIN = 8;        ///< 内容边距（上下左右）
+    static constexpr int CONTENT_MARGIN_V = 7;      ///< 内容垂直边距（上下）
+    static constexpr int CONTENT_MARGIN_H = 4;      ///< 内容水平边距（左右）
     static constexpr int BUTTON_SIZE = 20;          ///< 密码切换按钮大小
     static constexpr int BUTTON_SPACING = 4;        ///< 按钮与文本间距
     static constexpr int BORDER_ANIMATION_DURATION = 200;  ///< 边框动画时长(ms)

@@ -124,8 +124,6 @@ private slots:
     void onEditServer();
     /// @brief 删除服务器
     void onDeleteServer();
-    /// @brief 列表项双击
-    void onItemDoubleClicked(QListWidgetItem *item);
     /// @brief 显示右键菜单
     void onShowContextMenu(const QPoint &pos);
 };

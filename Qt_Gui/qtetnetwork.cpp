@@ -1,5 +1,5 @@
 #include "qtetnetwork.h"
-#include "qtetpublicserverdialog.h"
+#include "qtetserversdialog.h"
 
 #include <QRegularExpressionValidator>
 #include <QFormLayout>
@@ -126,9 +126,12 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     
     // 连接信号槽
     connect(m_newNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onNewNetwork);
-    connect(m_networksList, &QListWidget::itemSelectionChanged, this, &QtETNetwork::onNetworkSelected);
-    connect(m_networksList, &QListWidget::customContextMenuRequested, this, &QtETNetwork::onListContextMenu);
-    connect(m_networksList, &QListWidget::itemDoubleClicked, this, &QtETNetwork::onListDoubleClicked);
+    connect(m_networksList, &QtETLabelList::itemSelectionChanged, this, &QtETNetwork::onNetworkSelected);
+    connect(m_networksList, &QtETLabelList::customContextMenuRequested, this, &QtETNetwork::onListContextMenu);
+    connect(m_networksList, &QtETLabelList::itemDoubleClicked, this, [this](QtETLabelListItem *item) {
+        Q_UNUSED(item)
+        onListDoubleClicked();
+    });
     connect(m_exportConfBtn, &QPushButton::clicked, this, &QtETNetwork::onExportConf);
     connect(m_importConfBtn, &QPushButton::clicked, this, &QtETNetwork::onImportConf);
     connect(m_runNetworkBtn, &QPushButton::clicked, this, &QtETNetwork::onRunNetworkBtnClicked);
@@ -392,7 +395,7 @@ void QtETNetwork::initBasicSettingsPage()
         m_ipv4Edit->setEnabled(!checked);
     });
     connect(m_serverListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
-        m_removeServerBtn->setEnabled(m_serverListWidget->selectedItems().count() > 0);
+        m_removeServerBtn->setEnabled(m_serverListWidget->currentRow() >= 0);
     });
 }
 
@@ -701,15 +704,15 @@ void QtETNetwork::initAdvancedSettingsPage()
         m_whitelistListWidget->setEnabled(checked);
     });
     connect(m_listenAddrListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
-        m_removeListenAddrBtn->setEnabled(m_listenAddrListWidget->selectedItems().count() > 0);
+        m_removeListenAddrBtn->setEnabled(m_listenAddrListWidget->currentRow() >= 0);
     });
     connect(m_whitelistListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         if (m_foreignNetworkWhitelistCheckBox->isChecked()) {
-            m_removeWhitelistBtn->setEnabled(m_whitelistListWidget->selectedItems().count() > 0);
+            m_removeWhitelistBtn->setEnabled(m_whitelistListWidget->currentRow() >= 0);
         }
     });
     connect(m_proxyNetworkListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
-        m_removeProxyNetworkBtn->setEnabled(m_proxyNetworkListWidget->selectedItems().count() > 0);
+        m_removeProxyNetworkBtn->setEnabled(m_proxyNetworkListWidget->currentRow() >= 0);
     });
 }
 
@@ -944,7 +947,7 @@ void QtETNetwork::onNetworkSelected()
 
 void QtETNetwork::onListContextMenu(const QPoint &pos)
 {
-    QListWidgetItem *item = m_networksList->itemAt(pos);
+    QtETLabelListItem *item = m_networksList->itemAt(pos);
     if (!item) {
         return;
     }
@@ -1182,7 +1185,7 @@ void QtETNetwork::setupUIConnections()
     
     // 公共服务器列表按钮
     connect(m_publicServerBtn, &QPushButton::clicked, this, [this]() {
-        QtETPublicServerDialog dialog(this);
+        QtETServersDialog dialog(this);
         
         // 获取当前服务器列表
         QStringList currentServers;
@@ -1724,7 +1727,7 @@ void QtETNetwork::updateListItemStyle(const int &index) const
         return;
     }
     
-    QListWidgetItem *item = m_networksList->item(index);
+    QtETLabelListItem *item = m_networksList->item(index);
     if (!item) {
         return;
     }
@@ -2270,7 +2273,7 @@ void QtETNetwork::updateListItemDisplayName(int index) const
         return;
     }
     
-    QListWidgetItem *item = m_networksList->item(index);
+    QtETLabelListItem *item = m_networksList->item(index);
     if (item) {
         item->setText(getNetworkDisplayName(index));
     }
@@ -2304,13 +2307,9 @@ void QtETNetwork::onRenameNetwork()
     }
 }
 
-void QtETNetwork::onListDoubleClicked(QListWidgetItem *item)
+void QtETNetwork::onListDoubleClicked()
 {
-    if (!item) {
-        return;
-    }
-    
-    int currentRow = m_networksList->row(item);
+    int currentRow = m_networksList->currentRow();
     if (currentRow < 0 || currentRow >= static_cast<int>(m_networkConfs.size())) {
         return;
     }

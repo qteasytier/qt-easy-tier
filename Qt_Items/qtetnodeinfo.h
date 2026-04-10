@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QColor>
 #include <QString>
-#include <QLabel>
+#include <QPropertyAnimation>
 
 /// @brief 节点连接类型枚举
 enum class NodeConnType
@@ -45,52 +45,9 @@ struct NodeInfo
     {}
 };
 
-/// @brief 连接类型标签控件（圆角彩色背景）
-class QtETConnTypeLabel : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit QtETConnTypeLabel(NodeConnType type, QWidget *parent = nullptr);
-    void setConnType(NodeConnType type);
-
-protected:
-    void paintEvent(QPaintEvent *event) override;
-
-private:
-    NodeConnType m_connType;
-    QColor m_connTypeColor;
-    QString m_connTypeText;
-    static constexpr int BORDER_RADIUS = 6;
-    static constexpr int PADDING_H = 6;
-    static constexpr int PADDING_V = 2;
-    static constexpr int FONT_SIZE = 9;
-
-    QColor getConnTypeColor() const;
-    QString getConnTypeText() const;
-};
-
-/// @brief 本机标签控件（紫色圆角背景）
-class QtETLocalLabel : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit QtETLocalLabel(QWidget *parent = nullptr);
-
-protected:
-    void paintEvent(QPaintEvent *event) override;
-
-private:
-    static constexpr int BORDER_RADIUS = 6;
-    static constexpr int PADDING_H = 6;
-    static constexpr int PADDING_V = 2;
-    static constexpr int FONT_SIZE = 9;
-};
-
 /// @brief 节点信息显示控件
+/// 完全自定义绘制，不使用任何 QSS 或 QLabel
 /// 显示节点的连接状态、延迟、协议等信息
-/// 边框、背景与高亮仿照 QtETCheckBtn 绘制
 class QtETNodeInfo : public QWidget
 {
     Q_OBJECT
@@ -99,7 +56,7 @@ class QtETNodeInfo : public QWidget
 public:
     explicit QtETNodeInfo(QWidget *parent = nullptr);
     explicit QtETNodeInfo(const NodeInfo &info, QWidget *parent = nullptr);
-    ~QtETNodeInfo() override;
+    ~QtETNodeInfo() override = default;
 
     /// @brief 获取节点信息
     [[nodiscard]] NodeInfo nodeInfo() const;
@@ -124,22 +81,17 @@ protected:
 private:
     /// @brief 初始化控件
     void init();
-    /// @brief 创建内容布局
-    void setupContent();
     /// @brief 更新颜色方案（根据深色/浅色模式）
     void updateColorScheme();
-    /// @brief 更新内容显示
-    void updateContent();
+    /// @brief 获取连接类型颜色
+    [[nodiscard]] QColor getConnTypeColor() const;
+    /// @brief 获取连接类型文字
+    [[nodiscard]] QString getConnTypeText() const;
 
 private:
     NodeInfo m_nodeInfo;                ///< 节点信息
     qreal m_borderOpacity;              ///< 边框高亮不透明度 (0.0 ~ 1.0)
-
-    // 内容控件
-    QLabel *m_ipHostLabel;              ///< IP和主机名标签（可选中复制）
-    QtETConnTypeLabel *m_connTypeLabel; ///< 连接类型标签
-    QtETLocalLabel *m_localLabel;       ///< 本机标签
-    QLabel *m_detailLabel;              ///< 详细信息标签
+    QPropertyAnimation *m_borderAnimation; ///< 边框动画
 
     // 颜色方案
     QColor m_bgColor;                   ///< 背景颜色
@@ -151,8 +103,13 @@ private:
     // 尺寸常量
     static constexpr int BORDER_RADIUS = 5;         ///< 边框圆角
     static constexpr int CONTENT_MARGIN = 10;       ///< 内容边距
-    static constexpr int LINE_SPACING = 4;          ///< 行间距
+    static constexpr int LINE_SPACING = 6;          ///< 行间距
     static constexpr int WIDGET_HEIGHT = 58;        ///< 控件固定高度
+    static constexpr int LABEL_BORDER_RADIUS = 6;   ///< 标签圆角
+    static constexpr int LABEL_PADDING_H = 6;       ///< 标签水平内边距
+    static constexpr int LABEL_PADDING_V = 2;       ///< 标签垂直内边距
+    static constexpr int LABEL_FONT_SIZE = 9;       ///< 标签字体大小
+    static constexpr int LABEL_SPACING = 4;         ///< 标签间距
 };
 
 #endif // QTETNODEINFO_H

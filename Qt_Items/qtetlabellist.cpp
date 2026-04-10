@@ -5,163 +5,39 @@
 #include <QApplication>
 #include <QStyleHints>
 #include <QMouseEvent>
-#include <QAbstractItemView>
+#include <QWheelEvent>
+#include <QFontMetrics>
 
 // ============================================================================
 // QtETLabelListItem 实现
 // ============================================================================
 
-QtETLabelListItem::QtETLabelListItem(QListWidget *parent, int type)
-    : QListWidgetItem(parent, type)
+QtETLabelListItem::QtETLabelListItem()
+    : m_text()
+    , m_icon()
 {
 }
 
-QtETLabelListItem::QtETLabelListItem(const QString &text, QListWidget *parent, int type)
-    : QListWidgetItem(text, parent, type)
+QtETLabelListItem::QtETLabelListItem(const QString &text)
+    : m_text(text)
+    , m_icon()
 {
 }
 
-QtETLabelListItem::QtETLabelListItem(const QIcon &icon, const QString &text,
-                                       QListWidget *parent, int type)
-    : QListWidgetItem(icon, text, parent, type)
+QtETLabelListItem::QtETLabelListItem(const QIcon &icon, const QString &text)
+    : m_text(text)
+    , m_icon(icon)
 {
 }
 
-QtETLabelListItem::QtETLabelListItem(const QtETLabelListItem &other)
-    : QListWidgetItem(other)
+QVariant QtETLabelListItem::data(int role) const
 {
+    return m_data.value(role);
 }
 
-QtETLabelListItem &QtETLabelListItem::operator=(const QtETLabelListItem &other)
+void QtETLabelListItem::setData(int role, const QVariant &value)
 {
-    QListWidgetItem::operator=(other);
-    return *this;
-}
-
-// ============================================================================
-// QtETLabelListDelegate 实现
-// ============================================================================
-
-QtETLabelListDelegate::QtETLabelListDelegate(QObject *parent)
-    : QStyledItemDelegate(parent)
-    , m_highlightColor("#66ccff")
-{
-    // 悬停填充颜色：高亮色的淡化版本
-    m_hoverFillColor = QColor::fromRgbF(
-        m_highlightColor.redF(),
-        m_highlightColor.greenF(),
-        m_highlightColor.blueF(),
-        0.15  // 15% 不透明度
-    );
-}
-
-void QtETLabelListDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
-                                   const QModelIndex &index) const
-{
-    painter->save();
-    painter->setRenderHint(QPainter::Antialiasing);
-
-    // 绘制背景
-    QRect rect = option.rect.adjusted(ITEM_MARGIN, ITEM_MARGIN / 2,
-                                      -ITEM_MARGIN, -ITEM_MARGIN / 2);
-
-    // 判断状态
-    const bool isSelected = option.state & QStyle::State_Selected;
-    const bool isHovered = option.state & QStyle::State_MouseOver;
-
-    if (isSelected) {
-        // 选中状态：实心圆角矩形高亮
-        QPainterPath path;
-        path.addRoundedRect(rect, BORDER_RADIUS, BORDER_RADIUS);
-
-        // 使用不透明的高亮色填充
-        painter->fillPath(path, m_highlightColor);
-
-        // 绘制不透明边框
-        painter->setPen(QPen(m_highlightColor, 1.5));
-        painter->drawPath(path);
-    } else if (isHovered) {
-        // 悬停状态：空心圆角矩形 + 淡色填充
-        QPainterPath path;
-        path.addRoundedRect(rect, BORDER_RADIUS, BORDER_RADIUS);
-
-        // 填充淡色
-        painter->fillPath(path, m_hoverFillColor);
-
-        // 绘制边框
-        painter->setPen(QPen(m_highlightColor, 1.0));
-        painter->drawPath(path);
-    }
-
-    // 绘制图标
-    QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
-    if (!icon.isNull()) {
-        int iconY = rect.top() + (rect.height() - ICON_SIZE) / 2;
-        QRect iconRect(rect.left() + 8, iconY, ICON_SIZE, ICON_SIZE);
-        icon.paint(painter, iconRect);
-    }
-
-    // 绘制文字
-    QString text = index.data(Qt::DisplayRole).toString();
-    if (!text.isEmpty()) {
-        QFont font = painter->font();
-        font.setPointSize(TEXT_SIZE);
-        painter->setFont(font);
-
-        // 设置文字颜色
-        QColor textColor;
-        if (isSelected) {
-            // 选中状态：文字设为黑色
-            textColor = QColor(0, 0, 0);
-        } else {
-            // 未选中状态：使用默认文字颜色
-            textColor = option.palette.color(QPalette::Text);
-        }
-        painter->setPen(textColor);
-
-        // 计算文字位置
-        int textLeft = rect.left() + 8;
-        if (!icon.isNull()) {
-            textLeft += ICON_SIZE + ICON_TEXT_SPACING;
-        }
-
-        QRect textRect(textLeft, rect.top(),
-                       rect.right() - textLeft - 8, rect.height());
-        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
-    }
-
-    painter->restore();
-}
-
-QSize QtETLabelListDelegate::sizeHint(const QStyleOptionViewItem &option,
-                                       const QModelIndex &index) const
-{
-    Q_UNUSED(option)
-    Q_UNUSED(index)
-
-    // 增大项高度 (原来: ICON_SIZE + ITEM_MARGIN * 2 + 4 = 18 + 8 + 4 = 30)
-    constexpr int ITEM_HEIGHT = 36;
-
-    // 基础宽度（至少能容纳图标和少量文字）
-    int width = ICON_SIZE + ICON_TEXT_SPACING + 100 + ITEM_MARGIN * 2 + 16;
-
-    return QSize(width, ITEM_HEIGHT);
-}
-
-void QtETLabelListDelegate::setHighlightColor(const QColor &color)
-{
-    m_highlightColor = color;
-    m_hoverFillColor = QColor::fromRgbF(
-        color.redF(),
-        color.greenF(),
-        color.blueF(),
-        0.15
-    );
-}
-
-QColor QtETLabelListDelegate::highlightColor() const
-{
-    return m_highlightColor;
+    m_data[role] = value;
 }
 
 // ============================================================================
@@ -169,15 +45,17 @@ QColor QtETLabelListDelegate::highlightColor() const
 // ============================================================================
 
 QtETLabelList::QtETLabelList(QWidget *parent)
-    : QListWidget(parent)
-    , m_delegate(nullptr)
+    : QWidget(parent)
     , m_hoverAnimation(nullptr)
     , m_selectionAnimation(nullptr)
     , m_hoverOpacity(0.0)
     , m_selectionOpacity(0.0)
-    , m_hoverRow(-1)
+    , m_hoveredRow(-1)
     , m_selectedRow(-1)
+    , m_scrollOffset(0)
     , m_highlightColor("#66ccff")
+    , m_textColor(Qt::black)
+    , m_bgColor(Qt::transparent)
 {
     init();
 }
@@ -190,34 +68,30 @@ QtETLabelList::~QtETLabelList()
     if (m_selectionAnimation) {
         m_selectionAnimation->stop();
     }
+
+    qDeleteAll(m_items);
+    m_items.clear();
 }
 
 void QtETLabelList::init()
 {
-    // 设置自定义委托
-    m_delegate = new QtETLabelListDelegate(this);
-    setItemDelegate(m_delegate);
-
-    // 设置列表属性
-    setSelectionMode(QAbstractItemView::SingleSelection);
-    setSelectionBehavior(QAbstractItemView::SelectRows);
+    // 设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    
+    // 设置鼠标追踪
     setMouseTracking(true);
-    setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setFocusPolicy(Qt::StrongFocus);
 
-    // 去除默认的选中框
-    setStyleSheet(QStringLiteral(R"(
-        QListWidget {
-            outline: none;
-            border: none;
-            background: transparent;
-        }
-        QListWidget::item {
-            background: transparent;
-            border: none;
-            padding: 2px 4px;
-        }
-    )"));
+    // 默认垂直伸展
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    // 计算悬停填充颜色
+    m_hoverFillColor = QColor::fromRgbF(
+        m_highlightColor.redF(),
+        m_highlightColor.greenF(),
+        m_highlightColor.blueF(),
+        0.15  // 15% 不透明度
+    );
 
     // 初始化悬停动画
     m_hoverAnimation = new QPropertyAnimation(this, "hoverOpacity", this);
@@ -235,14 +109,145 @@ void QtETLabelList::init()
     // 监听系统主题变化
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
         updateColorScheme();
-        viewport()->update();
+        update();
     });
 }
 
 void QtETLabelList::updateColorScheme()
 {
-    // 高亮颜色保持不变，但可以根据需要调整
-    m_delegate->setHighlightColor(m_highlightColor);
+    const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+
+    if (isDark) {
+        m_textColor = QColor(220, 220, 220);
+    } else {
+        m_textColor = QColor(50, 50, 50);
+    }
+
+    // 背景始终透明
+    m_bgColor = Qt::transparent;
+
+    update();
+}
+
+void QtETLabelList::addItem(QtETLabelListItem *item)
+{
+    m_items.append(item);
+    updateContentHeight();
+    update();
+}
+
+void QtETLabelList::addItem(const QString &text)
+{
+    addItem(new QtETLabelListItem(text));
+}
+
+int QtETLabelList::count() const
+{
+    return static_cast<int>(m_items.size());
+}
+
+QtETLabelListItem* QtETLabelList::item(int index) const
+{
+    if (index >= 0 && index < static_cast<int>(m_items.size())) {
+        return m_items[index];
+    }
+    return nullptr;
+}
+
+QtETLabelListItem* QtETLabelList::currentItem() const
+{
+    return item(m_selectedRow);
+}
+
+int QtETLabelList::currentRow() const
+{
+    return m_selectedRow;
+}
+
+int QtETLabelList::row(QtETLabelListItem *item) const
+{
+    for (int i = 0; i < static_cast<int>(m_items.size()); ++i) {
+        if (m_items[i] == item) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void QtETLabelList::setCurrentRow(int row)
+{
+    if (row >= -1 && row < static_cast<int>(m_items.size()) && row != m_selectedRow) {
+        int oldRow = m_selectedRow;
+        m_selectedRow = row;
+
+        // 启动选中动画
+        m_selectionAnimation->stop();
+        m_selectionAnimation->setStartValue(m_selectionOpacity);
+        m_selectionAnimation->setEndValue(row >= 0 ? 1.0 : 0.0);
+        m_selectionAnimation->start();
+
+        update();
+
+        if (oldRow != row) {
+            emit currentRowChanged(row);
+            emit itemSelectionChanged();
+        }
+    }
+}
+
+void QtETLabelList::clear()
+{
+    qDeleteAll(m_items);
+    m_items.clear();
+    m_selectedRow = -1;
+    m_hoveredRow = -1;
+    m_scrollOffset = 0;
+    updateContentHeight();
+    update();
+}
+
+QtETLabelListItem* QtETLabelList::takeItem(int row)
+{
+    if (row >= 0 && row < static_cast<int>(m_items.size())) {
+        QtETLabelListItem *item = m_items.takeAt(row);
+        if (m_selectedRow == row) {
+            m_selectedRow = -1;
+        } else if (m_selectedRow > row) {
+            m_selectedRow--;
+        }
+        if (m_hoveredRow == row) {
+            m_hoveredRow = -1;
+        } else if (m_hoveredRow > row) {
+            m_hoveredRow--;
+        }
+        updateContentHeight();
+        update();
+        return item;
+    }
+    return nullptr;
+}
+
+QRect QtETLabelList::visualItemRect(QtETLabelListItem *item) const
+{
+    if (!item) {
+        return QRect();
+    }
+
+    for (int i = 0; i < static_cast<int>(m_items.size()); ++i) {
+        if (m_items[i] == item) {
+            return calculateItemRect(i);
+        }
+    }
+    return QRect();
+}
+
+QtETLabelListItem* QtETLabelList::itemAt(const QPoint &pos) const
+{
+    int row = getRowAtPosition(pos);
+    if (row >= 0 && row < static_cast<int>(m_items.size())) {
+        return m_items[row];
+    }
+    return nullptr;
 }
 
 qreal QtETLabelList::hoverOpacity() const
@@ -254,7 +259,7 @@ void QtETLabelList::setHoverOpacity(qreal opacity)
 {
     if (!qFuzzyCompare(m_hoverOpacity, opacity)) {
         m_hoverOpacity = qBound(0.0, opacity, 1.0);
-        viewport()->update();
+        update();
     }
 }
 
@@ -267,15 +272,20 @@ void QtETLabelList::setSelectionOpacity(qreal opacity)
 {
     if (!qFuzzyCompare(m_selectionOpacity, opacity)) {
         m_selectionOpacity = qBound(0.0, opacity, 1.0);
-        viewport()->update();
+        update();
     }
 }
 
 void QtETLabelList::setHighlightColor(const QColor &color)
 {
     m_highlightColor = color;
-    m_delegate->setHighlightColor(color);
-    viewport()->update();
+    m_hoverFillColor = QColor::fromRgbF(
+        color.redF(),
+        color.greenF(),
+        color.blueF(),
+        0.15
+    );
+    update();
 }
 
 QColor QtETLabelList::highlightColor() const
@@ -283,79 +293,191 @@ QColor QtETLabelList::highlightColor() const
     return m_highlightColor;
 }
 
+QRect QtETLabelList::calculateItemRect(int row) const
+{
+    if (row < 0 || row >= static_cast<int>(m_items.size())) {
+        return QRect();
+    }
+
+    int y = row * ITEM_HEIGHT - m_scrollOffset;
+    return QRect(0, y, width(), ITEM_HEIGHT);
+}
+
+int QtETLabelList::getRowAtPosition(const QPoint &pos) const
+{
+    int y = pos.y() + m_scrollOffset;
+    int row = y / ITEM_HEIGHT;
+
+    if (row >= 0 && row < static_cast<int>(m_items.size())) {
+        return row;
+    }
+    return -1;
+}
+
+void QtETLabelList::updateContentHeight()
+{
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    // 设置最小高度为内容高度，允许自动伸展
+    setMinimumHeight(totalHeight);
+}
+
 void QtETLabelList::paintEvent(QPaintEvent *event)
 {
-    // 调用父类绘制
-    QListWidget::paintEvent(event);
+    Q_UNUSED(event)
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 绘制背景
+    painter.fillRect(rect(), m_bgColor);
+
+    // 计算可见范围
+    int firstVisibleRow = m_scrollOffset / ITEM_HEIGHT;
+    int lastVisibleRow = (m_scrollOffset + height() + ITEM_HEIGHT - 1) / ITEM_HEIGHT;
+    lastVisibleRow = qMin(lastVisibleRow, static_cast<int>(m_items.size()) - 1);
+
+    // 绘制每个可见项目
+    for (int row = firstVisibleRow; row <= lastVisibleRow; ++row) {
+        QRect itemRect = calculateItemRect(row);
+        QtETLabelListItem *itemData = m_items[row];
+
+        // 完全在可视区域外的项目不绘制
+        if (itemRect.bottom() < 0 || itemRect.top() > height()) {
+            continue;
+        }
+
+        // 设置裁剪区域
+        painter.save();
+        painter.setClipRect(itemRect);
+
+        // 计算绘制区域（减去边距）
+        QRect drawRect = itemRect.adjusted(ITEM_MARGIN, ITEM_MARGIN / 2,
+                                            -ITEM_MARGIN, -ITEM_MARGIN / 2);
+
+        bool isSelected = (row == m_selectedRow);
+        bool isHovered = (row == m_hoveredRow);
+
+        // 绘制选中或悬停背景
+        if (isSelected) {
+            QPainterPath path;
+            path.addRoundedRect(drawRect, BORDER_RADIUS, BORDER_RADIUS);
+            painter.fillPath(path, m_highlightColor);
+            painter.setPen(QPen(m_highlightColor, 1.5));
+            painter.drawPath(path);
+        } else if (isHovered) {
+            QPainterPath path;
+            path.addRoundedRect(drawRect, BORDER_RADIUS, BORDER_RADIUS);
+            painter.fillPath(path, m_hoverFillColor);
+            painter.setPen(QPen(m_highlightColor, 1.0));
+            painter.drawPath(path);
+        }
+
+        // 绘制图标
+        QIcon icon = itemData->icon();
+        if (!icon.isNull()) {
+            int iconY = drawRect.top() + (drawRect.height() - ICON_SIZE) / 2;
+            QRect iconRect(drawRect.left() + 8, iconY, ICON_SIZE, ICON_SIZE);
+            icon.paint(&painter, iconRect);
+        }
+
+        // 绘制文字
+        QString text = itemData->text();
+        if (!text.isEmpty()) {
+            QFont font = painter.font();
+            font.setPointSize(TEXT_SIZE);
+            painter.setFont(font);
+
+            QColor textColor = isSelected ? QColor(0, 0, 0) : m_textColor;
+            painter.setPen(textColor);
+
+            int textLeft = drawRect.left() + 8;
+            if (!icon.isNull()) {
+                textLeft += ICON_SIZE + ICON_TEXT_SPACING;
+            }
+
+            QRect textRect(textLeft, drawRect.top(),
+                           drawRect.right() - textLeft - 8, drawRect.height());
+            painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
+        }
+
+        painter.restore();
+    }
 
     // 当没有任何选项时，居中显示提示文字
-    if (count() == 0) {
-        QPainter painter(viewport());
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        // 设置字体
+    if (m_items.isEmpty()) {
         QFont font = painter.font();
         font.setPointSize(14);
         painter.setFont(font);
 
-        // 设置淡色文字
-        QColor textColor = palette().color(QPalette::Text);
-        textColor.setAlphaF(0.4);  // 40% 不透明度，偏淡
+        QColor textColor = m_textColor;
+        textColor.setAlphaF(0.4);
         painter.setPen(textColor);
 
-        // 居中绘制文字
-        QRect rect = viewport()->rect();
-        painter.drawText(rect, Qt::AlignCenter, tr("空空如也"));
+        painter.drawText(rect(), Qt::AlignCenter, tr("空空如也"));
     }
 }
 
 void QtETLabelList::mouseMoveEvent(QMouseEvent *event)
 {
-    QListWidget::mouseMoveEvent(event);
-    updateHoverItem(event->pos());
+    int newHoveredRow = getRowAtPosition(event->pos());
+
+    if (newHoveredRow != m_hoveredRow) {
+        m_hoveredRow = newHoveredRow;
+        update();
+    }
+
+    QWidget::mouseMoveEvent(event);
+}
+
+void QtETLabelList::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        int clickedRow = getRowAtPosition(event->pos());
+
+        if (clickedRow >= 0 && clickedRow < static_cast<int>(m_items.size())) {
+            setCurrentRow(clickedRow);
+            emit itemClicked(m_items[clickedRow]);
+        }
+    }
+
+    QWidget::mousePressEvent(event);
 }
 
 void QtETLabelList::leaveEvent(QEvent *event)
 {
-    QListWidget::leaveEvent(event);
-
-    // 重置悬停状态
-    m_hoverRow = -1;
-    viewport()->update();
+    m_hoveredRow = -1;
+    update();
+    QWidget::leaveEvent(event);
 }
 
-void QtETLabelList::selectionChanged(const QItemSelection &selected,
-                                      const QItemSelection &deselected)
+void QtETLabelList::wheelEvent(QWheelEvent *event)
 {
-    QListWidget::selectionChanged(selected, deselected);
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    int visibleHeight = height();
 
-    // 更新选中行
-    if (!selected.isEmpty()) {
-        m_selectedRow = selected.indexes().first().row();
-    } else {
-        m_selectedRow = -1;
+    if (totalHeight <= visibleHeight) {
+        event->accept();
+        return;
     }
+
+    // 滚动
+    int delta = event->angleDelta().y();
+    int newOffset = m_scrollOffset - delta / 8;  // 标准滚动速度
+
+    // 限制范围
+    int maxOffset = totalHeight - visibleHeight;
+    newOffset = qBound(0, newOffset, maxOffset);
+
+    if (newOffset != m_scrollOffset) {
+        m_scrollOffset = newOffset;
+        update();
+    }
+
+    event->accept();
 }
 
-void QtETLabelList::startHoverAnimation(bool visible)
+void QtETLabelList::resizeEvent(QResizeEvent *event)
 {
-    m_hoverAnimation->stop();
-    m_hoverAnimation->setStartValue(m_hoverOpacity);
-    m_hoverAnimation->setEndValue(visible ? 1.0 : 0.0);
-    m_hoverAnimation->start();
-}
-
-void QtETLabelList::startSelectionAnimation(bool visible)
-{
-    m_selectionAnimation->stop();
-    m_selectionAnimation->setStartValue(m_selectionOpacity);
-    m_selectionAnimation->setEndValue(visible ? 1.0 : 0.0);
-    m_selectionAnimation->start();
-}
-
-void QtETLabelList::updateHoverItem(const QPoint &pos)
-{
-    Q_UNUSED(pos)
-    // 委托已经处理了悬停状态的绘制
-    viewport()->update();
+    QWidget::resizeEvent(event);
+    update();
 }

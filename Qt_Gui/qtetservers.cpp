@@ -170,8 +170,11 @@ void QtETServers::setupConnections()
     connect(m_addBtn, &QPushButton::clicked, this, &QtETServers::onAddServer);
 
     // 列表双击
-    connect(m_serverListWidget, &QListWidget::itemDoubleClicked,
-            this, &QtETServers::onItemDoubleClicked);
+    connect(m_serverListWidget, &QtETLabelList::itemDoubleClicked,
+            this, [this](QtETLabelListItem *item) {
+                Q_UNUSED(item)
+                onEditServer();
+            });
 
     // 右键菜单
     connect(m_serverListWidget, &QWidget::customContextMenuRequested,
@@ -367,16 +370,10 @@ void QtETServers::onDeleteServer()
     }
 }
 
-void QtETServers::onItemDoubleClicked(QListWidgetItem *item)
-{
-    Q_UNUSED(item)
-    onEditServer();
-}
-
 void QtETServers::onShowContextMenu(const QPoint &pos)
 {
     // 检查是否有选中项
-    QListWidgetItem *item = m_serverListWidget->itemAt(pos);
+    QtETLabelListItem *item = m_serverListWidget->itemAt(pos);
     if (item) {
         m_contextMenu->exec(m_serverListWidget->mapToGlobal(pos));
     }

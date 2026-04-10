@@ -2,15 +2,13 @@
 // Created by YMHuang on 2026/4/7.
 //
 
-#ifndef QTEASYTIER_QTETPUBLICSERVERDIALOG_H
-#define QTEASYTIER_QTETPUBLICSERVERDIALOG_H
+#ifndef QTEASYTIER_QTETSERVERSDIALOG_H
+#define QTEASYTIER_QTETSERVERSDIALOG_H
 
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QLabel>
-#include <QPushButton>
-#include <QDialogButtonBox>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <vector>
@@ -36,14 +34,15 @@ struct ServerInfoData
 };
 
 /// @brief 服务器收藏选择对话框
+/// 完全自定义绘制，不使用 QSS
 /// 从 servers.json 读取用户收藏的服务器列表，用户可以选择要添加的服务器
-class QtETPublicServerDialog : public QDialog
+class QtETServersDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit QtETPublicServerDialog(QWidget *parent = nullptr);
-    ~QtETPublicServerDialog() override = default;
+    explicit QtETServersDialog(QWidget *parent = nullptr);
+    ~QtETServersDialog() override = default;
 
     /// @brief 设置已选择的服务器地址列表（用于初始化选中状态）
     /// @param selectedAddresses 已选择的服务器地址列表
@@ -51,6 +50,9 @@ public:
 
     /// @brief 获取用户选择的服务器地址列表
     [[nodiscard]] QStringList selectedServers() const;
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
 
 private:
     /// @brief 初始化界面
@@ -61,6 +63,8 @@ private:
     void updateServerList();
     /// @brief 获取 servers.json 文件路径
     [[nodiscard]] QString serverFilePath() const;
+    /// @brief 更新颜色方案
+    void updateColorScheme();
 
     // 主布局
     QVBoxLayout *m_mainLayout = nullptr;
@@ -73,10 +77,11 @@ private:
     QWidget *m_scrollContent = nullptr;
     QVBoxLayout *m_scrollLayout = nullptr;
 
-    // 底部按钮
-    QDialogButtonBox *m_buttonBox = nullptr;
+    // 底部按钮（自定义）
     QtETPushBtn *m_selectAllBtn = nullptr;
     QtETPushBtn *m_deselectAllBtn = nullptr;
+    QtETPushBtn *m_okBtn = nullptr;
+    QtETPushBtn *m_cancelBtn = nullptr;
 
     // 服务器数据
     std::vector<ServerInfoData> m_servers;      ///< 服务器收藏列表
@@ -85,6 +90,10 @@ private:
     // 已选择的服务器（用于初始化选中状态）
     QStringList m_initiallySelectedAddresses;
 
+    // 颜色
+    QColor m_bgColor;
+    QColor m_borderColor;
+
 private slots:
     /// @brief 全选按钮点击
     void onSelectAll();
@@ -92,4 +101,4 @@ private slots:
     void onDeselectAll();
 };
 
-#endif //QTEASYTIER_QTETPUBLICSERVERDIALOG_H
+#endif //QTEASYTIER_QTETSERVERSDIALOG_H

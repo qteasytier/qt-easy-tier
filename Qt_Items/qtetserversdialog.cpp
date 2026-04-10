@@ -2,7 +2,7 @@
 // Created by YMHuang on 2026/4/7.
 //
 
-#include "qtetpublicserverdialog.h"
+#include "qtetserversdialog.h"
 
 #include <QFile>
 #include <QJsonDocument>
@@ -11,22 +11,28 @@
 #include <QScrollBar>
 #include <QApplication>
 #include <QStyleHints>
+#include <QPainter>
+#include <QPainterPath>
+#include <QHBoxLayout>
 
 #include "qtetsettings.h"
 
-QtETPublicServerDialog::QtETPublicServerDialog(QWidget *parent)
+QtETServersDialog::QtETServersDialog(QWidget *parent)
     : QDialog(parent)
 {
     initUI();
     loadServers();
     updateServerList();
+    updateColorScheme();
 }
 
-void QtETPublicServerDialog::initUI()
+void QtETServersDialog::initUI()
 {
     setWindowTitle(tr("服务器收藏列表"));
     setMinimumSize(500, 400);
     resize(600, 500);
+
+    // 对话框保留系统边框，但自定义内部背景绘制
 
     // 默认字体设为10号
     QFont defaultFont;
@@ -52,9 +58,13 @@ void QtETPublicServerDialog::initUI()
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setFrameShape(QFrame::NoFrame);
+    // 设置滚动区域背景透明
+    m_scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; }"));
+    m_scrollArea->viewport()->setStyleSheet(QStringLiteral("background: transparent;"));
 
     // 滚动区域内容
     m_scrollContent = new QWidget();
+    m_scrollContent->setAttribute(Qt::WA_TranslucentBackground, true);
     m_scrollLayout = new QVBoxLayout(m_scrollContent);
     m_scrollLayout->setSpacing(8);
     m_scrollLayout->setContentsMargins(5, 5, 5, 5);
@@ -63,34 +73,74 @@ void QtETPublicServerDialog::initUI()
     m_scrollArea->setWidget(m_scrollContent);
     m_mainLayout->addWidget(m_scrollArea, 1);
 
-    // 全选/全不选按钮
-    auto *selectionBtnLayout = new QHBoxLayout();
-    selectionBtnLayout->setSpacing(6);
+    // 底部按钮（自定义按钮）
+    auto *bottomBtnLayout = new QHBoxLayout();
+    bottomBtnLayout->setSpacing(10);
+    bottomBtnLayout->addStretch();
+
+    m_okBtn = new QtETPushBtn(tr("确定"), this);
+    m_okBtn->setMinimumWidth(80);
+    m_cancelBtn = new QtETPushBtn(tr("取消"), this);
+    m_cancelBtn->setMinimumWidth(80);
 
     m_selectAllBtn = new QtETPushBtn(tr("全选"), this);
     m_selectAllBtn->setMinimumWidth(80);
     m_deselectAllBtn = new QtETPushBtn(tr("全不选"), this);
     m_deselectAllBtn->setMinimumWidth(80);
 
-    selectionBtnLayout->addStretch();
-    selectionBtnLayout->addWidget(m_selectAllBtn);
-    selectionBtnLayout->addWidget(m_deselectAllBtn);
+    bottomBtnLayout->addWidget(m_selectAllBtn);
+    bottomBtnLayout->addWidget(m_deselectAllBtn);
+    bottomBtnLayout->addWidget(m_okBtn);
+    bottomBtnLayout->addWidget(m_cancelBtn);
 
-    m_mainLayout->addLayout(selectionBtnLayout);
-
-    // 底部按钮
-    m_buttonBox = new QDialogButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    m_mainLayout->addWidget(m_buttonBox);
+    m_mainLayout->addLayout(bottomBtnLayout);
 
     // 连接信号
-    connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(m_buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    connect(m_selectAllBtn, &QPushButton::clicked, this, &QtETPublicServerDialog::onSelectAll);
-    connect(m_deselectAllBtn, &QPushButton::clicked, this, &QtETPublicServerDialog::onDeselectAll);
+    connect(m_okBtn, &QPushButton::clicked, this, &QDialog::accept);
+    connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_selectAllBtn, &QPushButton::clicked, this, &QtETServersDialog::onSelectAll);
+    connect(m_deselectAllBtn, &QPushButton::clicked, this, &QtETServersDialog::onDeselectAll);
+
+    // 监听主题变化
+    connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
+        updateColorScheme();
+        update();
+    });
 }
 
-void QtETPublicServerDialog::loadServers()
+void QtETServersDialog::updateColorScheme()
+{
+    const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+
+    if (isDark) {
+        m_bgColor = QColor(45, 45, 45);
+        m_borderColor = QColor(70, 70, 70);
+
+        // 更新标题颜色
+        if (m_titleLabel) {
+            QPalette pal = m_titleLabel->palette();
+            pal.setColor(QPalette::WindowText, QColor(220, 220, 220));
+            m_titleLabel->setPalette(pal);
+        }
+    } else {
+        m_bgColor = QColor(240, 240, 240);
+        m_borderColor = QColor(180, 180, 180);
+
+        // 更新标题颜色
+        if (m_titleLabel) {
+            QPalette pal = m_titleLabel->palette();
+            pal.setColor(QPalette::WindowText, QColor(30, 30, 30));
+            m_titleLabel->setPalette(pal);
+        }
+    }
+
+    // 滚动区域背景始终透明
+    // 无需在这里设置，已在 initUI 中通过 setStyleSheet 设置
+
+    update();
+}
+
+void QtETServersDialog::loadServers()
 {
     QString filePath = serverFilePath();
     QFile file(filePath);
@@ -130,7 +180,7 @@ void QtETPublicServerDialog::loadServers()
     }
 }
 
-void QtETPublicServerDialog::updateServerList()
+void QtETServersDialog::updateServerList()
 {
     // 清除旧的控件
     for (auto *checkBox : m_serverCheckBoxes) {
@@ -155,12 +205,12 @@ void QtETPublicServerDialog::updateServerList()
     }
 }
 
-QString QtETPublicServerDialog::serverFilePath() const
+QString QtETServersDialog::serverFilePath() const
 {
     return QtETSettings::getConfigPath() + "/servers.json";
 }
 
-void QtETPublicServerDialog::setSelectedServers(const QStringList &selectedAddresses)
+void QtETServersDialog::setSelectedServers(const QStringList &selectedAddresses)
 {
     m_initiallySelectedAddresses = selectedAddresses;
 
@@ -172,7 +222,7 @@ void QtETPublicServerDialog::setSelectedServers(const QStringList &selectedAddre
     }
 }
 
-QStringList QtETPublicServerDialog::selectedServers() const
+QStringList QtETServersDialog::selectedServers() const
 {
     QStringList result;
 
@@ -185,16 +235,22 @@ QStringList QtETPublicServerDialog::selectedServers() const
     return result;
 }
 
-void QtETPublicServerDialog::onSelectAll()
+void QtETServersDialog::onSelectAll()
 {
     for (auto *checkBox : m_serverCheckBoxes) {
         checkBox->setChecked(true);
     }
 }
 
-void QtETPublicServerDialog::onDeselectAll()
+void QtETServersDialog::onDeselectAll()
 {
     for (auto *checkBox : m_serverCheckBoxes) {
         checkBox->setChecked(false);
     }
+}
+
+void QtETServersDialog::paintEvent(QPaintEvent *event)
+{
+    // 调用父类 paintEvent 以确保对话框正常绘制
+    QDialog::paintEvent(event);
 }

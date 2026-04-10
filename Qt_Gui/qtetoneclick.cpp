@@ -1,5 +1,5 @@
 #include "qtetoneclick.h"
-#include "qtetpublicserverdialog.h"
+#include "qtetserversdialog.h"
 #include <QFont>
 #include <QFontDatabase>
 #include <QMessageBox>
@@ -263,7 +263,7 @@ void QtETOneClick::setupConnections()
     
     // 公共服务器列表按钮
     connect(m_publicServerBtn, &QPushButton::clicked, this, [this]() {
-        QtETPublicServerDialog dialog(this);
+        QtETServersDialog dialog(this);
         
         // 获取当前服务器列表
         QStringList currentServers;
