@@ -1,4 +1,4 @@
- <RCC>
+<RCC>
     <qresource prefix="/icons">
         <file>home.svg</file>
         <file>plus.svg</file>
@@ -19,5 +19,7 @@
         <file>Ubuntu-B.ttf</file>
         <file>UbuntuMono-B.ttf</file>
         <file>YeGenyou.ttf</file>
+        <file>icon.icns</file>
+        <file>icon.png</file>
     </qresource>
 </RCC>

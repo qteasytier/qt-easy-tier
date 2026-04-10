@@ -95,6 +95,12 @@ void QtETMain::closeEvent(QCloseEvent *event)
 {
     // 根据缓存设置决定是否隐藏到托盘
     if (m_hideOnTray) {
+
+        #ifdef Q_OS_MACOS
+            QMessageBox::information(nullptr, "Tip", "暂不支持mac隐藏到托盘");
+            onQuitApp();
+            event->accept();
+        #endif
         // 隐藏到托盘而不是关闭
         hide();
         m_isHiddenToTray = true;
