@@ -1,0 +1,13 @@
+{
+    CFBundleDisplayName = "";
+    CFBundleExecutable = "";
+    CFBundleGetInfoString = "";
+    CFBundleIdentifier = "";
+    CFBundleInfoDictionaryVersion = "6.0";
+    CFBundleName = "";
+    CFBundleShortVersionString = "";
+    CFBundleVersion = "";
+    LSApplicationCategoryType = "";
+    LSUIElement = 1;
+    CFBundleIconFile=${MACOSX_BUNDLE_ICON_FILE};
+}
