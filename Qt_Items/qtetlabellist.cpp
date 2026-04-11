@@ -250,6 +250,14 @@ QtETLabelListItem* QtETLabelList::itemAt(const QPoint &pos) const
     return nullptr;
 }
 
+void QtETLabelList::setItemIcon(int index, const QIcon &icon)
+{
+    if (index >= 0 && index < static_cast<int>(m_items.size())) {
+        m_items[index]->setIcon(icon);
+        update();
+    }
+}
+
 qreal QtETLabelList::hoverOpacity() const
 {
     return m_hoverOpacity;

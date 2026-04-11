@@ -150,6 +150,12 @@ QtETNetwork::~QtETNetwork()
         m_runThread->quit();
         m_runThread->wait();
     }
+
+    // 清理进度对话框
+    if (m_progressDialog) {
+        m_progressDialog->deleteLater();
+        m_progressDialog = nullptr;
+    }
 }
 
 void QtETNetwork::initUI()
@@ -1015,7 +1021,7 @@ void QtETNetwork::onUIChanged()
     }
 }
 
-void QtETNetwork::loadConfToUI(const int& index) const
+void QtETNetwork::loadConfToUI(int index) const
 {
     if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
         return;
@@ -1140,7 +1146,7 @@ void QtETNetwork::loadConfToUI(const int& index) const
     m_acceptDnsCheckBox->blockSignals(false);
 }
 
-void QtETNetwork::saveConfFromUI(const int &index)
+void QtETNetwork::saveConfFromUI(int index)
 {
     if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
         return;
@@ -1625,8 +1631,6 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
     // 查找对应的网络配置（使用 instanceName 匹配）
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
-            QString networkName = QString::fromStdString(m_networkConfs[i].m_networkName);
-            
             if (success) {
                 // 更新运行状态
                 m_networkConfs[i].setRunning(true);
@@ -1644,9 +1648,6 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
                 // 保存配置
                 saveAllNetworkConfs();
             }
-            
-            // 发出网络启动完成信号（由主窗口处理托盘通知）
-            emit networkStarted(networkName, success, QString::fromStdString(errorMsg));
             return;
         }
     }
@@ -1662,8 +1663,6 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
     // 查找对应的网络配置（使用 instanceName 匹配）
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
-            QString networkName = QString::fromStdString(m_networkConfs[i].m_networkName);
-            
             if (success) {
                 // 更新运行状态
                 m_networkConfs[i].setRunning(false);
@@ -1684,9 +1683,6 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
                 // 保存配置
                 saveAllNetworkConfs();
             }
-            
-            // 发出网络停止完成信号（由主窗口处理托盘通知）
-            emit networkStopped(networkName, success, QString::fromStdString(errorMsg));
             return;
         }
     }
@@ -1721,14 +1717,9 @@ void QtETNetwork::updateRunButtonStyle() const
     }
 }
 
-void QtETNetwork::updateListItemStyle(const int &index) const
+void QtETNetwork::updateListItemStyle(int index) const
 {
     if (index < 0 || index >= m_networksList->count()) {
-        return;
-    }
-    
-    QtETLabelListItem *item = m_networksList->item(index);
-    if (!item) {
         return;
     }
     
@@ -1737,10 +1728,10 @@ void QtETNetwork::updateListItemStyle(const int &index) const
         
         if (conf.isRunning()) {
             // 运行中：使用 running 图标
-            item->setIcon(QIcon(QStringLiteral(":/icons/network-running.svg")));
+            m_networksList->setItemIcon(index, QIcon(QStringLiteral(":/icons/network-running.svg")));
         } else {
             // 未运行：使用默认网络图标
-            item->setIcon(QIcon(QStringLiteral(":/icons/network.svg")));
+            m_networksList->setItemIcon(index, QIcon(QStringLiteral(":/icons/network.svg")));
         }
     }
 }

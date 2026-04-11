@@ -132,6 +132,9 @@ ETRunWorker::ETRunWorker(QObject *parent)
 
 void ETRunWorker::runNetwork(const std::string &instName, const std::string &tomlConfig)
 {
+    // 使用锁保护 FFI 调用，确保线程安全
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
     // 调用 FFI 运行网络实例
     const bool success = EasyTierFFI::runNetworkInstance(tomlConfig);
     
@@ -146,6 +149,9 @@ void ETRunWorker::runNetwork(const std::string &instName, const std::string &tom
 
 void ETRunWorker::stopNetwork(const std::string &instName)
 {
+    // 使用锁保护 FFI 调用，确保线程安全
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
     // 使用 retain_network_instance 终止指定实例
     // 传入空列表表示终止所有实例，这里我们需要保留其他实例
     // 所以需要获取当前运行的所有实例，然后移除要停止的实例
@@ -188,6 +194,9 @@ std::string ETRunWorker::getLastErrorMsg()
 
 void ETRunWorker::collectInfos()
 {
+    // 使用锁保护 FFI 调用，确保线程安全
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
     std::vector<EasyTierFFI::KVPair> infos;
     size_t maxLen = MAX_NETWORK_INSTANCES;
     EasyTierFFI::collectNetworkInfos(infos, maxLen);

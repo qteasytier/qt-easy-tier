@@ -14,7 +14,7 @@
 #include <unistd.h>
 #endif
 
-void isAlreadyRunning(const QString& serverName, const bool &isAutoStart);
+void isAlreadyRunning(const QString& serverName, bool isAutoStart);
 
 #ifdef Q_OS_MACOS
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 }
 
 // 检查是否已有实例运行
-void isAlreadyRunning(const QString& serverName, const bool &isAutoStart) {
+void isAlreadyRunning(const QString& serverName, bool isAutoStart) {
     // 创建本地套接字，尝试连接指定名称的服务器
     QLocalSocket socket;
     socket.connectToServer(serverName);
@@ -104,4 +104,13 @@ void isAlreadyRunning(const QString& serverName, const bool &isAutoStart) {
         QLocalServer::removeServer(serverName);
         localServer->listen(serverName);
     }
+
+    // 处理后续实例的连接请求（用于唤醒已运行实例等功能）
+    QObject::connect(localServer, &QLocalServer::newConnection, [localServer]() {
+        // 接受连接但不做任何处理，仅用于检测实例存在
+        QLocalSocket *clientConnection = localServer->nextPendingConnection();
+        if (clientConnection) {
+            clientConnection->deleteLater();
+        }
+    });
 }

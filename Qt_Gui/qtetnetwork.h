@@ -142,10 +142,10 @@ public:
 private:
     /// @brief 将指定索引的网络配置加载到UI
     /// @param index 网络配置索引
-    void loadConfToUI(const int& index) const;
+    void loadConfToUI(int index) const;
     /// @brief 从UI保存配置到指定索引的网络配置
     /// @param index 网络配置索引
-    void saveConfFromUI(const int& index);
+    void saveConfFromUI(int index);
     /// @brief 更新 TabWidget 的启用状态
     void updateTabWidgetState() const;
     /// @brief 设置UI控件的信号连接
@@ -154,7 +154,7 @@ private:
     void updateRunButtonStyle() const;
     /// @brief 更新网络列表项的样式
     /// @param index 网络配置索引
-    void updateListItemStyle(const int& index) const;
+    void updateListItemStyle(int index) const;
     /// @brief 更新所有网络列表项的样式
     void updateAllListItemStyles() const;
     /// @brief 启动网络内部实现
@@ -184,19 +184,6 @@ private:
     /// @brief 更新指定索引的列表项显示名称
     /// @param index 网络配置索引
     void updateListItemDisplayName(int index) const;
-
-signals:
-    /// @brief 网络启动完成信号
-    /// @param networkName 网络名称
-    /// @param success 是否成功
-    /// @param errorMsg 错误信息（成功时为空）
-    void networkStarted(const QString &networkName, bool success, const QString &errorMsg);
-    
-    /// @brief 网络停止完成信号
-    /// @param networkName 网络名称
-    /// @param success 是否成功
-    /// @param errorMsg 错误信息（成功时为空）
-    void networkStopped(const QString &networkName, bool success, const QString &errorMsg);
 
 private slots:
     /// @brief 新建网络按钮点击

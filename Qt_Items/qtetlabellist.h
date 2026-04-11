@@ -76,6 +76,11 @@ public:
     /// @brief 根据位置获取项目（与 QListWidget 兼容）
     [[nodiscard]] QtETLabelListItem* itemAt(const QPoint &pos) const;
 
+    /// @brief 设置指定索引项目的图标并触发重绘
+    /// @param index 项目索引
+    /// @param icon 要设置的图标
+    void setItemIcon(int index, const QIcon &icon);
+
     /// @brief 获取悬停不透明度（用于动画）
     [[nodiscard]] qreal hoverOpacity() const;
     /// @brief 设置悬停不透明度（用于动画）

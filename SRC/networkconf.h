@@ -50,8 +50,8 @@ public:
     [[nodiscard]] QJsonObject toJson() const;
 
     /**
-     * @brief 输出为 TOML 格式字符串（暂未实现）
-     * @return TOML 格式字符串
+     * @brief 输出为 TOML 格式字符串
+     * @return TOML 格式字符串，用于传递给 EasyTier FFI
      */
     [[nodiscard]] std::string toToml() const;
 

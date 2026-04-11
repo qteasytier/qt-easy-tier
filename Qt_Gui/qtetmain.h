@@ -68,8 +68,6 @@ private slots:
     void onShowWindow();                     // 显示窗口
     void onHideWindow();                     // 隐藏窗口到托盘
     void onQuitApp();                        // 退出程序
-    void onNetworkStartedNotify(const QString &networkName, bool success, const QString &errorMsg); // 网络启动通知
-    void onNetworkStoppedNotify(const QString &networkName, bool success, const QString &errorMsg); // 网络停止通知
     void onHideOnTrayChanged(bool hideOnTray); // 隐藏到托盘设置变更
 };
 

@@ -363,8 +363,15 @@ bool saveAllNetworkConf(const std::vector<NetworkConf> &confList, QString *error
         return false;
     }
 
-    file.write(doc.toJson(QJsonDocument::Indented));
+    qint64 bytesWritten = file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
+
+    if (bytesWritten == -1) {
+        if (errorMsg) {
+            *errorMsg = QObject::tr("写入配置文件失败: %1").arg(filePath);
+        }
+        return false;
+    }
 
     return true;
 }

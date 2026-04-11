@@ -72,12 +72,6 @@ QtETMain::QtETMain(QWidget *parent)
     {
         QDesktopServices::openUrl(QUrl("https://www.bilibili.com/festival/2026BH?bvid=BV1gAcNzSEf4"));
     });
-    
-    // 连接网络状态信号到托盘消息
-    if (m_networkPage) {
-        connect(m_networkPage, &QtETNetwork::networkStarted, this, &QtETMain::onNetworkStartedNotify);
-        connect(m_networkPage, &QtETNetwork::networkStopped, this, &QtETMain::onNetworkStoppedNotify);
-    }
 }
 
 QtETMain::~QtETMain()
@@ -230,54 +224,6 @@ void QtETMain::onQuitApp()
     
     // 退出应用
     qApp->quit();
-}
-
-/// @brief 网络启动通知
-void QtETMain::onNetworkStartedNotify(const QString &networkName, bool success, const QString &errorMsg)
-{
-    if (!m_trayIcon) {
-        return;
-    }
-    
-    if (success) {
-        m_trayIcon->showMessage(
-            tr("网络启动成功"),
-            tr("网络 \"%1\" 已成功启动").arg(networkName),
-            QSystemTrayIcon::Information,
-            3000
-        );
-    } else {
-        m_trayIcon->showMessage(
-            tr("网络启动失败"),
-            tr("网络 \"%1\" 启动失败:\n%2").arg(networkName).arg(errorMsg),
-            QSystemTrayIcon::Warning,
-            5000
-        );
-    }
-}
-
-/// @brief 网络停止通知
-void QtETMain::onNetworkStoppedNotify(const QString &networkName, bool success, const QString &errorMsg)
-{
-    if (!m_trayIcon) {
-        return;
-    }
-    
-    if (success) {
-        m_trayIcon->showMessage(
-            tr("网络停止成功"),
-            tr("网络 \"%1\" 已成功停止").arg(networkName),
-            QSystemTrayIcon::Information,
-            3000
-        );
-    } else {
-        m_trayIcon->showMessage(
-            tr("网络停止失败"),
-            tr("网络 \"%1\" 停止失败:\n%2").arg(networkName).arg(errorMsg),
-            QSystemTrayIcon::Warning,
-            5000
-        );
-    }
 }
 
 /// @brief 处理系统调色板变化
