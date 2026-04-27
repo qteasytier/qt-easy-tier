@@ -32,6 +32,10 @@ set(QT_ITEMS_SRC
     "${CMAKE_SOURCE_DIR}/Qt_Items/qtetpushbtn.h"
     "${CMAKE_SOURCE_DIR}/Qt_Items/qtettabwidget.cpp"
     "${CMAKE_SOURCE_DIR}/Qt_Items/qtettabwidget.h"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtettheme.cpp"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtettheme.h"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetdrawutils.cpp"
+    "${CMAKE_SOURCE_DIR}/Qt_Items/qtetdrawutils.h"
 )
 qt_add_executable(CIDRCalculator
         MANUAL_FINALIZATION
