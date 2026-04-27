@@ -25,6 +25,13 @@ NetworkConf::NetworkConf()
     m_listenAddresses.push_back("udp://0.0.0.0:11010");
 }
 
+NetworkConf::~NetworkConf()
+{
+    if (m_isRunning && m_stopNetworkCallback) {
+        m_stopNetworkCallback(m_instanceName);
+    }
+}
+
 void NetworkConf::readFromUI(const QtETNetwork *network)
 {
     if (!network) {
@@ -84,6 +91,11 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     for (int i = 0; i < network->m_proxyNetworkListWidget->count(); ++i) {
         m_proxyNetworks.push_back(network->m_proxyNetworkListWidget->item(i)->text().toStdString());
     }
+}
+
+void NetworkConf::setStopNetworkCallback(std::function<void(const std::string&)> cb)
+{
+    m_stopNetworkCallback = std::move(cb);
 }
 
 void NetworkConf::readFromJson(const QJsonObject &json)

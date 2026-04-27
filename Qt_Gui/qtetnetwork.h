@@ -25,6 +25,7 @@
 #include <QTextEdit>
 #include <QProcess>
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <vector>
 
 #include "qtetlabellist.h"
@@ -184,6 +185,9 @@ private:
     /// @brief 更新指定索引的列表项显示名称
     /// @param index 网络配置索引
     void updateListItemDisplayName(int index) const;
+    /// @brief 为 NetworkConf 设置停止回调（析构时自动停止网络）
+    /// @param conf 网络配置引用
+    void setupNetworkStopCallback(NetworkConf &conf) const;
 
 private slots:
     /// @brief 新建网络按钮点击
