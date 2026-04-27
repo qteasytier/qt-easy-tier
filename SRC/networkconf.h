@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <functional>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -28,7 +29,7 @@ class NetworkConf
 
 public:
     NetworkConf();
-    ~NetworkConf() = default;
+    ~NetworkConf();
 
     /**
      * @brief 从 QtETNetwork 的前端 UI 中读取数据并保存到成员变量
@@ -65,6 +66,12 @@ public:
     void setInstanceName(const std::string &name) { m_instanceName = name; }
     [[nodiscard]] bool isRunning() const { return m_isRunning; }
     void setRunning(bool running) { m_isRunning = running; }
+
+    /**
+     * @brief 设置网络停止回调
+     * @param cb 停止回调函数，接受 instanceName 参数
+     */
+    void setStopNetworkCallback(std::function<void(const std::string&)> cb);
 
 private:
     // ==================== 基础设置 ====================
@@ -111,6 +118,9 @@ private:
     QVector<NodeInfo> m_runningStatus;      ///< 运行时节点信息列表
     QStringList m_runningLog;               ///< 运行时日志列表（最多300条）
     QString m_lastLogTimestamp;             ///< 上次读取日志时的最新时间戳（原始格式）
+
+    // ==================== 回调 ====================
+    std::function<void(const std::string&)> m_stopNetworkCallback;  ///< 网络停止回调（析构时自动调用）
 };
 
 /**

@@ -145,13 +145,50 @@ QtETNetwork::QtETNetwork(QWidget *parent)
 
 QtETNetwork::~QtETNetwork()
 {
-    // 停止并清理线程
+    // 必须在 QObject 子对象（m_runThread 等）被销毁之前停止所有运行中的网络配置。
+    // 否则 ~QObject() 的 child cleanup 会先销毁 m_runThread，
+    // 导致跨线程 stopNetwork 调用无法执行，产生"野网络"。
+    for (auto &conf : m_networkConfs) {
+        if (!conf.isRunning()) {
+            continue;
+        }
+        const std::string instName = conf.getInstanceName();
+
+        QEventLoop loop;
+        bool stopCompleted = false;
+
+        QMetaObject::Connection conn = connect(m_runWorker, &ETRunWorker::etRunStopped, this,
+            [&stopCompleted, &loop, &instName](const std::string &name, bool, const std::string &) {
+                if (name == instName) {
+                    stopCompleted = true;
+                    loop.quit();
+                }
+            }, Qt::QueuedConnection);
+
+        QTimer timeoutTimer;
+        timeoutTimer.setSingleShot(true);
+        connect(&timeoutTimer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        timeoutTimer.start(15000);
+
+        QMetaObject::invokeMethod(m_runWorker, "stopNetwork",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(std::string, instName));
+        loop.exec();
+        disconnect(conn);
+
+        conf.setRunning(false);
+        Q_UNUSED(stopCompleted)
+    }
+
+    for (auto &conf : m_networkConfs) {
+        conf.setStopNetworkCallback(nullptr);
+    }
+
     if (m_runThread) {
         m_runThread->quit();
         m_runThread->wait();
     }
 
-    // 清理进度对话框
     if (m_progressDialog) {
         m_progressDialog->deleteLater();
         m_progressDialog = nullptr;
@@ -886,8 +923,11 @@ void QtETNetwork::onNewNetwork()
     // 创建新的网络配置（构造函数会自动初始化 instanceName 和默认值）
     NetworkConf newConf;
     
+    // 设置停止回调
+    setupNetworkStopCallback(newConf);
+    
     // 添加到配置列表
-    m_networkConfs.push_back(newConf);
+    m_networkConfs.push_back(std::move(newConf));
     
     // 在列表中添加新项
     int index = static_cast<int>(m_networkConfs.size()) - 1;
@@ -992,11 +1032,18 @@ void QtETNetwork::onDeleteNetwork()
         return;
     }
     
+    NetworkConf &conf = m_networkConfs[currentRow];
+    const bool isRunning = conf.isRunning();
+    
     // 弹出确认框
     QMessageBox msgBox(this);
     msgBox.setWindowTitle(tr("确认删除"));
     msgBox.setText(tr("确定要删除网络 \"%1\" 吗？").arg(m_networksList->item(currentRow)->text()));
-    msgBox.setInformativeText(tr("删除后无法恢复。"));
+    if (isRunning) {
+        msgBox.setInformativeText(tr("该网络正在运行中，删除前将自动停止该网络。\n删除后无法恢复。"));
+    } else {
+        msgBox.setInformativeText(tr("删除后无法恢复。"));
+    }
     msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Cancel);
     msgBox.setIcon(QMessageBox::Warning);
@@ -1005,7 +1052,58 @@ void QtETNetwork::onDeleteNetwork()
         return;
     }
     
-    // 从配置列表中删除
+    // 如果网络正在运行，先强制停止
+    if (isRunning) {
+        const std::string instName = conf.getInstanceName();
+        
+        // 显示进度对话框
+        if (!m_progressDialog) {
+            m_progressDialog = new QProgressDialog(this);
+            m_progressDialog->setWindowModality(Qt::WindowModal);
+            m_progressDialog->setCancelButton(nullptr);
+            m_progressDialog->setRange(0, 0);
+        }
+        m_progressDialog->setLabelText(tr("正在停止网络 \"%1\"...").arg(m_networksList->item(currentRow)->text()));
+        m_progressDialog->show();
+        QCoreApplication::processEvents();
+        
+        // 使用本地事件循环等待停止完成
+        QEventLoop loop;
+        bool stopSuccess = false;
+        QMetaObject::Connection conn = connect(m_runWorker, &ETRunWorker::etRunStopped, this,
+            [&stopSuccess, &loop, &instName](const std::string& name, bool success, const std::string&) {
+                if (name == instName) {
+                    stopSuccess = success;
+                    loop.quit();
+                }
+            }, Qt::QueuedConnection);
+        
+        // 10 秒超时保护
+        QTimer timeoutTimer;
+        timeoutTimer.setSingleShot(true);
+        connect(&timeoutTimer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        timeoutTimer.start(10000);
+        
+        QMetaObject::invokeMethod(m_runWorker, "stopNetwork", Qt::QueuedConnection,
+                                  Q_ARG(std::string, instName));
+        loop.exec();
+        disconnect(conn);
+        
+        // 隐藏进度对话框
+        if (m_progressDialog) {
+            m_progressDialog->hide();
+        }
+        
+        // 如果停止失败，终止删除
+        if (!stopSuccess) {
+            QMessageBox::warning(this, tr("删除失败"),
+                                 tr("无法停止网络 \"%1\"，删除已取消。请稍后重试。")
+                                     .arg(m_networksList->item(currentRow)->text()));
+            return;
+        }
+    }
+    
+    // 从配置列表中删除（析构函数作为安全网，若仍在运行会再次尝试停止）
     m_networkConfs.erase(m_networkConfs.begin() + currentRow);
     
     // 从列表中删除
@@ -1023,6 +1121,9 @@ void QtETNetwork::onDeleteNetwork()
     if (m_networksList->count() > 0) {
         m_networksList->setCurrentRow(0);
     }
+    
+    // 保存配置
+    saveAllNetworkConfs();
 }
 
 void QtETNetwork::onUIChanged()
@@ -1356,6 +1457,8 @@ QVector<int> QtETNetwork::loadAllNetworkConfs()
         }
         // 程序刚启动，所有网络实际都未运行
         m_networkConfs[i].setRunning(false);
+        // 设置停止回调
+        setupNetworkStopCallback(m_networkConfs[i]);
     }
     
     // 添加到列表
@@ -1389,6 +1492,37 @@ void QtETNetwork::saveAllNetworkConfs() const
     if (!::saveAllNetworkConf(m_networkConfs, &errorMsg)) {
         qWarning() << "保存网络配置失败:" << errorMsg;
     }
+}
+
+void QtETNetwork::setupNetworkStopCallback(NetworkConf &conf) const
+{
+    conf.setStopNetworkCallback([this](const std::string &instName) {
+        QEventLoop loop;
+        bool stopCompleted = false;
+        
+        QMetaObject::Connection conn = connect(m_runWorker, &ETRunWorker::etRunStopped, this,
+            [&stopCompleted, &loop, &instName](const std::string &name, bool, const std::string &) {
+                if (name == instName) {
+                    stopCompleted = true;
+                    loop.quit();
+                }
+            }, Qt::QueuedConnection);
+        
+        // 12 秒超时保护
+        QTimer timeoutTimer;
+        timeoutTimer.setSingleShot(true);
+        connect(&timeoutTimer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        timeoutTimer.start(12000);
+        
+        QMetaObject::invokeMethod(m_runWorker, "stopNetwork",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(std::string, instName));
+        
+        loop.exec();
+        disconnect(conn);
+        
+        Q_UNUSED(stopCompleted)
+    });
 }
 
 void QtETNetwork::onExportConf()
@@ -1517,6 +1651,9 @@ void QtETNetwork::onImportConf()
     // 创建新的网络配置并导入（构造函数会自动生成 instanceName）
     NetworkConf newConf;
     newConf.readFromJson(doc.object());
+    
+    // 设置停止回调
+    setupNetworkStopCallback(newConf);
     
     // 添加到配置列表
     m_networkConfs.push_back(newConf);
