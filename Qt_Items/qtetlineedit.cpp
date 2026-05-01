@@ -184,20 +184,22 @@ void QtETLineEdit::paintEvent(QPaintEvent *event)
 
 void QtETLineEdit::enterEvent(QEnterEvent *event)
 {
-    QLineEdit::enterEvent(event);
     if (!isEnabled()) {
-        setCursor(Qt::ForbiddenCursor);
-    } else if (!m_hasFocus) {
+        return;
+    }
+    QLineEdit::enterEvent(event);
+    if (!m_hasFocus) {
         startBorderAnimation(1.0);
     }
 }
 
 void QtETLineEdit::leaveEvent(QEvent *event)
 {
-    QLineEdit::leaveEvent(event);
     if (!isEnabled()) {
-        setCursor(Qt::ArrowCursor);
-    } else if (!m_hasFocus) {
+        return;
+    }
+    QLineEdit::leaveEvent(event);
+    if (!m_hasFocus) {
         startBorderAnimation(0.0);
     }
 }
@@ -225,6 +227,7 @@ void QtETLineEdit::resizeEvent(QResizeEvent *event)
 void QtETLineEdit::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::EnabledChange) {
+        setAttribute(Qt::WA_TransparentForMouseEvents, !isEnabled());
         update();
     }
     QLineEdit::changeEvent(event);

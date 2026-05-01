@@ -7,8 +7,73 @@
 #include "qtetsettings.h"
 
 #include <sstream>
+#include <unordered_map>
 #include <QListWidget>
 #include <QLineEdit>
+
+// ==================== 枚举工具函数实现 ====================
+
+std::string toTomlString(DefaultProtocol protocol)
+{
+    switch (protocol) {
+        case DefaultProtocol::None: return "";
+        case DefaultProtocol::Udp:  return "udp";
+        case DefaultProtocol::Tcp:  return "tcp";
+        case DefaultProtocol::Wg:   return "wg";
+        case DefaultProtocol::Ws:   return "ws";
+        case DefaultProtocol::Wss:  return "wss";
+    }
+    return "";
+}
+
+std::optional<DefaultProtocol> defaultProtocolFromToml(std::string_view str)
+{
+    static const std::unordered_map<std::string_view, DefaultProtocol> map = {
+        {"",     DefaultProtocol::None},
+        {"udp",  DefaultProtocol::Udp},
+        {"tcp",  DefaultProtocol::Tcp},
+        {"wg",   DefaultProtocol::Wg},
+        {"ws",   DefaultProtocol::Ws},
+        {"wss",  DefaultProtocol::Wss}
+    };
+    auto it = map.find(str);
+    if (it != map.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+std::string toTomlString(EncryptionAlgorithm algorithm)
+{
+    switch (algorithm) {
+        case EncryptionAlgorithm::AesGcm:             return "aes-gcm";
+        case EncryptionAlgorithm::Xor:                return "xor";
+        case EncryptionAlgorithm::Chacha20:           return "chacha20";
+        case EncryptionAlgorithm::AesGcm256:          return "aes-gcm-256";
+        case EncryptionAlgorithm::OpensslAes128Gcm:   return "openssl-aes128-gcm";
+        case EncryptionAlgorithm::OpensslAes256Gcm:   return "openssl-aes256-gcm";
+        case EncryptionAlgorithm::OpensslChacha20:    return "openssl-chacha20";
+    }
+    return "aes-gcm";
+}
+
+std::optional<EncryptionAlgorithm> encryptionAlgorithmFromToml(std::string_view str)
+{
+    static const std::unordered_map<std::string_view, EncryptionAlgorithm> map = {
+        {"aes-gcm",             EncryptionAlgorithm::AesGcm},
+        {"xor",                 EncryptionAlgorithm::Xor},
+        {"chacha20",            EncryptionAlgorithm::Chacha20},
+        {"aes-gcm-256",         EncryptionAlgorithm::AesGcm256},
+        {"openssl-aes128-gcm",  EncryptionAlgorithm::OpensslAes128Gcm},
+        {"openssl-aes256-gcm",  EncryptionAlgorithm::OpensslAes256Gcm},
+        {"openssl-chacha20",    EncryptionAlgorithm::OpensslChacha20}
+    };
+    auto it = map.find(str);
+    if (it != map.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
 
 // ==================== NetworkConf 类实现 ====================
 
@@ -25,12 +90,7 @@ NetworkConf::NetworkConf()
     m_listenAddresses.push_back("udp://0.0.0.0:11010");
 }
 
-NetworkConf::~NetworkConf()
-{
-    if (m_isRunning && m_stopNetworkCallback) {
-        m_stopNetworkCallback(m_instanceName);
-    }
-}
+NetworkConf::~NetworkConf() = default;
 
 void NetworkConf::readFromUI(const QtETNetwork *network)
 {
@@ -72,6 +132,9 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     m_enableEncryption = network->m_enableEncryptionCheckBox->isChecked();
     m_acceptDns = network->m_acceptDnsCheckBox->isChecked();
 
+    m_defaultProtocol = static_cast<DefaultProtocol>(network->m_defaultProtocolCombo->currentData().toInt());
+    m_encryptionAlgorithm = static_cast<EncryptionAlgorithm>(network->m_encryptionAlgorithmCombo->currentData().toInt());
+
     // ==================== 高级设置 - 其他 ====================
     // 网络白名单
     m_foreignNetworkWhitelistEnabled = network->m_foreignNetworkWhitelistCheckBox->isChecked();
@@ -91,11 +154,6 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     for (int i = 0; i < network->m_proxyNetworkListWidget->count(); ++i) {
         m_proxyNetworks.push_back(network->m_proxyNetworkListWidget->item(i)->text().toStdString());
     }
-}
-
-void NetworkConf::setStopNetworkCallback(std::function<void(const std::string&)> cb)
-{
-    m_stopNetworkCallback = std::move(cb);
 }
 
 void NetworkConf::readFromJson(const QJsonObject &json)
@@ -144,6 +202,21 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     m_relayAllPeerRpc = json["relay_all_peer_rpc"].toBool(false);
     m_enableEncryption = json["enable_encryption"].toBool(true);
     m_acceptDns = json["accept_dns"].toBool(false);
+
+    // 默认连接协议
+    if (json.contains("default_protocol")) {
+        std::string protocolStr = json["default_protocol"].toString().toStdString();
+        if (auto p = defaultProtocolFromToml(protocolStr)) {
+            m_defaultProtocol = *p;
+        }
+    }
+    // 默认加密协议
+    if (json.contains("encryption_algorithm")) {
+        std::string algoStr = json["encryption_algorithm"].toString().toStdString();
+        if (auto a = encryptionAlgorithmFromToml(algoStr)) {
+            m_encryptionAlgorithm = *a;
+        }
+    }
 
     // ==================== 高级设置 - 其他 ====================
     m_foreignNetworkWhitelistEnabled = json["foreign_network_whitelist_enabled"].toBool(false);
@@ -215,6 +288,8 @@ QJsonObject NetworkConf::toJson() const
     json["relay_all_peer_rpc"] = m_relayAllPeerRpc;
     json["enable_encryption"] = m_enableEncryption;
     json["accept_dns"] = m_acceptDns;
+    json["default_protocol"] = QString::fromStdString(toTomlString(m_defaultProtocol));
+    json["encryption_algorithm"] = QString::fromStdString(toTomlString(m_encryptionAlgorithm));
 
     // ==================== 高级设置 - 其他 ====================
     json["foreign_network_whitelist_enabled"] = m_foreignNetworkWhitelistEnabled;
@@ -315,6 +390,11 @@ std::string NetworkConf::toToml() const
     oss << "relay_all_peer_rpc = " << (m_relayAllPeerRpc ? "true" : "false") << "\n";
     oss << "disable_udp_hole_punching = " << (m_disableUdpHolePunching ? "true" : "false") << "\n";
     oss << "proxy_forward_by_system = " << (m_systemForwarding ? "true" : "false") << "\n";
+
+    if (m_defaultProtocol != DefaultProtocol::None) {
+        oss << "default_protocol = \"" << toTomlString(m_defaultProtocol) << "\"\n";
+    }
+    oss << "encryption_algorithm = \"" << toTomlString(m_encryptionAlgorithm) << "\"\n";
 
     return oss.str();
 }

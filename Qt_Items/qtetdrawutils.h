@@ -4,6 +4,10 @@
 #include <QColor>
 #include <QPainter>
 #include <QPainterPath>
+#include <QObject>
+
+class QAbstractScrollArea;
+class QPropertyAnimation;
 
 /// @brief 公共绘制工具类
 /// 提取各控件中重复的绘制逻辑
@@ -40,6 +44,34 @@ public:
 
     /// @brief 安全地结束 painter（避免双重 end 问题）
     static void safeEndPainter(QPainter *painter);
+};
+
+/// @brief 平滑滚动组件
+/// 通过事件过滤器拦截 QAbstractScrollArea 的滚轮事件，使用 QPropertyAnimation 实现平滑滚动。
+/// 支持 QScrollArea、QTextEdit 等所有 QAbstractScrollArea 子类。
+class QtETSmoothScroll : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit QtETSmoothScroll(QAbstractScrollArea *scrollArea, QObject *parent = nullptr);
+
+    /// @brief 便捷方法：创建并安装到目标滚动区域的 viewport
+    static QtETSmoothScroll* install(QAbstractScrollArea *scrollArea,
+                                     int duration = 150, int step = 80);
+
+    void setDuration(int ms);
+    void setScrollStep(int step);
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+    QAbstractScrollArea *m_scrollArea;
+    QPropertyAnimation *m_animation = nullptr;
+    int m_targetValue = 0;
+    int m_duration = 150;
+    int m_scrollStep = 80;
 };
 
 #endif // QTETDRAWUTILS_H

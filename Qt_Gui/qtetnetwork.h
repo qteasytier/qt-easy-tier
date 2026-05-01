@@ -9,8 +9,6 @@
 #include <QGridLayout>
 #include <QComboBox>
 #include <QAction>
-#include <QScrollBar>
-#include <QWheelEvent>
 #include <QMenu>
 #include <QMessageBox>
 #include <QAbstractButton>
@@ -32,70 +30,12 @@
 #include <QListWidget>
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
+#include "qtetcombobox.h"
 #include "qtetnodeinfo.h"
 #include "qtettabwidget.h"
 #include "qtetlineedit.h"
 #include "networkconf.h"
 #include "ETRunWorker.h"
-
-/// @brief 平滑滚动事件过滤器
-/// 实现滚轮平滑滚动效果
-/// 支持所有继承自 QAbstractScrollArea 的控件（如 QScrollArea、QTextEdit 等）
-class SmoothScrollFilter : public QObject
-{
-    Q_OBJECT
-
-public:
-    explicit SmoothScrollFilter(QAbstractScrollArea *scrollArea, QObject *parent = nullptr)
-        : QObject(parent)
-        , m_scrollArea(scrollArea)
-        , m_animation(nullptr)
-        , m_targetValue(0)
-    {}
-
-protected:
-    bool eventFilter(QObject *watched, QEvent *event) override
-    {
-        if (event->type() == QEvent::Wheel && m_scrollArea) {
-            // 滚轮事件由 viewport 接收，而非 QAbstractScrollArea 本身
-            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
-            QScrollBar *scrollBar = m_scrollArea->verticalScrollBar();
-            if (!scrollBar || !scrollBar->isVisible()) {
-                return QObject::eventFilter(watched, event);
-            }
-
-            // 计算滚动距离
-            int delta = -wheelEvent->angleDelta().y();
-            int scrollStep = 80; // 平滑滚动步长
-
-            // 目标位置
-            int currentValue = scrollBar->value();
-            m_targetValue = currentValue + (delta > 0 ? scrollStep : -scrollStep);
-            m_targetValue = qBound(scrollBar->minimum(), m_targetValue, scrollBar->maximum());
-
-            // 创建或更新动画
-            if (!m_animation) {
-                m_animation = new QPropertyAnimation(scrollBar, "value", this);
-                m_animation->setDuration(150); // 动画持续时间(毫秒)
-                m_animation->setEasingCurve(QEasingCurve::OutQuad); // 缓出效果
-            }
-
-            m_animation->stop();
-            m_animation->setStartValue(currentValue);
-            m_animation->setEndValue(m_targetValue);
-            m_animation->start();
-
-            return true; // 事件已处理
-        }
-
-        return QObject::eventFilter(watched, event);
-    }
-
-private:
-    QAbstractScrollArea *m_scrollArea;  ///< 关联的滚动区域
-    QPropertyAnimation *m_animation;     ///< 滚动动画
-    int m_targetValue;                   ///< 目标滚动位置
-};
 
 /// @brief 网络配置页面
 /// 提供网络列表和配置选项卡的界面
@@ -185,9 +125,11 @@ private:
     /// @brief 更新指定索引的列表项显示名称
     /// @param index 网络配置索引
     void updateListItemDisplayName(int index) const;
-    /// @brief 为 NetworkConf 设置停止回调（析构时自动停止网络）
-    /// @param conf 网络配置引用
-    void setupNetworkStopCallback(NetworkConf &conf) const;
+    /// @brief 同步停止网络并等待完成
+    /// @param instName 实例名称
+    /// @param timeoutMs 超时时间（毫秒）
+    /// @return true 停止成功，false 超时或停止失败
+    bool stopNetworkAndWait(const std::string &instName, int timeoutMs);
 
 private slots:
     /// @brief 新建网络按钮点击
@@ -250,10 +192,13 @@ private:
     QtETPushBtn *m_removeServerBtn;         /// @brief 删除服务器按钮
     QtETPushBtn *m_publicServerBtn;     /// @brief 公共服务器列表按钮
 
-    // 高级设置控件 - 功能开关
-    QWidget *m_functionWidget;                          /// @brief 功能开关容器
-    QGridLayout *m_functionGridLayout;                  /// @brief 功能开关网格布局
-    QList<QtETCheckBtn*> m_functionCheckBoxes;          /// @brief 功能开关列表
+    // 高级设置控件 - 功能开关板块
+    struct FunctionSection {
+        QGridLayout *gridLayout = nullptr;
+        QList<QtETCheckBtn*> checkBoxes;
+    };
+    QWidget *m_advScrollContent;                         /// @brief 高级设置滚动区内容部件（用于宽度计算）
+    QVector<FunctionSection> m_functionSections;         /// @brief 功能开关板块列表
     QtETCheckBtn *m_enableKcpProxyCheckBox;             /// @brief 启用 KCP 代理 (enable_kcp_proxy)
     QtETCheckBtn *m_disableKcpInputCheckBox;            /// @brief 禁用 KCP 输入 (disable_kcp_input)
     QtETCheckBtn *m_noTunCheckBox;                      /// @brief 无 TUN 模式 (no_tun)
@@ -271,6 +216,8 @@ private:
     QtETCheckBtn *m_relayAllPeerRpcCheckBox;            /// @brief 转发 RPC 包 (relay_all_peer_rpc)
     QtETCheckBtn *m_enableEncryptionCheckBox;           /// @brief 启用加密 (enable_encryption)
     QtETCheckBtn *m_acceptDnsCheckBox;                  /// @brief 启用魔法 DNS (accept_dns)
+    QtETComboBox *m_defaultProtocolCombo;               /// @brief 默认连接协议 (default_protocol)
+    QtETComboBox *m_encryptionAlgorithmCombo;           /// @brief 默认加密协议 (encryption_algorithm)
 
     // 高级设置控件 - 网络白名单
     QtETCheckBtn *m_foreignNetworkWhitelistCheckBox;    /// @brief 启用网络白名单 (foreign_network_whitelist)
@@ -315,6 +262,9 @@ private:
     std::string m_currentRunningInstName; /// @brief 当前正在操作的网络实例名称
     QTimer *m_monitorTimer;             /// @brief 节点监测定时器
     int m_runningNetworkCount;          /// @brief 正在运行的网络数量
+
+    // 日志增量渲染状态
+    QString m_lastRenderedInstName;     ///< 上次渲染到UI的网络实例名（用于检测网络切换）
 
     // 主布局
     QHBoxLayout *m_mainLayout;          /// @brief 主布局

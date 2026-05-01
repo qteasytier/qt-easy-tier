@@ -1,6 +1,7 @@
 #include "qtetserversdialog.h"
 #include "qtettheme.h"
 #include "qtetsettings.h"
+#include "qtetdrawutils.h"
 
 #include <QFile>
 #include <QJsonDocument>
@@ -49,6 +50,8 @@ void QtETServersDialog::initUI()
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setFrameShape(QFrame::NoFrame);
+
+    QtETSmoothScroll::install(m_scrollArea);
 
     // 使用 QPalette 替代 QSS 设置透明背景
     QPalette scrollPalette = m_scrollArea->palette();

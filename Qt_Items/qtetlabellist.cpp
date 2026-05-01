@@ -51,6 +51,9 @@ QtETLabelList::~QtETLabelList()
     if (m_selectionAnimation) {
         m_selectionAnimation->stop();
     }
+    if (m_scrollAnimation) {
+        m_scrollAnimation->stop();
+    }
 
     qDeleteAll(m_items);
     m_items.clear();
@@ -73,6 +76,10 @@ void QtETLabelList::init()
     m_selectionAnimation->setDuration(ANIMATION_DURATION);
     m_selectionAnimation->setEasingCurve(QEasingCurve::OutCubic);
 
+    m_scrollAnimation = new QPropertyAnimation(this, "scrollOffset", this);
+    m_scrollAnimation->setDuration(ANIMATION_DURATION);
+    m_scrollAnimation->setEasingCurve(QEasingCurve::OutCubic);
+
     updateColorScheme();
 
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
@@ -85,7 +92,6 @@ void QtETLabelList::updateColorScheme()
 {
     auto *theme = QtETTheme::instance();
     m_textColor = theme->textColor();
-    m_selectedTextColor = theme->selectedTextColor();
     m_bgColor = Qt::transparent;
     m_hoverFillColor = theme->hoverFillColor(m_highlightColor);
     update();
@@ -269,8 +275,74 @@ int QtETLabelList::getRowAtPosition(const QPoint &pos) const
 
 void QtETLabelList::updateContentHeight()
 {
+    update();
+}
+
+int QtETLabelList::scrollOffset() const
+{
+    return m_scrollOffset;
+}
+
+void QtETLabelList::setScrollOffset(int offset)
+{
     int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
-    setMinimumHeight(totalHeight);
+    int visibleHeight = height();
+    int maxOffset = qMax(0, totalHeight - visibleHeight);
+    offset = qBound(0, offset, maxOffset);
+    if (m_scrollOffset != offset) {
+        m_scrollOffset = offset;
+        update();
+    }
+}
+
+QRect QtETLabelList::scrollbarTrackRect() const
+{
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    int visibleHeight = height();
+    if (visibleHeight <= 0 || totalHeight <= visibleHeight) {
+        return QRect();
+    }
+    int trackX = width() - SCROLLBAR_WIDTH - SCROLLBAR_MARGIN;
+    return QRect(trackX, SCROLLBAR_MARGIN, SCROLLBAR_WIDTH, visibleHeight - SCROLLBAR_MARGIN * 2);
+}
+
+QRect QtETLabelList::scrollbarHandleRect() const
+{
+    QRect track = scrollbarTrackRect();
+    if (track.isNull()) {
+        return QRect();
+    }
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    int visibleHeight = height();
+    double ratio = static_cast<double>(visibleHeight) / totalHeight;
+    int handleHeight = qMax(SCROLLBAR_MIN_HANDLE, static_cast<int>(track.height() * ratio));
+    int maxHandleY = track.height() - handleHeight;
+    double scrollRatio = (totalHeight > visibleHeight)
+                             ? static_cast<double>(m_scrollOffset) / (totalHeight - visibleHeight)
+                             : 0.0;
+    int handleY = track.top() + static_cast<int>(scrollRatio * maxHandleY);
+    return QRect(track.x(), handleY, track.width(), handleHeight);
+}
+
+void QtETLabelList::drawScrollbar(QPainter &painter)
+{
+    QRect track = scrollbarTrackRect();
+    if (track.isNull()) {
+        return;
+    }
+
+    QColor trackColor = m_textColor;
+    trackColor.setAlphaF(0.08);
+    QPainterPath trackPath;
+    trackPath.addRoundedRect(QRectF(track), SCROLLBAR_WIDTH / 2.0, SCROLLBAR_WIDTH / 2.0);
+    painter.fillPath(trackPath, trackColor);
+
+    QRect handle = scrollbarHandleRect();
+    QColor handleColor = m_textColor;
+    handleColor.setAlphaF(m_scrollbarHovered || m_scrollbarDragging ? 0.45 : 0.25);
+    QPainterPath handlePath;
+    handlePath.addRoundedRect(QRectF(handle), SCROLLBAR_WIDTH / 2.0, SCROLLBAR_WIDTH / 2.0);
+    painter.fillPath(handlePath, handleColor);
 }
 
 void QtETLabelList::paintEvent(QPaintEvent *event)
@@ -286,6 +358,10 @@ void QtETLabelList::paintEvent(QPaintEvent *event)
     int lastVisibleRow = (m_scrollOffset + height() + ITEM_HEIGHT - 1) / ITEM_HEIGHT;
     lastVisibleRow = qMin(lastVisibleRow, static_cast<int>(m_items.size()) - 1);
 
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    bool scrollbarVisible = (totalHeight > height());
+    int extraRightMargin = scrollbarVisible ? (SCROLLBAR_WIDTH + SCROLLBAR_MARGIN) : 0;
+
     for (int row = firstVisibleRow; row <= lastVisibleRow; ++row) {
         QRect itemRect = calculateItemRect(row);
         QtETLabelListItem *itemData = m_items[row];
@@ -298,7 +374,7 @@ void QtETLabelList::paintEvent(QPaintEvent *event)
         painter.setClipRect(itemRect);
 
         QRect drawRect = itemRect.adjusted(ITEM_MARGIN, ITEM_MARGIN / 2,
-                                            -ITEM_MARGIN, -ITEM_MARGIN / 2);
+                                            -(ITEM_MARGIN + extraRightMargin), -ITEM_MARGIN / 2);
 
         bool isSelected = (row == m_selectedRow);
         bool isHovered = (row == m_hoveredRow);
@@ -330,7 +406,7 @@ void QtETLabelList::paintEvent(QPaintEvent *event)
             font.setPointSize(TEXT_SIZE);
             painter.setFont(font);
 
-            QColor textColor = isSelected ? m_selectedTextColor : m_textColor;
+            QColor textColor = isSelected ? QColor(0, 0, 0) : m_textColor;
             painter.setPen(textColor);
 
             int textLeft = drawRect.left() + 8;
@@ -346,6 +422,8 @@ void QtETLabelList::paintEvent(QPaintEvent *event)
         painter.restore();
     }
 
+    drawScrollbar(painter);
+
     if (m_items.isEmpty()) {
         QFont font = painter.font();
         font.setPointSize(14);
@@ -360,10 +438,34 @@ void QtETLabelList::paintEvent(QPaintEvent *event)
 
 void QtETLabelList::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_scrollbarDragging) {
+        QRect track = scrollbarTrackRect();
+        QRect handle = scrollbarHandleRect();
+        int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+        int visibleHeight = height();
+        if (!track.isNull() && track.height() > handle.height() && totalHeight > visibleHeight) {
+            int deltaY = event->pos().y() - m_dragAnchor;
+            double ratio = static_cast<double>(deltaY) / (track.height() - handle.height());
+            int newOffset = m_dragAnchorOffset + static_cast<int>(ratio * (totalHeight - visibleHeight));
+            newOffset = qBound(0, newOffset, totalHeight - visibleHeight);
+            if (newOffset != m_scrollOffset) {
+                m_scrollOffset = newOffset;
+                update();
+            }
+        }
+        return;
+    }
+
     int newHoveredRow = getRowAtPosition(event->pos());
 
     if (newHoveredRow != m_hoveredRow) {
         m_hoveredRow = newHoveredRow;
+        update();
+    }
+
+    bool inScrollbar = scrollbarTrackRect().contains(event->pos());
+    if (inScrollbar != m_scrollbarHovered) {
+        m_scrollbarHovered = inScrollbar;
         update();
     }
 
@@ -373,6 +475,38 @@ void QtETLabelList::mouseMoveEvent(QMouseEvent *event)
 void QtETLabelList::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
+        QRect track = scrollbarTrackRect();
+        if (!track.isNull() && track.contains(event->pos())) {
+            QRect handle = scrollbarHandleRect();
+            int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+            int visibleHeight = height();
+            if (visibleHeight > 0 && totalHeight > visibleHeight) {
+                if (handle.contains(event->pos())) {
+                    m_scrollbarDragging = true;
+                    m_dragAnchor = event->pos().y();
+                    m_dragAnchorOffset = m_scrollOffset;
+                    if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
+                        m_scrollAnimation->stop();
+                    }
+                } else if (track.height() > handle.height()) {
+                    double ratio = static_cast<double>(event->pos().y() - track.top() - handle.height() / 2)
+                                   / (track.height() - handle.height());
+                    ratio = qBound(0.0, ratio, 1.0);
+                    int targetOffset = static_cast<int>(ratio * (totalHeight - visibleHeight));
+                    targetOffset = qBound(0, targetOffset, totalHeight - visibleHeight);
+
+                    if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
+                        m_scrollAnimation->stop();
+                    }
+                    m_scrollAnimation->setStartValue(m_scrollOffset);
+                    m_scrollAnimation->setEndValue(targetOffset);
+                    m_scrollAnimation->start();
+                }
+            }
+            event->accept();
+            return;
+        }
+
         int clickedRow = getRowAtPosition(event->pos());
         if (clickedRow >= 0 && clickedRow < static_cast<int>(m_items.size())) {
             setCurrentRow(clickedRow);
@@ -396,8 +530,17 @@ void QtETLabelList::mouseDoubleClickEvent(QMouseEvent *event)
 void QtETLabelList::leaveEvent(QEvent *event)
 {
     m_hoveredRow = -1;
+    m_scrollbarDragging = false;
     update();
     QWidget::leaveEvent(event);
+}
+
+void QtETLabelList::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton && m_scrollbarDragging) {
+        m_scrollbarDragging = false;
+    }
+    QWidget::mouseReleaseEvent(event);
 }
 
 void QtETLabelList::wheelEvent(QWheelEvent *event)
@@ -411,21 +554,26 @@ void QtETLabelList::wheelEvent(QWheelEvent *event)
     }
 
     int delta = event->angleDelta().y();
-    int newOffset = m_scrollOffset - delta / 8;
-
+    int targetOffset = m_scrollOffset - delta / 2;
     int maxOffset = totalHeight - visibleHeight;
-    newOffset = qBound(0, newOffset, maxOffset);
+    targetOffset = qBound(0, targetOffset, maxOffset);
 
-    if (newOffset != m_scrollOffset) {
-        m_scrollOffset = newOffset;
-        update();
+    if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
+        m_scrollAnimation->stop();
     }
+    m_scrollAnimation->setStartValue(m_scrollOffset);
+    m_scrollAnimation->setEndValue(targetOffset);
+    m_scrollAnimation->start();
 
     event->accept();
 }
 
 void QtETLabelList::resizeEvent(QResizeEvent *event)
 {
+    int totalHeight = static_cast<int>(m_items.size()) * ITEM_HEIGHT;
+    int visibleHeight = height();
+    int maxOffset = qMax(0, totalHeight - visibleHeight);
+    m_scrollOffset = qBound(0, m_scrollOffset, maxOffset);
     QWidget::resizeEvent(event);
     update();
 }
@@ -468,6 +616,9 @@ void QtETLabelList::keyPressEvent(QKeyEvent *event)
     }
 
     if (newIndex != current) {
+        if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
+            m_scrollAnimation->stop();
+        }
         setCurrentRow(newIndex);
         // 自动滚动到可视区域
         int itemTop = newIndex * ITEM_HEIGHT;

@@ -6,9 +6,11 @@
 #define QTEASYTIER_NETWORKCONF_H
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <random>
-#include <functional>
+#include <optional>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -18,6 +20,33 @@
 #include "qtetnodeinfo.h"
 
 class QtETNetwork;
+
+// ==================== 协议与加密枚举 ====================
+
+enum class DefaultProtocol {
+    None,    // 不指定（TOML 中不输出 default_protocol）
+    Udp,
+    Tcp,
+    Wg,
+    Ws,
+    Wss
+};
+
+enum class EncryptionAlgorithm {
+    AesGcm,           // 默认
+    Xor,
+    Chacha20,
+    AesGcm256,
+    OpensslAes128Gcm,
+    OpensslAes256Gcm,
+    OpensslChacha20
+};
+
+// C++ 风格工具函数：枚举 <-> TOML 字符串
+[[nodiscard]] std::string toTomlString(DefaultProtocol protocol);
+[[nodiscard]] std::optional<DefaultProtocol> defaultProtocolFromToml(std::string_view str);
+[[nodiscard]] std::string toTomlString(EncryptionAlgorithm algorithm);
+[[nodiscard]] std::optional<EncryptionAlgorithm> encryptionAlgorithmFromToml(std::string_view str);
 
 class NetworkConf
 {
@@ -67,12 +96,6 @@ public:
     [[nodiscard]] bool isRunning() const { return m_isRunning; }
     void setRunning(bool running) { m_isRunning = running; }
 
-    /**
-     * @brief 设置网络停止回调
-     * @param cb 停止回调函数，接受 instanceName 参数
-     */
-    void setStopNetworkCallback(std::function<void(const std::string&)> cb);
-
 private:
     // ==================== 基础设置 ====================
     std::string m_hostname;                 ///< 用户名
@@ -102,6 +125,8 @@ private:
     bool m_relayAllPeerRpc = false;         ///< 转发 RPC 包
     bool m_enableEncryption = true;         ///< 启用加密
     bool m_acceptDns = false;               ///< 启用魔法 DNS
+    DefaultProtocol m_defaultProtocol = DefaultProtocol::None;       ///< 默认连接协议
+    EncryptionAlgorithm m_encryptionAlgorithm = EncryptionAlgorithm::AesGcm; ///< 默认加密协议
 
     // ==================== 高级设置 - 其他 ====================
     bool m_foreignNetworkWhitelistEnabled = false;  ///< 启用网络白名单
@@ -118,9 +143,7 @@ private:
     QVector<NodeInfo> m_runningStatus;      ///< 运行时节点信息列表
     QStringList m_runningLog;               ///< 运行时日志列表（最多300条）
     QString m_lastLogTimestamp;             ///< 上次读取日志时的最新时间戳（原始格式）
-
-    // ==================== 回调 ====================
-    std::function<void(const std::string&)> m_stopNetworkCallback;  ///< 网络停止回调（析构时自动调用）
+    int m_renderedLogCount = 0;             ///< 已渲染到UI的日志条数（用于增量更新）
 };
 
 /**

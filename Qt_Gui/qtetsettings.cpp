@@ -5,6 +5,7 @@
 #include "qtetsettings.h"
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
+#include "qtetdrawutils.h"
 
 #include <QMessageBox>
 #include <QDesktopServices>
@@ -79,6 +80,8 @@ void QtETSettings::initUI()
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QtETSmoothScroll::install(scrollArea);
 
     // 设置选项内容容器
     auto *settingsWidget = new QWidget();

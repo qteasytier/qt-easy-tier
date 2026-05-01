@@ -1,6 +1,11 @@
 #include "qtetdrawutils.h"
 
 #include <QFontMetrics>
+#include <QAbstractScrollArea>
+#include <QScrollBar>
+#include <QWheelEvent>
+#include <QPropertyAnimation>
+#include <QEasingCurve>
 
 QColor QtETDrawUtils::blendColors(const QColor &from, const QColor &to, qreal opacity)
 {
@@ -82,4 +87,61 @@ void QtETDrawUtils::safeEndPainter(QPainter *painter)
     if (painter->isActive()) {
         painter->end();
     }
+}
+
+QtETSmoothScroll::QtETSmoothScroll(QAbstractScrollArea *scrollArea, QObject *parent)
+    : QObject(parent)
+    , m_scrollArea(scrollArea)
+{
+}
+
+QtETSmoothScroll* QtETSmoothScroll::install(QAbstractScrollArea *scrollArea,
+                                             int duration, int step)
+{
+    auto *filter = new QtETSmoothScroll(scrollArea, scrollArea);
+    filter->setDuration(duration);
+    filter->setScrollStep(step);
+    scrollArea->viewport()->installEventFilter(filter);
+    return filter;
+}
+
+void QtETSmoothScroll::setDuration(int ms)
+{
+    m_duration = ms;
+}
+
+void QtETSmoothScroll::setScrollStep(int step)
+{
+    m_scrollStep = step;
+}
+
+bool QtETSmoothScroll::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Wheel && m_scrollArea) {
+        QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+        QScrollBar *scrollBar = m_scrollArea->verticalScrollBar();
+        if (!scrollBar || !scrollBar->isVisible()) {
+            return QObject::eventFilter(watched, event);
+        }
+
+        int delta = -wheelEvent->angleDelta().y();
+        int currentValue = scrollBar->value();
+        m_targetValue = currentValue + (delta > 0 ? m_scrollStep : -m_scrollStep);
+        m_targetValue = qBound(scrollBar->minimum(), m_targetValue, scrollBar->maximum());
+
+        if (!m_animation) {
+            m_animation = new QPropertyAnimation(scrollBar, "value", this);
+            m_animation->setDuration(m_duration);
+            m_animation->setEasingCurve(QEasingCurve::OutQuad);
+        }
+
+        m_animation->stop();
+        m_animation->setStartValue(currentValue);
+        m_animation->setEndValue(m_targetValue);
+        m_animation->start();
+
+        return true;
+    }
+
+    return QObject::eventFilter(watched, event);
 }

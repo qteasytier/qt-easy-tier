@@ -35,6 +35,7 @@ class QtETLabelList : public QWidget
     Q_OBJECT
     Q_PROPERTY(qreal hoverOpacity READ hoverOpacity WRITE setHoverOpacity)
     Q_PROPERTY(qreal selectionOpacity READ selectionOpacity WRITE setSelectionOpacity)
+    Q_PROPERTY(int scrollOffset READ scrollOffset WRITE setScrollOffset)
 
 public:
     explicit QtETLabelList(QWidget *parent = nullptr);
@@ -60,6 +61,8 @@ public:
     void setSelectionOpacity(qreal opacity);
     void setHighlightColor(const QColor &color);
     [[nodiscard]] QColor highlightColor() const;
+    [[nodiscard]] int scrollOffset() const;
+    void setScrollOffset(int offset);
 
 signals:
     void currentRowChanged(int currentRow);
@@ -73,6 +76,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
@@ -83,21 +87,28 @@ private:
     [[nodiscard]] QRect calculateItemRect(int row) const;
     [[nodiscard]] int getRowAtPosition(const QPoint &pos) const;
     void updateContentHeight();
+    [[nodiscard]] QRect scrollbarTrackRect() const;
+    [[nodiscard]] QRect scrollbarHandleRect() const;
+    void drawScrollbar(QPainter &painter);
 
 private:
     QList<QtETLabelListItem*> m_items;
     QPropertyAnimation *m_hoverAnimation = nullptr;
     QPropertyAnimation *m_selectionAnimation = nullptr;
+    QPropertyAnimation *m_scrollAnimation = nullptr;
     qreal m_hoverOpacity = 0.0;
     qreal m_selectionOpacity = 0.0;
     int m_hoveredRow = -1;
     int m_selectedRow = -1;
     int m_scrollOffset = 0;
+    bool m_scrollbarHovered = false;
+    bool m_scrollbarDragging = false;
+    int m_dragAnchor = 0;
+    int m_dragAnchorOffset = 0;
     QColor m_highlightColor;
     QColor m_hoverFillColor;
     QColor m_textColor;
     QColor m_bgColor;
-    QColor m_selectedTextColor;
 
     static constexpr int ANIMATION_DURATION = 200;
     static constexpr int BORDER_RADIUS = 6;
@@ -106,6 +117,10 @@ private:
     static constexpr int ICON_SIZE = 18;
     static constexpr int TEXT_SIZE = 12;
     static constexpr int ICON_TEXT_SPACING = 8;
+
+    static constexpr int SCROLLBAR_WIDTH = 6;
+    static constexpr int SCROLLBAR_MIN_HANDLE = 30;
+    static constexpr int SCROLLBAR_MARGIN = 2;
 };
 
 #endif // QTETLABELLIST_H

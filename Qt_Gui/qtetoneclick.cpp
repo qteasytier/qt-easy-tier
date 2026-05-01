@@ -1,5 +1,6 @@
 #include "qtetoneclick.h"
 #include "qtetserversdialog.h"
+#include "qtetdrawutils.h"
 #include <QFont>
 #include <QFontDatabase>
 #include <QMessageBox>
@@ -44,6 +45,8 @@ void QtETOneClick::initUI()
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QtETSmoothScroll::install(scrollArea);
 
     // 创建滚动区域内容容器
     auto *contentWidget = new QWidget();
