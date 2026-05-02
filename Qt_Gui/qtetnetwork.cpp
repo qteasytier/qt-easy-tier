@@ -48,8 +48,6 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_serverListWidget(nullptr)
     , m_removeServerBtn(nullptr)
     , m_publicServerBtn(nullptr)
-    // 高级设置控件 - 功能开关板块
-    , m_advScrollContent(nullptr)
     , m_enableKcpProxyCheckBox(nullptr)
     , m_disableKcpInputCheckBox(nullptr)
     , m_noTunCheckBox(nullptr)
@@ -463,10 +461,6 @@ void QtETNetwork::initAdvancedSettingsPage()
     scrollLayout->setContentsMargins(10, 10, 10, 10);
     scrollLayout->setSpacing(8);
 
-    // 存储滚动内容部件（用于响应式宽度计算）
-    m_advScrollContent = scrollContent;
-    m_functionSections.clear();
-
     // 辅助 lambda：创建板块标题（粗体）
     auto createSectionTitle = [&](const QString &text) -> QLabel* {
         QLabel *title = new QLabel(text, scrollContent);
@@ -478,85 +472,85 @@ void QtETNetwork::initAdvancedSettingsPage()
         return title;
     };
 
-    // 辅助 lambda：创建板块网格容器
-    auto createSectionGrid = [&](QWidget *parent) -> QWidget* {
-        QWidget *widget = new QWidget(parent);
-        QGridLayout *grid = new QGridLayout(widget);
-        grid->setHorizontalSpacing(6);
-        grid->setVerticalSpacing(6);
-        grid->setContentsMargins(15, 5, 15, 5);
-        return widget;
+    // 辅助 lambda：创建响应式网格控件
+    auto createResponsiveGrid = [&](QWidget *parent) -> QtETResponsiveGrid* {
+        auto *grid = new QtETResponsiveGrid(parent);
+        grid->setMinColumns(2);
+        grid->setMaxColumns(5);
+        grid->setSafetyRatio(1.1);
+        return grid;
     };
 
     // ========== 板块1: 传输协议 ==========
     scrollLayout->addWidget(createSectionTitle(tr("传输协议")));
 
-    QWidget *protocolWidget = createSectionGrid(scrollContent);
-    QGridLayout *protocolLayout = qobject_cast<QGridLayout*>(protocolWidget->layout());
+    QtETResponsiveGrid *protocolGrid = createResponsiveGrid(scrollContent);
 
-    m_enableKcpProxyCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableKcpProxyCheckBox = new QtETCheckBtn(protocolGrid);
     m_enableKcpProxyCheckBox->setText(tr("启用 KCP 代理"));
     m_enableKcpProxyCheckBox->setChecked(true);
     m_enableKcpProxyCheckBox->setToolTip(tr("使用UDP协议代理TCP流量,启用以获得更好的UDP P2P效果"));
     m_enableKcpProxyCheckBox->setBriefTip(tr("允许使用 KCP 协议发包"));
 
-    m_disableKcpInputCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableKcpInputCheckBox = new QtETCheckBtn(protocolGrid);
     m_disableKcpInputCheckBox->setText(tr("禁用 KCP 输入"));
     m_disableKcpInputCheckBox->setChecked(false);
     m_disableKcpInputCheckBox->setToolTip(tr("不接受通过KCP协议传输的流量"));
     m_disableKcpInputCheckBox->setBriefTip(tr("不接收 KCP 协议的流量"));
 
-    m_enableQuicProxyCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableQuicProxyCheckBox = new QtETCheckBtn(protocolGrid);
     m_enableQuicProxyCheckBox->setText(tr("启用 QUIC 代理"));
     m_enableQuicProxyCheckBox->setChecked(false);
     m_enableQuicProxyCheckBox->setToolTip(tr("QUIC是一个由Google设计,基于UDP的新一代可靠传输层协议,启用以获得更好的UDP P2P效果"));
     m_enableQuicProxyCheckBox->setBriefTip(tr("允许使用 QUIC 协议发包"));
 
-    m_disableQuicInputCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableQuicInputCheckBox = new QtETCheckBtn(protocolGrid);
     m_disableQuicInputCheckBox->setText(tr("禁用 QUIC 输入"));
     m_disableQuicInputCheckBox->setChecked(false);
     m_disableQuicInputCheckBox->setToolTip(tr("不接受通过 QUIC 协议传输的流量"));
     m_disableQuicInputCheckBox->setBriefTip(tr("不接收 QUIC 协议的流量"));
 
-    m_disableRelayKcpCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableRelayKcpCheckBox = new QtETCheckBtn(protocolGrid);
     m_disableRelayKcpCheckBox->setText(tr("禁止转发 KCP"));
     m_disableRelayKcpCheckBox->setChecked(false);
     m_disableRelayKcpCheckBox->setToolTip(tr("禁止本节点转发 KCP 数据包，防止过度消耗流量"));
     m_disableRelayKcpCheckBox->setBriefTip(tr("不转发 KCP 流量"));
 
-    m_disableRelayQuicCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableRelayQuicCheckBox = new QtETCheckBtn(protocolGrid);
     m_disableRelayQuicCheckBox->setText(tr("禁止转发 QUIC"));
     m_disableRelayQuicCheckBox->setChecked(false);
     m_disableRelayQuicCheckBox->setToolTip(tr("禁止本节点转发 QUIC 数据包，防止过度消耗流量"));
     m_disableRelayQuicCheckBox->setBriefTip(tr("不转发 QUIC 流量"));
 
-    m_enableRelayForeignNetworkKcpCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableRelayForeignNetworkKcpCheckBox = new QtETCheckBtn(protocolGrid);
     m_enableRelayForeignNetworkKcpCheckBox->setText(tr("允许转发其他网络 KCP"));
     m_enableRelayForeignNetworkKcpCheckBox->setChecked(false);
     m_enableRelayForeignNetworkKcpCheckBox->setToolTip(tr("作为共享节点时也可以转发其他网络的 KCP 数据包"));
     m_enableRelayForeignNetworkKcpCheckBox->setBriefTip(tr("转发其他网络 KCP 流量"));
 
-    m_enableRelayForeignNetworkQuicCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableRelayForeignNetworkQuicCheckBox = new QtETCheckBtn(protocolGrid);
     m_enableRelayForeignNetworkQuicCheckBox->setText(tr("允许转发其他网络 QUIC"));
     m_enableRelayForeignNetworkQuicCheckBox->setChecked(false);
     m_enableRelayForeignNetworkQuicCheckBox->setToolTip(tr("作为共享节点时也可以转发其他网络的 QUIC 数据包"));
     m_enableRelayForeignNetworkQuicCheckBox->setBriefTip(tr("转发其他网络 QUIC 流量"));
 
-    m_enableEncryptionCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableEncryptionCheckBox = new QtETCheckBtn(protocolGrid);
     m_enableEncryptionCheckBox->setText(tr("启用加密"));
     m_enableEncryptionCheckBox->setChecked(true);
     m_enableEncryptionCheckBox->setToolTip(tr("启用本节点通信的加密，必须与对等节点相同,正常情况下请保持加密"));
     m_enableEncryptionCheckBox->setBriefTip(tr("正常情况下请保持加密"));
 
-    FunctionSection protocolSection;
-    protocolSection.gridLayout = protocolLayout;
-    protocolSection.checkBoxes = {m_enableKcpProxyCheckBox, m_disableKcpInputCheckBox,
-                                   m_enableQuicProxyCheckBox, m_disableQuicInputCheckBox,
-                                   m_disableRelayKcpCheckBox, m_disableRelayQuicCheckBox,
-                                   m_enableRelayForeignNetworkKcpCheckBox, m_enableRelayForeignNetworkQuicCheckBox,
-                                   m_enableEncryptionCheckBox};
-    m_functionSections.append(protocolSection);
-    scrollLayout->addWidget(protocolWidget);
+    protocolGrid->addItem(m_enableKcpProxyCheckBox);
+    protocolGrid->addItem(m_disableKcpInputCheckBox);
+    protocolGrid->addItem(m_enableQuicProxyCheckBox);
+    protocolGrid->addItem(m_disableQuicInputCheckBox);
+    protocolGrid->addItem(m_disableRelayKcpCheckBox);
+    protocolGrid->addItem(m_disableRelayQuicCheckBox);
+    protocolGrid->addItem(m_enableRelayForeignNetworkKcpCheckBox);
+    protocolGrid->addItem(m_enableRelayForeignNetworkQuicCheckBox);
+    protocolGrid->addItem(m_enableEncryptionCheckBox);
+
+    scrollLayout->addWidget(protocolGrid);
 
     // 协议下拉选择框行
     {
@@ -607,113 +601,115 @@ void QtETNetwork::initAdvancedSettingsPage()
     // ========== 板块2: P2P 连接 ==========
     scrollLayout->addWidget(createSectionTitle(tr("P2P 连接")));
 
-    QWidget *p2pWidget = createSectionGrid(scrollContent);
-    QGridLayout *p2pLayout = qobject_cast<QGridLayout*>(p2pWidget->layout());
+    QtETResponsiveGrid *p2pGrid = createResponsiveGrid(scrollContent);
 
-    m_needP2pCheckBox = new QtETCheckBtn(p2pWidget);
+    m_needP2pCheckBox = new QtETCheckBtn(p2pGrid);
     m_needP2pCheckBox->setText(tr("需要 P2P"));
     m_needP2pCheckBox->setChecked(false);
     m_needP2pCheckBox->setToolTip(tr("无视其他限制,要求与本节点建立 P2P 打洞"));
     m_needP2pCheckBox->setBriefTip(tr("无视限制强制要求打洞"));
 
-    m_lazyP2pCheckBox = new QtETCheckBtn(p2pWidget);
+    m_lazyP2pCheckBox = new QtETCheckBtn(p2pGrid);
     m_lazyP2pCheckBox->setText(tr("懒打洞模式"));
     m_lazyP2pCheckBox->setChecked(false);
     m_lazyP2pCheckBox->setToolTip(tr("仅在有流量连通需求时才尝试打洞,节约资源"));
     m_lazyP2pCheckBox->setBriefTip(tr("按需打洞,节省资源"));
 
-    m_p2pOnlyCheckBox = new QtETCheckBtn(p2pWidget);
+    m_p2pOnlyCheckBox = new QtETCheckBtn(p2pGrid);
     m_p2pOnlyCheckBox->setText(tr("仅 P2P"));
     m_p2pOnlyCheckBox->setChecked(false);
     m_p2pOnlyCheckBox->setToolTip(tr("仅与已经建立 P2P 连接的对等节点通信,不通过中继"));
     m_p2pOnlyCheckBox->setBriefTip(tr("只与 P2P 直连节点通信"));
 
-    m_disableUdpHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableUdpHolePunchingCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableUdpHolePunchingCheckBox->setText(tr("禁用 UDP 打洞"));
     m_disableUdpHolePunchingCheckBox->setChecked(false);
     m_disableUdpHolePunchingCheckBox->setToolTip(tr("禁用UDP打洞,仅允许通过TCP进行P2P访问"));
     m_disableUdpHolePunchingCheckBox->setBriefTip(tr("不使用 UDP 协议打洞"));
 
-    m_disableTcpHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableTcpHolePunchingCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableTcpHolePunchingCheckBox->setText(tr("禁用 TCP 打洞"));
     m_disableTcpHolePunchingCheckBox->setChecked(false);
     m_disableTcpHolePunchingCheckBox->setToolTip(tr("禁用TCP打洞,仅允许通过UDP进行P2P访问"));
     m_disableTcpHolePunchingCheckBox->setBriefTip(tr("不使用 TCP 协议打洞"));
 
-    m_disableUpnpCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableUpnpCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableUpnpCheckBox->setText(tr("禁用 UPnP"));
     m_disableUpnpCheckBox->setChecked(false);
     m_disableUpnpCheckBox->setToolTip(tr("禁用 UPnP/NAT-PMP 端口映射"));
     m_disableUpnpCheckBox->setBriefTip(tr("不使用 UPnP/NAT-PMP"));
 
-    m_disableSymHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableSymHolePunchingCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableSymHolePunchingCheckBox->setText(tr("禁用对称 NAT 打洞"));
     m_disableSymHolePunchingCheckBox->setChecked(false);
     m_disableSymHolePunchingCheckBox->setBriefTip(tr("在对称 NAT 环境下打洞可能失败"));
 
-    m_disableP2pCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableP2pCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableP2pCheckBox->setText(tr("禁用 P2P"));
     m_disableP2pCheckBox->setChecked(false);
     m_disableP2pCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接"));
     m_disableP2pCheckBox->setBriefTip(tr("流量只从添加的节点中转"));
 
-    m_relayAllPeerRpcCheckBox = new QtETCheckBtn(p2pWidget);
+    m_relayAllPeerRpcCheckBox = new QtETCheckBtn(p2pGrid);
     m_relayAllPeerRpcCheckBox->setText(tr("转发 RPC 包"));
     m_relayAllPeerRpcCheckBox->setChecked(false);
     m_relayAllPeerRpcCheckBox->setToolTip(tr("转发其他节点的网络配置,不论该节点是否在网络白名单中, 帮助其他节点建立P2P连接"));
     m_relayAllPeerRpcCheckBox->setBriefTip(tr("帮助其他节点建立P2P连接"));
 
-    m_bindDeviceCheckBox = new QtETCheckBtn(p2pWidget);
+    m_bindDeviceCheckBox = new QtETCheckBtn(p2pGrid);
     m_bindDeviceCheckBox->setText(tr("仅使用物理网卡"));
     m_bindDeviceCheckBox->setChecked(true);
     m_bindDeviceCheckBox->setToolTip(tr("仅使用物理网卡与其他节点建立P2P连接"));
     m_bindDeviceCheckBox->setBriefTip(tr("不通过其他虚拟网卡进行连接"));
 
-    FunctionSection p2pSection;
-    p2pSection.gridLayout = p2pLayout;
-    p2pSection.checkBoxes = {m_needP2pCheckBox, m_lazyP2pCheckBox, m_p2pOnlyCheckBox,
-                              m_disableUdpHolePunchingCheckBox, m_disableTcpHolePunchingCheckBox,
-                              m_disableUpnpCheckBox, m_disableSymHolePunchingCheckBox,
-                              m_disableP2pCheckBox, m_relayAllPeerRpcCheckBox, m_bindDeviceCheckBox};
-    m_functionSections.append(p2pSection);
-    scrollLayout->addWidget(p2pWidget);
+    p2pGrid->addItem(m_needP2pCheckBox);
+    p2pGrid->addItem(m_lazyP2pCheckBox);
+    p2pGrid->addItem(m_p2pOnlyCheckBox);
+    p2pGrid->addItem(m_disableUdpHolePunchingCheckBox);
+    p2pGrid->addItem(m_disableTcpHolePunchingCheckBox);
+    p2pGrid->addItem(m_disableUpnpCheckBox);
+    p2pGrid->addItem(m_disableSymHolePunchingCheckBox);
+    p2pGrid->addItem(m_disableP2pCheckBox);
+    p2pGrid->addItem(m_relayAllPeerRpcCheckBox);
+    p2pGrid->addItem(m_bindDeviceCheckBox);
+
+    scrollLayout->addWidget(p2pGrid);
 
     // ========== 板块3: 性能与系统 ==========
     scrollLayout->addWidget(createSectionTitle(tr("性能与系统")));
 
-    QWidget *perfWidget = createSectionGrid(scrollContent);
-    QGridLayout *perfLayout = qobject_cast<QGridLayout*>(perfWidget->layout());
+    QtETResponsiveGrid *perfGrid = createResponsiveGrid(scrollContent);
 
-    m_multiThreadCheckBox = new QtETCheckBtn(perfWidget);
+    m_multiThreadCheckBox = new QtETCheckBtn(perfGrid);
     m_multiThreadCheckBox->setText(tr("启用多线程"));
     m_multiThreadCheckBox->setChecked(true);
     m_multiThreadCheckBox->setToolTip(tr("后端启用多线程,可提升组网性能,但可能会增加占用"));
     m_multiThreadCheckBox->setBriefTip(tr("使用多线程优化提升组网性能"));
 
-    m_useSmoltcpCheckBox = new QtETCheckBtn(perfWidget);
+    m_useSmoltcpCheckBox = new QtETCheckBtn(perfGrid);
     m_useSmoltcpCheckBox->setText(tr("使用 smoltcp 协议栈"));
     m_useSmoltcpCheckBox->setChecked(false);
     m_useSmoltcpCheckBox->setToolTip(tr("使用 smoltcp 协议栈,默认使用系统协议栈"));
     m_useSmoltcpCheckBox->setBriefTip(tr("默认使用系统协议栈"));
 
-    m_noTunCheckBox = new QtETCheckBtn(perfWidget);
+    m_noTunCheckBox = new QtETCheckBtn(perfGrid);
     m_noTunCheckBox->setText(tr("无 TUN 模式"));
     m_noTunCheckBox->setChecked(false);
     m_noTunCheckBox->setToolTip(tr("不创建TUN网卡,开启时本节点无法主动访问其他节点,只能被动访问"));
     m_noTunCheckBox->setBriefTip(tr("不创建 TUN 虚拟网卡"));
 
-    m_disableIpv6CheckBox = new QtETCheckBtn(perfWidget);
+    m_disableIpv6CheckBox = new QtETCheckBtn(perfGrid);
     m_disableIpv6CheckBox->setText(tr("禁用 IPv6"));
     m_disableIpv6CheckBox->setChecked(false);
     m_disableIpv6CheckBox->setToolTip(tr("禁用IPv6连接, 仅使用IPv4"));
     m_disableIpv6CheckBox->setBriefTip(tr("虚拟网络内禁用 IPv6 通信。"));
 
-    FunctionSection perfSection;
-    perfSection.gridLayout = perfLayout;
-    perfSection.checkBoxes = {m_multiThreadCheckBox, m_useSmoltcpCheckBox,
-                               m_noTunCheckBox, m_disableIpv6CheckBox};
-    m_functionSections.append(perfSection);
-    scrollLayout->addWidget(perfWidget);
+    perfGrid->addItem(m_multiThreadCheckBox);
+    perfGrid->addItem(m_useSmoltcpCheckBox);
+    perfGrid->addItem(m_noTunCheckBox);
+    perfGrid->addItem(m_disableIpv6CheckBox);
+
+    scrollLayout->addWidget(perfGrid);
 
     // TUN 设备名 & MTU 值行
     {
@@ -747,32 +743,31 @@ void QtETNetwork::initAdvancedSettingsPage()
     // ========== 板块4: 网络服务 ==========
     scrollLayout->addWidget(createSectionTitle(tr("网络服务")));
 
-    QWidget *serviceWidget = createSectionGrid(scrollContent);
-    QGridLayout *serviceLayout = qobject_cast<QGridLayout*>(serviceWidget->layout());
+    QtETResponsiveGrid *serviceGrid = createResponsiveGrid(scrollContent);
 
-    m_enableExitNodeCheckBox = new QtETCheckBtn(serviceWidget);
+    m_enableExitNodeCheckBox = new QtETCheckBtn(serviceGrid);
     m_enableExitNodeCheckBox->setText(tr("启用出口节点"));
     m_enableExitNodeCheckBox->setChecked(false);
     m_enableExitNodeCheckBox->setToolTip(tr("本节点可作为VPN的出口节点, 可被用于端口转发"));
     m_enableExitNodeCheckBox->setBriefTip(tr("请慎用该功能"));
 
-    m_systemForwardingCheckBox = new QtETCheckBtn(serviceWidget);
+    m_systemForwardingCheckBox = new QtETCheckBtn(serviceGrid);
     m_systemForwardingCheckBox->setText(tr("系统转发"));
     m_systemForwardingCheckBox->setChecked(false);
     m_systemForwardingCheckBox->setToolTip(tr("通过系统内核转发子网代理数据包，禁用内置NAT"));
     m_systemForwardingCheckBox->setBriefTip(tr("通过系统内核转发子网数据包"));
 
-    m_acceptDnsCheckBox = new QtETCheckBtn(serviceWidget);
+    m_acceptDnsCheckBox = new QtETCheckBtn(serviceGrid);
     m_acceptDnsCheckBox->setText(tr("启用魔法 DNS"));
     m_acceptDnsCheckBox->setChecked(false);
     m_acceptDnsCheckBox->setToolTip(tr("启用后可通过\"用户名.et.net\"访问本节点\n注意：Linux用户需要手动配置 DNS 服务器为100.100.100.101"));
     m_acceptDnsCheckBox->setBriefTip(tr("通过\"用户名.et.net\"访问本节点"));
 
-    FunctionSection serviceSection;
-    serviceSection.gridLayout = serviceLayout;
-    serviceSection.checkBoxes = {m_enableExitNodeCheckBox, m_systemForwardingCheckBox, m_acceptDnsCheckBox};
-    m_functionSections.append(serviceSection);
-    scrollLayout->addWidget(serviceWidget);
+    serviceGrid->addItem(m_enableExitNodeCheckBox);
+    serviceGrid->addItem(m_systemForwardingCheckBox);
+    serviceGrid->addItem(m_acceptDnsCheckBox);
+
+    scrollLayout->addWidget(serviceGrid);
 
     // ========== 网络白名单 ==========
     QWidget *whitelistWidget = new QWidget(scrollContent);
@@ -950,9 +945,6 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     scrollLayout->addWidget(exitNodeWidget);
 
-    // 初始化网格布局
-    updateFunctionGridLayout();
-
     // 添加垂直伸展空间
     scrollLayout->addStretch();
 
@@ -1100,57 +1092,6 @@ void QtETNetwork::initRunningLogPage()
     ));
     
     layout->addWidget(m_logTextEdit);
-}
-
-void QtETNetwork::updateFunctionGridLayout()
-{
-    if (m_functionSections.isEmpty()) {
-        return;
-    }
-
-    // 根据滚动内容宽度计算列数
-    const int width = m_advScrollContent ? m_advScrollContent->width() : 0;
-    int columns = 2;  // 默认每行 2 个
-
-    if (width > 1020) {
-        columns = 5;
-    } else if (width > 820) {
-        columns = 4;
-    } else if (width > 620) {
-        columns = 3;
-    }
-
-    // 更新每个板块的网格布局
-    for (const auto &section : m_functionSections) {
-        if (!section.gridLayout) {
-            continue;
-        }
-
-        // 移除所有控件从布局中
-        for (QtETCheckBtn *checkBox : section.checkBoxes) {
-            section.gridLayout->removeWidget(checkBox);
-        }
-
-        // 重新添加控件
-        int row = 0;
-        int col = 0;
-        for (QtETCheckBtn *checkBox : section.checkBoxes) {
-            section.gridLayout->addWidget(checkBox, row, col);
-            ++col;
-            if (col >= columns) {
-                col = 0;
-                ++row;
-            }
-        }
-    }
-}
-
-void QtETNetwork::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
-
-    // 更新功能开关网格布局
-    updateFunctionGridLayout();
 }
 
 // ==================== 网络配置管理方法 ====================
