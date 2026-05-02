@@ -120,6 +120,11 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     m_enableQuicProxy = network->m_enableQuicProxyCheckBox->isChecked();
     m_disableQuicInput = network->m_disableQuicInputCheckBox->isChecked();
     m_disableUdpHolePunching = network->m_disableUdpHolePunchingCheckBox->isChecked();
+    m_disableTcpHolePunching = network->m_disableTcpHolePunchingCheckBox->isChecked();
+    m_disableUpnp = network->m_disableUpnpCheckBox->isChecked();
+    m_needP2p = network->m_needP2pCheckBox->isChecked();
+    m_lazyP2p = network->m_lazyP2pCheckBox->isChecked();
+    m_p2pOnly = network->m_p2pOnlyCheckBox->isChecked();
     m_multiThread = network->m_multiThreadCheckBox->isChecked();
     m_useSmoltcp = network->m_useSmoltcpCheckBox->isChecked();
     m_bindDevice = network->m_bindDeviceCheckBox->isChecked();
@@ -131,6 +136,10 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     m_relayAllPeerRpc = network->m_relayAllPeerRpcCheckBox->isChecked();
     m_enableEncryption = network->m_enableEncryptionCheckBox->isChecked();
     m_acceptDns = network->m_acceptDnsCheckBox->isChecked();
+
+    m_devName = network->m_devNameEdit->text().toStdString();
+    int mtu = network->m_mtuEdit->text().toInt();
+    m_mtu = (mtu >= 1 && mtu <= 1380) ? mtu : 0;
 
     m_defaultProtocol = static_cast<DefaultProtocol>(network->m_defaultProtocolCombo->currentData().toInt());
     m_encryptionAlgorithm = static_cast<EncryptionAlgorithm>(network->m_encryptionAlgorithmCombo->currentData().toInt());
@@ -191,6 +200,11 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     m_enableQuicProxy = json["enable_quic_proxy"].toBool(false);
     m_disableQuicInput = json["disable_quic_input"].toBool(false);
     m_disableUdpHolePunching = json["disable_udp_hole_punching"].toBool(false);
+    m_disableTcpHolePunching = json["disable_tcp_hole_punching"].toBool(false);
+    m_disableUpnp = json["disable_upnp"].toBool(false);
+    m_needP2p = json["need_p2p"].toBool(false);
+    m_lazyP2p = json["lazy_p2p"].toBool(false);
+    m_p2pOnly = json["p2p_only"].toBool(false);
     m_multiThread = json["multi_thread"].toBool(true);
     m_useSmoltcp = json["use_smoltcp"].toBool(false);
     m_bindDevice = json["bind_device"].toBool(true);
@@ -202,6 +216,9 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     m_relayAllPeerRpc = json["relay_all_peer_rpc"].toBool(false);
     m_enableEncryption = json["enable_encryption"].toBool(true);
     m_acceptDns = json["accept_dns"].toBool(false);
+
+    m_devName = json["dev_name"].toString().toStdString();
+    m_mtu = json["mtu"].toInt(0);
 
     // 默认连接协议
     if (json.contains("default_protocol")) {
@@ -277,6 +294,11 @@ QJsonObject NetworkConf::toJson() const
     json["enable_quic_proxy"] = m_enableQuicProxy;
     json["disable_quic_input"] = m_disableQuicInput;
     json["disable_udp_hole_punching"] = m_disableUdpHolePunching;
+    json["disable_tcp_hole_punching"] = m_disableTcpHolePunching;
+    json["disable_upnp"] = m_disableUpnp;
+    json["need_p2p"] = m_needP2p;
+    json["lazy_p2p"] = m_lazyP2p;
+    json["p2p_only"] = m_p2pOnly;
     json["multi_thread"] = m_multiThread;
     json["use_smoltcp"] = m_useSmoltcp;
     json["bind_device"] = m_bindDevice;
@@ -288,6 +310,8 @@ QJsonObject NetworkConf::toJson() const
     json["relay_all_peer_rpc"] = m_relayAllPeerRpc;
     json["enable_encryption"] = m_enableEncryption;
     json["accept_dns"] = m_acceptDns;
+    json["dev_name"] = QString::fromStdString(m_devName);
+    json["mtu"] = m_mtu;
     json["default_protocol"] = QString::fromStdString(toTomlString(m_defaultProtocol));
     json["encryption_algorithm"] = QString::fromStdString(toTomlString(m_encryptionAlgorithm));
 
@@ -366,6 +390,12 @@ std::string NetworkConf::toToml() const
     oss << "enable_exit_node = " << (m_enableExitNode ? "true" : "false") << "\n";
     oss << "no_tun = " << (m_noTun ? "true" : "false") << "\n";
     oss << "use_smoltcp = " << (m_useSmoltcp ? "true" : "false") << "\n";
+    if (!m_devName.empty()) {
+        oss << "dev_name = \"" << m_devName << "\"\n";
+    }
+    if (m_mtu > 0) {
+        oss << "mtu = " << m_mtu << "\n";
+    }
 
     // foreign_network_whitelist: 启用时才输出该字段，多个网络用空格分隔
     if (m_foreignNetworkWhitelistEnabled) {
@@ -384,11 +414,16 @@ std::string NetworkConf::toToml() const
     oss << "bind_device = " << (m_bindDevice ? "true" : "false") << "\n";
     oss << "private_mode = " << (m_privateMode ? "true" : "false") << "\n";
     oss << "disable_p2p = " << (m_disableP2p ? "true" : "false") << "\n";
+    oss << "need_p2p = " << (m_needP2p ? "true" : "false") << "\n";
+    oss << "lazy_p2p = " << (m_lazyP2p ? "true" : "false") << "\n";
+    oss << "p2p_only = " << (m_p2pOnly ? "true" : "false") << "\n";
     oss << "multi_thread = " << (m_multiThread ? "true" : "false") << "\n";
     oss << "accept_dns = " << (m_acceptDns ? "true" : "false") << "\n";
     oss << "disable_sym_hole_punching = " << (m_disableSymHolePunching ? "true" : "false") << "\n";
     oss << "relay_all_peer_rpc = " << (m_relayAllPeerRpc ? "true" : "false") << "\n";
     oss << "disable_udp_hole_punching = " << (m_disableUdpHolePunching ? "true" : "false") << "\n";
+    oss << "disable_tcp_hole_punching = " << (m_disableTcpHolePunching ? "true" : "false") << "\n";
+    oss << "disable_upnp = " << (m_disableUpnp ? "true" : "false") << "\n";
     oss << "proxy_forward_by_system = " << (m_systemForwarding ? "true" : "false") << "\n";
 
     if (m_defaultProtocol != DefaultProtocol::None) {
