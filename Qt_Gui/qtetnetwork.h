@@ -34,6 +34,7 @@
 #include "qtetnodeinfo.h"
 #include "qtettabwidget.h"
 #include "qtetlineedit.h"
+#include "qtetresponsivegrid.h"
 #include "networkconf.h"
 #include "ETRunWorker.h"
 
@@ -65,10 +66,6 @@ private:
     void initRunningStatusPage();
     /// @brief 初始化运行日志页面
     void initRunningLogPage();
-    /// @brief 更新高级设置功能开关的网格布局
-    void updateFunctionGridLayout();
-    /// @brief 重写 resizeEvent 监听宽度变化
-    void resizeEvent(QResizeEvent *event) override;
 
 public:
     /// @brief 加载所有网络配置到UI
@@ -193,12 +190,6 @@ private:
     QtETPushBtn *m_publicServerBtn;     /// @brief 公共服务器列表按钮
 
     // 高级设置控件 - 功能开关板块
-    struct FunctionSection {
-        QGridLayout *gridLayout = nullptr;
-        QList<QtETCheckBtn*> checkBoxes;
-    };
-    QWidget *m_advScrollContent;                         /// @brief 高级设置滚动区内容部件（用于宽度计算）
-    QVector<FunctionSection> m_functionSections;         /// @brief 功能开关板块列表
     QtETCheckBtn *m_enableKcpProxyCheckBox;             /// @brief 启用 KCP 代理 (enable_kcp_proxy)
     QtETCheckBtn *m_disableKcpInputCheckBox;            /// @brief 禁用 KCP 输入 (disable_kcp_input)
     QtETCheckBtn *m_noTunCheckBox;                      /// @brief 无 TUN 模式 (no_tun)
