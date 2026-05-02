@@ -67,6 +67,8 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_relayAllPeerRpcCheckBox(nullptr)
     , m_enableEncryptionCheckBox(nullptr)
     , m_acceptDnsCheckBox(nullptr)
+    , m_devNameEdit(nullptr)
+    , m_mtuEdit(nullptr)
     // 高级设置控件 - 网络白名单
     , m_foreignNetworkWhitelistCheckBox(nullptr)
     , m_foreignNetworkWhitelistEdit(nullptr)
@@ -568,11 +570,41 @@ void QtETNetwork::initAdvancedSettingsPage()
     QWidget *p2pWidget = createSectionGrid(scrollContent);
     QGridLayout *p2pLayout = qobject_cast<QGridLayout*>(p2pWidget->layout());
 
+    m_needP2pCheckBox = new QtETCheckBtn(p2pWidget);
+    m_needP2pCheckBox->setText(tr("需要 P2P"));
+    m_needP2pCheckBox->setChecked(false);
+    m_needP2pCheckBox->setToolTip(tr("无视其他限制,要求与本节点建立 P2P 打洞"));
+    m_needP2pCheckBox->setBriefTip(tr("无视限制强制要求打洞"));
+
+    m_lazyP2pCheckBox = new QtETCheckBtn(p2pWidget);
+    m_lazyP2pCheckBox->setText(tr("懒打洞模式"));
+    m_lazyP2pCheckBox->setChecked(false);
+    m_lazyP2pCheckBox->setToolTip(tr("仅在有流量连通需求时才尝试打洞,节约资源"));
+    m_lazyP2pCheckBox->setBriefTip(tr("按需打洞,节省资源"));
+
+    m_p2pOnlyCheckBox = new QtETCheckBtn(p2pWidget);
+    m_p2pOnlyCheckBox->setText(tr("仅 P2P"));
+    m_p2pOnlyCheckBox->setChecked(false);
+    m_p2pOnlyCheckBox->setToolTip(tr("仅与已经建立 P2P 连接的对等节点通信,不通过中继"));
+    m_p2pOnlyCheckBox->setBriefTip(tr("只与 P2P 直连节点通信"));
+
     m_disableUdpHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
     m_disableUdpHolePunchingCheckBox->setText(tr("禁用 UDP 打洞"));
     m_disableUdpHolePunchingCheckBox->setChecked(false);
     m_disableUdpHolePunchingCheckBox->setToolTip(tr("禁用UDP打洞,仅允许通过TCP进行P2P访问"));
     m_disableUdpHolePunchingCheckBox->setBriefTip(tr("不使用 UDP 协议打洞"));
+
+    m_disableTcpHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableTcpHolePunchingCheckBox->setText(tr("禁用 TCP 打洞"));
+    m_disableTcpHolePunchingCheckBox->setChecked(false);
+    m_disableTcpHolePunchingCheckBox->setToolTip(tr("禁用TCP打洞,仅允许通过UDP进行P2P访问"));
+    m_disableTcpHolePunchingCheckBox->setBriefTip(tr("不使用 TCP 协议打洞"));
+
+    m_disableUpnpCheckBox = new QtETCheckBtn(p2pWidget);
+    m_disableUpnpCheckBox->setText(tr("禁用 UPnP"));
+    m_disableUpnpCheckBox->setChecked(false);
+    m_disableUpnpCheckBox->setToolTip(tr("禁用 UPnP/NAT-PMP 端口映射"));
+    m_disableUpnpCheckBox->setBriefTip(tr("不使用 UPnP/NAT-PMP"));
 
     m_disableSymHolePunchingCheckBox = new QtETCheckBtn(p2pWidget);
     m_disableSymHolePunchingCheckBox->setText(tr("禁用对称 NAT 打洞"));
@@ -599,7 +631,9 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     FunctionSection p2pSection;
     p2pSection.gridLayout = p2pLayout;
-    p2pSection.checkBoxes = {m_disableUdpHolePunchingCheckBox, m_disableSymHolePunchingCheckBox,
+    p2pSection.checkBoxes = {m_needP2pCheckBox, m_lazyP2pCheckBox, m_p2pOnlyCheckBox,
+                              m_disableUdpHolePunchingCheckBox, m_disableTcpHolePunchingCheckBox,
+                              m_disableUpnpCheckBox, m_disableSymHolePunchingCheckBox,
                               m_disableP2pCheckBox, m_relayAllPeerRpcCheckBox, m_bindDeviceCheckBox};
     m_functionSections.append(p2pSection);
     scrollLayout->addWidget(p2pWidget);
@@ -617,9 +651,9 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_multiThreadCheckBox->setBriefTip(tr("使用多线程优化提升组网性能"));
 
     m_useSmoltcpCheckBox = new QtETCheckBtn(perfWidget);
-    m_useSmoltcpCheckBox->setText(tr("使用用户态协议栈"));
+    m_useSmoltcpCheckBox->setText(tr("使用 smoltcp 协议栈"));
     m_useSmoltcpCheckBox->setChecked(false);
-    m_useSmoltcpCheckBox->setToolTip(tr("使用用户态协议栈,默认使用系统协议栈"));
+    m_useSmoltcpCheckBox->setToolTip(tr("使用 smoltcp 协议栈,默认使用系统协议栈"));
     m_useSmoltcpCheckBox->setBriefTip(tr("默认使用系统协议栈"));
 
     m_noTunCheckBox = new QtETCheckBtn(perfWidget);
@@ -640,6 +674,35 @@ void QtETNetwork::initAdvancedSettingsPage()
                                m_noTunCheckBox, m_disableIpv6CheckBox};
     m_functionSections.append(perfSection);
     scrollLayout->addWidget(perfWidget);
+
+    // TUN 设备名 & MTU 值行
+    {
+        QWidget *tunRow = new QWidget(scrollContent);
+        QHBoxLayout *tunLayout = new QHBoxLayout(tunRow);
+        tunLayout->setContentsMargins(15, 2, 15, 2);
+        tunLayout->setSpacing(10);
+
+        QLabel *devNameLabel = new QLabel(tr("TUN 设备名:"), tunRow);
+        devNameLabel->setToolTip(tr("自定义 TUN 网卡的名称，留空使用默认值"));
+        m_devNameEdit = new QtETLineEdit(tunRow);
+        m_devNameEdit->setPlaceholderText(tr("留空使用默认名称"));
+        m_devNameEdit->setToolTip(tr("自定义 TUN 网卡的名称"));
+
+        QLabel *mtuLabel = new QLabel(tr("MTU 值:"), tunRow);
+        mtuLabel->setToolTip(tr("自定义 MTU 值，范围 1-1380，留空使用默认值"));
+        m_mtuEdit = new QtETLineEdit(tunRow);
+        m_mtuEdit->setPlaceholderText(tr("留空使用默认值"));
+        m_mtuEdit->setToolTip(tr("允许范围 1-1380"));
+        m_mtuEdit->setValidator(new QIntValidator(1, 1380, m_mtuEdit));
+
+        tunLayout->addWidget(devNameLabel);
+        tunLayout->addWidget(m_devNameEdit, 1);
+        tunLayout->addSpacing(15);
+        tunLayout->addWidget(mtuLabel);
+        tunLayout->addWidget(m_mtuEdit, 1);
+
+        scrollLayout->addWidget(tunRow);
+    }
 
     // ========== 板块4: 网络服务 ==========
     scrollLayout->addWidget(createSectionTitle(tr("网络服务")));
@@ -1205,6 +1268,11 @@ void QtETNetwork::loadConfToUI(int index) const
     m_enableQuicProxyCheckBox->blockSignals(true);
     m_disableQuicInputCheckBox->blockSignals(true);
     m_disableUdpHolePunchingCheckBox->blockSignals(true);
+    m_disableTcpHolePunchingCheckBox->blockSignals(true);
+    m_disableUpnpCheckBox->blockSignals(true);
+    m_needP2pCheckBox->blockSignals(true);
+    m_lazyP2pCheckBox->blockSignals(true);
+    m_p2pOnlyCheckBox->blockSignals(true);
     m_multiThreadCheckBox->blockSignals(true);
     m_useSmoltcpCheckBox->blockSignals(true);
     m_bindDeviceCheckBox->blockSignals(true);
@@ -1216,6 +1284,8 @@ void QtETNetwork::loadConfToUI(int index) const
     m_relayAllPeerRpcCheckBox->blockSignals(true);
     m_enableEncryptionCheckBox->blockSignals(true);
     m_acceptDnsCheckBox->blockSignals(true);
+    m_devNameEdit->blockSignals(true);
+    m_mtuEdit->blockSignals(true);
     m_defaultProtocolCombo->blockSignals(true);
     m_encryptionAlgorithmCombo->blockSignals(true);
     
@@ -1242,6 +1312,11 @@ void QtETNetwork::loadConfToUI(int index) const
     m_enableQuicProxyCheckBox->setChecked(conf.m_enableQuicProxy);
     m_disableQuicInputCheckBox->setChecked(conf.m_disableQuicInput);
     m_disableUdpHolePunchingCheckBox->setChecked(conf.m_disableUdpHolePunching);
+    m_disableTcpHolePunchingCheckBox->setChecked(conf.m_disableTcpHolePunching);
+    m_disableUpnpCheckBox->setChecked(conf.m_disableUpnp);
+    m_needP2pCheckBox->setChecked(conf.m_needP2p);
+    m_lazyP2pCheckBox->setChecked(conf.m_lazyP2p);
+    m_p2pOnlyCheckBox->setChecked(conf.m_p2pOnly);
     m_multiThreadCheckBox->setChecked(conf.m_multiThread);
     m_useSmoltcpCheckBox->setChecked(conf.m_useSmoltcp);
     m_bindDeviceCheckBox->setChecked(conf.m_bindDevice);
@@ -1253,6 +1328,9 @@ void QtETNetwork::loadConfToUI(int index) const
     m_relayAllPeerRpcCheckBox->setChecked(conf.m_relayAllPeerRpc);
     m_enableEncryptionCheckBox->setChecked(conf.m_enableEncryption);
     m_acceptDnsCheckBox->setChecked(conf.m_acceptDns);
+
+    m_devNameEdit->setText(QString::fromStdString(conf.m_devName));
+    m_mtuEdit->setText(conf.m_mtu > 0 ? QString::number(conf.m_mtu) : QString());
 
     // 协议与加密下拉框
     int protoIdx = m_defaultProtocolCombo->findData(static_cast<int>(conf.m_defaultProtocol));
@@ -1298,6 +1376,11 @@ void QtETNetwork::loadConfToUI(int index) const
     m_enableQuicProxyCheckBox->blockSignals(false);
     m_disableQuicInputCheckBox->blockSignals(false);
     m_disableUdpHolePunchingCheckBox->blockSignals(false);
+    m_disableTcpHolePunchingCheckBox->blockSignals(false);
+    m_disableUpnpCheckBox->blockSignals(false);
+    m_needP2pCheckBox->blockSignals(false);
+    m_lazyP2pCheckBox->blockSignals(false);
+    m_p2pOnlyCheckBox->blockSignals(false);
     m_multiThreadCheckBox->blockSignals(false);
     m_useSmoltcpCheckBox->blockSignals(false);
     m_bindDeviceCheckBox->blockSignals(false);
@@ -1309,6 +1392,8 @@ void QtETNetwork::loadConfToUI(int index) const
     m_relayAllPeerRpcCheckBox->blockSignals(false);
     m_enableEncryptionCheckBox->blockSignals(false);
     m_acceptDnsCheckBox->blockSignals(false);
+    m_devNameEdit->blockSignals(false);
+    m_mtuEdit->blockSignals(false);
     m_defaultProtocolCombo->blockSignals(false);
     m_encryptionAlgorithmCombo->blockSignals(false);
 }
@@ -1395,6 +1480,11 @@ void QtETNetwork::setupUIConnections()
     connect(m_enableQuicProxyCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableQuicInputCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableUdpHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableTcpHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableUpnpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_needP2pCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_lazyP2pCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_p2pOnlyCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_multiThreadCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_useSmoltcpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_bindDeviceCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
@@ -1406,6 +1496,8 @@ void QtETNetwork::setupUIConnections()
     connect(m_relayAllPeerRpcCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_enableEncryptionCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_acceptDnsCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_devNameEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
+    connect(m_mtuEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
     connect(m_defaultProtocolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &QtETNetwork::onUIChanged);
     connect(m_encryptionAlgorithmCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),

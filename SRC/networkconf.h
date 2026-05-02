@@ -114,8 +114,15 @@ private:
     bool m_enableQuicProxy = false;         ///< 启用 QUIC 代理
     bool m_disableQuicInput = false;        ///< 禁用 QUIC 输入
     bool m_disableUdpHolePunching = false;  ///< 禁用 UDP 打洞
+    bool m_disableTcpHolePunching = false;  ///< 禁用 TCP 打洞
+    bool m_disableUpnp = false;             ///< 禁用 UPnP/NAT-PMP 端口映射
+    bool m_needP2p = false;                 ///< 需要 P2P 打洞
+    bool m_lazyP2p = false;                 ///< 懒打洞模式
+    bool m_p2pOnly = false;                 ///< 仅 P2P 通信
     bool m_multiThread = true;              ///< 启用多线程
-    bool m_useSmoltcp = false;              ///< 使用用户态协议栈
+    bool m_useSmoltcp = false;              ///< 使用 smoltcp 协议栈
+    std::string m_devName;                  ///< TUN 设备名 (dev_name)
+    int m_mtu = 0;                          ///< MTU 值, 0 表示未设置
     bool m_bindDevice = true;               ///< 仅使用物理网卡
     bool m_disableP2p = false;              ///< 禁用 P2P
     bool m_enableExitNode = false;          ///< 启用出口节点
