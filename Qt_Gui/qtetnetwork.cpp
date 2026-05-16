@@ -218,7 +218,7 @@ void QtETNetwork::initLeftPanel()
 
     // 创建网络列表
     m_networksList = new QtETLabelList(m_leftFrame);
-    m_networksList->setMinimumSize(160, 0);
+    m_networksList->setMinimumSize(LEFT_PANEL_MIN_WIDTH, 0);
     // maximum width handled by layout
 
     m_leftLayout->addWidget(m_networksList);
@@ -2877,26 +2877,26 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
         m_initialWidth = width();
     }
 
-    int targetWidth = LEFT_PANEL_MIN_WIDTH; // fallback
+    int targetWidth = 160; // fallback
     int maxWidth = qMax(LEFT_PANEL_MIN_WIDTH, static_cast<int>(width() * MAX_WIDTH_RATIO));
     if (isFullScreen()) {
         // 全屏强制 15% 宽度
         targetWidth = static_cast<int>(width() * FULLSCREEN_RATIO);
-        targetWidth = qBound(160, targetWidth, maxWidth);
+        targetWidth = qBound(LEFT_PANEL_MIN_WIDTH, targetWidth, maxWidth);
     } else {
         // 指数伸缩：仅在已记录基准宽度时计算，否则使用 fallback
-        const double k = 0.6; // 指数因子，可调节伸缩感知
         if (m_initialWidth > 0) {
             double ratio = static_cast<double>(width()) / static_cast<double>(m_initialWidth);
-            targetWidth = static_cast<int>(160.0 * std::pow(ratio, k));
+            targetWidth = static_cast<int>(LEFT_PANEL_MIN_WIDTH * std::pow(ratio, EXPONENTIAL_K));
         } else {
-            targetWidth = 160; // 没有基准宽度时直接使用默认宽度
+            targetWidth = LEFT_PANEL_MIN_WIDTH; // 没有基准宽度时直接使用默认宽度
         }
         // 限制最小/最大宽度防止过度压缩或占用过多空间
-        targetWidth = qBound(160, targetWidth, maxWidth);
+        targetWidth = qBound(LEFT_PANEL_MIN_WIDTH, targetWidth, maxWidth);
     }
 
     if (m_leftFrame) {
+        m_leftFrame->setMinimumWidth(LEFT_PANEL_MIN_WIDTH);
         m_leftFrame->setMaximumWidth(targetWidth);
     }
 }
