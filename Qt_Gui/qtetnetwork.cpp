@@ -241,6 +241,8 @@ void QtETNetwork::initLeftPanel()
     // 将左侧面板添加到主布局
     m_mainLayout->addWidget(m_leftFrame);
     // 伸缩因子：左侧占 1 份（后面会配合右侧占 3 份）
+    m_mainLayout->setStretchFactor(m_leftFrame, 1);
+    m_mainLayout->setStretchFactor(m_tabWidget, 3);
 }
 
 void QtETNetwork::initRightPanel()
@@ -271,9 +273,6 @@ void QtETNetwork::initRightPanel()
 
     // 将选项卡添加到主布局
     m_mainLayout->addWidget(m_tabWidget);
-    // 设置左侧面板占25% (1) , 右侧占75% (3)
-    m_mainLayout->setStretchFactor(m_leftFrame, 1);
-    m_mainLayout->setStretchFactor(m_tabWidget, 3);
 }
 
 void QtETNetwork::initBasicSettingsPage()
@@ -2873,27 +2872,38 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
 
-    // 记录首次尺寸作为基准
+    // 记录首次出现的非零宽度作为基准
     if (m_initialWidth == 0 && width() > 0) {
         m_initialWidth = width();
     }
 
     int targetWidth = 160; // fallback
-    int maxWidth = qMax(100, static_cast<int>(width() * 0.5));
+    int maxWidth = qMax(160, static_cast<int>(width() * 0.5));
     if (isFullScreen()) {
         // 全屏强制 15% 宽度
         targetWidth = static_cast<int>(width() * 0.15);
-        targetWidth = qBound(100, targetWidth, maxWidth);
+        targetWidth = qBound(160, targetWidth, maxWidth);
     } else {
-        // 指数伸缩：width = initWidth * (ratio ^ k)
+        // 指数伸缩：仅在已记录基准宽度时计算，否则使用 fallback
         const double k = 0.6; // 指数因子，可调节伸缩感知
-        double ratio = static_cast<double>(width()) / static_cast<double>(m_initialWidth);
-        targetWidth = static_cast<int>(160.0 * std::pow(ratio, k));
+        if (m_initialWidth > 0) {
+            double ratio = static_cast<double>(width()) / static_cast<double>(m_initialWidth);
+            targetWidth = static_cast<int>(160.0 * std::pow(ratio, k));
+        } else {
+            targetWidth = 160; // 没有基准宽度时直接使用默认宽度
+        }
         // 限制最小/最大宽度防止过度压缩或占用过多空间
-        targetWidth = qBound(100, targetWidth, maxWidth);
+        targetWidth = qBound(160, targetWidth, maxWidth);
     }
 
     if (m_leftFrame) {
-        m_leftFrame->setFixedWidth(targetWidth);
+        if (isFullScreen()) {
+            // 全屏时限制左侧最大宽度为 15%（保持伸缩因子）
+            m_leftFrame->setMaximumWidth(targetWidth);
+        } else {
+            // 非全屏恢复默认行为，取消最大宽度限制
+            m_leftFrame->setMaximumWidth(QWIDGETSIZE_MAX);
+        }
+    }
     }
 }
