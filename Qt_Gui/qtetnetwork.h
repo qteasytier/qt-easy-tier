@@ -158,6 +158,9 @@ private slots:
     /// @brief 定时器超时，请求收集网络信息
     void onMonitorTimerTimeout() const;
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
     // 左侧面板
     QFrame *m_leftFrame;                /// @brief 左侧面板容器
@@ -203,7 +206,7 @@ private:
     QtETCheckBtn *m_disableTcpHolePunchingCheckBox;     /// @brief 禁用 TCP 打洞 (disable_tcp_hole_punching)
     QtETCheckBtn *m_disableUpnpCheckBox;                /// @brief 禁用 UPnP (disable_upnp)
     QtETCheckBtn *m_needP2pCheckBox;                    /// @brief 需要 P2P (need_p2p)
-    QtETCheckBtn *m_lazyP2pCheckBox;                    /// @brief 懒打洞模式 (lazy_p2p)
+    QtETCheckBtn *m_lazyP2pCheckBox;                    /// @brief 按需 P2P (lazy_p2p)
     QtETCheckBtn *m_p2pOnlyCheckBox;                    /// @brief 仅 P2P 通信 (p2p_only)
     QtETCheckBtn *m_multiThreadCheckBox;                /// @brief 启用多线程 (multi_thread)
     QtETCheckBtn *m_useSmoltcpCheckBox;                 /// @brief 使用 smoltcp 协议栈 (use_smoltcp)
@@ -282,6 +285,7 @@ private:
 
     // 主布局
     QHBoxLayout *m_mainLayout;          /// @brief 主布局
+    int m_initialWidth = 0;               /// @brief 初始窗口宽度（用于比例计算）
 };
 
 #endif // QTETNETWORK_H

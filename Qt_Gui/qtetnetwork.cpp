@@ -8,6 +8,8 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QStyleHints>
+#include <cmath>
+#include <QResizeEvent>
 #include <set>
 #include <iostream>
 
@@ -198,7 +200,7 @@ void QtETNetwork::initLeftPanel()
 {
     // 创建左侧面板容器
     m_leftFrame = new QFrame(this);
-    m_leftFrame->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    m_leftFrame->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
     // 创建左侧布局
     m_leftLayout = new QVBoxLayout(m_leftFrame);
@@ -216,8 +218,8 @@ void QtETNetwork::initLeftPanel()
 
     // 创建网络列表
     m_networksList = new QtETLabelList(m_leftFrame);
-    m_networksList->setMinimumSize(160, 0);
-    m_networksList->setMaximumSize(160, QWIDGETSIZE_MAX);
+    m_networksList->setMinimumSize(160, 0); 
+    // maximum width handled by layout
 
     m_leftLayout->addWidget(m_networksList);
 
@@ -238,6 +240,7 @@ void QtETNetwork::initLeftPanel()
 
     // 将左侧面板添加到主布局
     m_mainLayout->addWidget(m_leftFrame);
+    // 伸缩因子：左侧占 1 份（后面会配合右侧占 3 份）
 }
 
 void QtETNetwork::initRightPanel()
@@ -268,6 +271,9 @@ void QtETNetwork::initRightPanel()
 
     // 将选项卡添加到主布局
     m_mainLayout->addWidget(m_tabWidget);
+    // 设置左侧面板占25% (1) , 右侧占75% (3)
+    m_mainLayout->setStretchFactor(m_leftFrame, 1);
+    m_mainLayout->setStretchFactor(m_tabWidget, 3);
 }
 
 void QtETNetwork::initBasicSettingsPage()
@@ -603,6 +609,19 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     QtETResponsiveGrid *p2pGrid = createResponsiveGrid(scrollContent);
 
+    
+    m_p2pOnlyCheckBox = new QtETCheckBtn(p2pGrid);
+    m_p2pOnlyCheckBox->setText(tr("仅 P2P"));
+    m_p2pOnlyCheckBox->setChecked(false);
+    m_p2pOnlyCheckBox->setToolTip(tr("仅与已经建立 P2P 连接的对等节点通信,不通过中继"));
+    m_p2pOnlyCheckBox->setBriefTip(tr("只与 P2P 直连节点通信"));
+
+    m_disableP2pCheckBox = new QtETCheckBtn(p2pGrid);
+    m_disableP2pCheckBox->setText(tr("禁用 P2P"));
+    m_disableP2pCheckBox->setChecked(false);
+    m_disableP2pCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接"));
+    m_disableP2pCheckBox->setBriefTip(tr("流量只从添加的节点中转"));
+    
     m_needP2pCheckBox = new QtETCheckBtn(p2pGrid);
     m_needP2pCheckBox->setText(tr("需要 P2P"));
     m_needP2pCheckBox->setChecked(false);
@@ -610,16 +629,10 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_needP2pCheckBox->setBriefTip(tr("无视限制强制要求打洞"));
 
     m_lazyP2pCheckBox = new QtETCheckBtn(p2pGrid);
-    m_lazyP2pCheckBox->setText(tr("懒打洞模式"));
+    m_lazyP2pCheckBox->setText(tr("按需 P2P"));
     m_lazyP2pCheckBox->setChecked(false);
     m_lazyP2pCheckBox->setToolTip(tr("仅在有流量连通需求时才尝试打洞,节约资源"));
     m_lazyP2pCheckBox->setBriefTip(tr("按需打洞,节省资源"));
-
-    m_p2pOnlyCheckBox = new QtETCheckBtn(p2pGrid);
-    m_p2pOnlyCheckBox->setText(tr("仅 P2P"));
-    m_p2pOnlyCheckBox->setChecked(false);
-    m_p2pOnlyCheckBox->setToolTip(tr("仅与已经建立 P2P 连接的对等节点通信,不通过中继"));
-    m_p2pOnlyCheckBox->setBriefTip(tr("只与 P2P 直连节点通信"));
 
     m_disableUdpHolePunchingCheckBox = new QtETCheckBtn(p2pGrid);
     m_disableUdpHolePunchingCheckBox->setText(tr("禁用 UDP 打洞"));
@@ -644,12 +657,6 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_disableSymHolePunchingCheckBox->setChecked(false);
     m_disableSymHolePunchingCheckBox->setBriefTip(tr("在对称 NAT 环境下打洞可能失败"));
 
-    m_disableP2pCheckBox = new QtETCheckBtn(p2pGrid);
-    m_disableP2pCheckBox->setText(tr("禁用 P2P"));
-    m_disableP2pCheckBox->setChecked(false);
-    m_disableP2pCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接"));
-    m_disableP2pCheckBox->setBriefTip(tr("流量只从添加的节点中转"));
-
     m_relayAllPeerRpcCheckBox = new QtETCheckBtn(p2pGrid);
     m_relayAllPeerRpcCheckBox->setText(tr("转发 RPC 包"));
     m_relayAllPeerRpcCheckBox->setChecked(false);
@@ -662,14 +669,14 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_bindDeviceCheckBox->setToolTip(tr("仅使用物理网卡与其他节点建立P2P连接"));
     m_bindDeviceCheckBox->setBriefTip(tr("不通过其他虚拟网卡进行连接"));
 
+    p2pGrid->addItem(m_p2pOnlyCheckBox);
+    p2pGrid->addItem(m_disableP2pCheckBox);
     p2pGrid->addItem(m_needP2pCheckBox);
     p2pGrid->addItem(m_lazyP2pCheckBox);
-    p2pGrid->addItem(m_p2pOnlyCheckBox);
     p2pGrid->addItem(m_disableUdpHolePunchingCheckBox);
     p2pGrid->addItem(m_disableTcpHolePunchingCheckBox);
     p2pGrid->addItem(m_disableUpnpCheckBox);
     p2pGrid->addItem(m_disableSymHolePunchingCheckBox);
-    p2pGrid->addItem(m_disableP2pCheckBox);
     p2pGrid->addItem(m_relayAllPeerRpcCheckBox);
     p2pGrid->addItem(m_bindDeviceCheckBox);
 
@@ -2859,4 +2866,34 @@ void QtETNetwork::runNetworkByIndex(int index)
     
     // 启动网络
     onRunNetworkBtnClicked_Start(m_networkConfs[index]);
+}
+
+// 调整左侧面板宽度：初始 160px，随窗口指数伸缩， 全屏时占 15%
+void QtETNetwork::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+
+    // 记录首次尺寸作为基准
+    if (m_initialWidth == 0 && width() > 0) {
+        m_initialWidth = width();
+    }
+
+    int targetWidth = 160; // fallback
+    int maxWidth = qMax(100, static_cast<int>(width() * 0.5));
+    if (isFullScreen()) {
+        // 全屏强制 15% 宽度
+        targetWidth = static_cast<int>(width() * 0.15);
+        targetWidth = qBound(100, targetWidth, maxWidth);
+    } else {
+        // 指数伸缩：width = initWidth * (ratio ^ k)
+        const double k = 0.6; // 指数因子，可调节伸缩感知
+        double ratio = static_cast<double>(width()) / static_cast<double>(m_initialWidth);
+        targetWidth = static_cast<int>(160.0 * std::pow(ratio, k));
+        // 限制最小/最大宽度防止过度压缩或占用过多空间
+        targetWidth = qBound(100, targetWidth, maxWidth);
+    }
+
+    if (m_leftFrame) {
+        m_leftFrame->setFixedWidth(targetWidth);
+    }
 }

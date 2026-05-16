@@ -121,7 +121,7 @@ private:
     bool m_disableTcpHolePunching = false;  ///< 禁用 TCP 打洞
     bool m_disableUpnp = false;             ///< 禁用 UPnP/NAT-PMP 端口映射
     bool m_needP2p = false;                 ///< 需要 P2P 打洞
-    bool m_lazyP2p = false;                 ///< 懒打洞模式
+    bool m_lazyP2p = false;                 ///< 按需 P2P
     bool m_p2pOnly = false;                 ///< 仅 P2P 通信
     bool m_multiThread = true;              ///< 启用多线程
     bool m_useSmoltcp = false;              ///< 使用 smoltcp 协议栈
