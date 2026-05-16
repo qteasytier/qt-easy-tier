@@ -160,6 +160,12 @@ private slots:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    // 常量配置，避免魔法数字
+    static constexpr int LEFT_PANEL_MIN_WIDTH = 160; // 左侧面板最小宽度
+    static constexpr double MAX_WIDTH_RATIO = 0.5; // 最大宽度占窗口比例上限
+    static constexpr double FULLSCREEN_RATIO = 0.15; // 全屏时左侧宽度占比
+    static constexpr double EXPONENTIAL_K = 0.6; // 指数伸缩因子
 
 private:
     // 左侧面板

@@ -218,7 +218,7 @@ void QtETNetwork::initLeftPanel()
 
     // 创建网络列表
     m_networksList = new QtETLabelList(m_leftFrame);
-    m_networksList->setMinimumSize(160, 0); 
+    m_networksList->setMinimumSize(160, 0);
     // maximum width handled by layout
 
     m_leftLayout->addWidget(m_networksList);
@@ -2877,11 +2877,11 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
         m_initialWidth = width();
     }
 
-    int targetWidth = 160; // fallback
-    int maxWidth = qMax(160, static_cast<int>(width() * 0.5));
+    int targetWidth = LEFT_PANEL_MIN_WIDTH; // fallback
+    int maxWidth = qMax(LEFT_PANEL_MIN_WIDTH, static_cast<int>(width() * MAX_WIDTH_RATIO));
     if (isFullScreen()) {
         // 全屏强制 15% 宽度
-        targetWidth = static_cast<int>(width() * 0.15);
+        targetWidth = static_cast<int>(width() * FULLSCREEN_RATIO);
         targetWidth = qBound(160, targetWidth, maxWidth);
     } else {
         // 指数伸缩：仅在已记录基准宽度时计算，否则使用 fallback
@@ -2897,7 +2897,15 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
     }
 
     if (m_leftFrame) {
-        m_leftFrame->setMinimumWidth(160);
         m_leftFrame->setMaximumWidth(targetWidth);
+    }
+}
+
+// 静态捕获基准宽度：在窗口首次显示后记录实际宽度，避免在布局未完成前记录过小值
+void QtETNetwork::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    if (m_initialWidth == 0 && width() > 0) {
+        m_initialWidth = width();
     }
 }
