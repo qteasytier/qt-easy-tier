@@ -1,6 +1,6 @@
-#include "qtetnetwork.h"
-#include "qtetserversdialog.h"
-#include "qtetdrawutils.h"
+#include <cmath>
+#include <set>
+#include <iostream>
 
 #include <QRegularExpressionValidator>
 #include <QFormLayout>
@@ -8,10 +8,11 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QStyleHints>
-#include <cmath>
 #include <QResizeEvent>
-#include <set>
-#include <iostream>
+
+#include "qtetnetwork.h"
+#include "qtetserversdialog.h"
+#include "qtetdrawutils.h"
 
 // 节点列表状态提示字符串
 namespace NodeStatusText {
@@ -2896,8 +2897,12 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
     }
 
     if (m_leftFrame) {
-        m_leftFrame->setMinimumWidth(LEFT_PANEL_MIN_WIDTH);
-        m_leftFrame->setMaximumWidth(targetWidth);
+        if (m_leftFrame->minimumWidth() != targetWidth) {
+            m_leftFrame->setMinimumWidth(targetWidth);
+        }
+        if (m_leftFrame->maximumWidth() != targetWidth) {
+            m_leftFrame->setMaximumWidth(targetWidth);
+        }
     }
 }
 
@@ -2905,7 +2910,11 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
 void QtETNetwork::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
-    if (m_initialWidth == 0 && width() > 0) {
-        m_initialWidth = width();
+    if (m_initialWidth == 0) {
+        QTimer::singleShot(0, this, [this]() {
+            if (m_initialWidth == 0 && width() > 0) {
+                m_initialWidth = width();
+            }
+        });
     }
 }

@@ -11,7 +11,7 @@ if [ -z "$VERSION" ]; then
         echo "错误: 未找到 CMakeLists.txt: $CMAKE_FILE"
         exit 1
     fi
-    VERSION=$(grep -oP 'project\(.*VERSION \K[0-9.]+' "$CMAKE_FILE" || true)
+    VERSION=$(sed -nE 's/.*project\([^)]*VERSION ([0-9.]+).*/\1/p' "$CMAKE_FILE" || true)
     if [ -z "$VERSION" ]; then
         echo "错误: 无法从 CMakeLists.txt 提取版本号"
         exit 1

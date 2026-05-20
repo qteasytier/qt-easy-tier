@@ -106,9 +106,24 @@ jobs:
         run: |
           & ".\package\win\build_win.ps1" -ProjectDir "$(Get-Location)"
 
+      - name: Create zip
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(.*VERSION ([0-9.]+)').Matches.Groups[1].Value
+          $zipPath = "Install\QtEasyTier_v$ver_win_amd64_normal.zip"
+          Compress-Archive -Path "Install\bin\*" -DestinationPath $zipPath
+          Write-Host "Created: $zipPath"
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: QtEasyTier-win-amd64
           path: Install/*.exe
+          if-no-files-found: error
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtEasyTier-win-amd64-portable
+          path: Install/*.zip
           if-no-files-found: error
