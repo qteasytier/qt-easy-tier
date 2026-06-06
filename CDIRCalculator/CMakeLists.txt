@@ -9,8 +9,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # 查找Qt的组件
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Svg)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Svg)
 
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 20)
@@ -42,7 +42,7 @@ qt_add_executable(CIDRCalculator
         ${CALCU_SRC}
         ${QT_ITEMS_SRC}
 )
-target_link_libraries(CIDRCalculator PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(CIDRCalculator PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Svg)
 
 set_target_properties(CIDRCalculator PROPERTIES
         WIN32_EXECUTABLE true

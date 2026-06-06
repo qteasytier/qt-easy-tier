@@ -50,8 +50,10 @@
      <property name="styleSheet">
       <string notr="true">/* 按钮基础样式：默认全透明、无边框、无焦点（无任何选中效果） */
 QPushButton {
-    width: 20px;
-    height: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    min-height: 42px;
+    max-height: 42px;
     border-radius: 8px;
     background-color: transparent;  /* 全透明背景 */
     color: #000000;

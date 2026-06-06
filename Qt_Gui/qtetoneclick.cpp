@@ -13,6 +13,10 @@
 #include <random>
 #include <iostream>
 
+#ifdef Q_OS_MACOS
+#include <unistd.h>
+#endif
+
 // ==================== Base32 编解码常量 ====================
 static const QString BASE32_CHARS = QStringLiteral("ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 
@@ -770,6 +774,18 @@ void QtETOneClick::onOneClickBtnClicked()
         return;
     }
 
+#ifdef Q_OS_MACOS
+    if (geteuid() != 0) {
+        QMessageBox::warning(
+            this,
+            tr("需要管理员权限"),
+            tr("一键联机当前需要创建 TUN 设备，因此需要管理员权限。\n\n"
+               "请等待后续 macOS 特权 helper 支持，或在组网设置中使用“无 TUN 模式”。")
+        );
+        return;
+    }
+#endif
+
     // 启动网络
     try {
         showProgressDialog(tr("启动网络中..."));
@@ -826,7 +842,9 @@ void QtETOneClick::stopCurrentNetwork()
 
 void QtETOneClick::onNetworkStarted(const std::string &instName, bool success, const std::string &errorMsg)
 {
-    Q_UNUSED(instName);
+    if (instName != "QtET-OneClick") {
+        return;
+    }
     
     if (!success) {
         closeProgressDialog();
@@ -848,9 +866,19 @@ void QtETOneClick::onNetworkStarted(const std::string &instName, bool success, c
 
 void QtETOneClick::onNetworkStopped(const std::string &instName, bool success, const std::string &errorMsg)
 {
-    Q_UNUSED(instName);
-    Q_UNUSED(success);
-    Q_UNUSED(errorMsg);
+    if (instName != "QtET-OneClick") {
+        return;
+    }
+
+    if (!success) {
+        m_currentRole = m_hostModeCheckBox->isChecked() ? UserRole::Host : UserRole::Guest;
+        updateInterfaceState();
+        const QString message = errorMsg.empty()
+            ? tr("停止网络失败")
+            : tr("停止网络失败: %1").arg(QString::fromStdString(errorMsg));
+        QMessageBox::warning(this, tr("警告"), message);
+        return;
+    }
     
     // 停止节点监测
     m_monitorTimer->stop();
