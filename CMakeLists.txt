@@ -18,9 +18,24 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_Items ${CMAKE_SOURCE_DIR}/Qt_Gui)
 set(CMAKE_AUTORCC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_QRC)
 
+if(APPLE)
+    find_program(BREW_EXECUTABLE brew)
+    if(BREW_EXECUTABLE AND NOT Qt6Svg_DIR)
+        execute_process(
+                COMMAND ${BREW_EXECUTABLE} --prefix qtsvg
+                OUTPUT_VARIABLE HOMEBREW_QTSVG_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+        )
+        if(HOMEBREW_QTSVG_PREFIX)
+            set(Qt6Svg_DIR "${HOMEBREW_QTSVG_PREFIX}/lib/cmake/Qt6Svg" CACHE PATH "Qt6 Svg package directory")
+        endif()
+    endif()
+endif()
+
 # 查找Qt的组件
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Svg)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Svg)
 
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 20)
@@ -40,15 +55,18 @@ if(WIN32)
                 ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows
     )
 elseif(APPLE)
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-        link_directories(
-                    ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64
-        )
-    else()
-        link_directories(
-                    ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64
-        )
+    if(NOT CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architectures" FORCE)
     endif()
+    if(NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+        message(FATAL_ERROR "macOS packaging currently supports arm64 only; matching EasyTier dylibs are required for other architectures.")
+    endif()
+    set(EASYTIER_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64")
+    set(EASYTIER_FFI_DYLIB "${EASYTIER_MACOS_DIR}/libeasytier_ffi.dylib")
+    if(NOT EXISTS "${EASYTIER_FFI_DYLIB}")
+        message(FATAL_ERROR "Missing EasyTier FFI dylib: ${EASYTIER_FFI_DYLIB}")
+    endif()
+    link_directories(${EASYTIER_MACOS_DIR})
 else()
     link_directories(
                 ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/linux
@@ -129,7 +147,7 @@ target_compile_definitions(${ProjectName} PRIVATE
 # ==========================================
 
 # 链接Qt库
-target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network Qt${QT_VERSION_MAJOR}::Svg)
 
 # 链接EasyTier Ffi 库
 target_link_libraries(${ProjectName} PRIVATE easytier_ffi)
@@ -153,6 +171,10 @@ elseif(APPLE)
     set_target_properties(${ProjectName} PROPERTIES
             MACOSX_BUNDLE_INFO_PLIST ${MACOS_INFO_PLIST}
             MACOSX_BUNDLE_ICON_FILE ${MACOS_APP_ICON_NAME}
+            MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.qteasytier.QtEasyTier"
+            MACOSX_BUNDLE_BUNDLE_NAME ${ProjectName}
+            MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+            MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
             RESOURCE ${MACOS_APP_ICON}
     )
 endif()
@@ -169,34 +191,19 @@ if(WIN32)
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
 elseif(APPLE)
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-        set(EASYTIER_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64")
-    else()
-        set(EASYTIER_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64")
-    endif()
-
-    # 复制EasyTier macOS版本到目标目录
+    # FFI动态库应放在Frameworks目录，供@rpath加载
     add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${EASYTIER_MACOS_DIR}
-            $<TARGET_FILE_DIR:${ProjectName}>
-            COMMENT "复制EasyTier macOS 到 ${ProjectName} 目录..."
-    )
-
-        # FFI动态库应放在Frameworks目录，供@rpath加载
-        add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory
             $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE_DIR:${ProjectName}>/libeasytier_ffi.dylib
+            ${EASYTIER_FFI_DYLIB}
             $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks/libeasytier_ffi.dylib
             COMMENT "复制EasyTier FFI动态库到Frameworks目录..."
-        )
+    )
 
     # 读取源dylib原始install name，用于修正主程序中的依赖引用
-    set(EASYTIER_FFI_SOURCE_DYLIB "${EASYTIER_MACOS_DIR}/libeasytier_ffi.dylib")
     execute_process(
-            COMMAND otool -D "${EASYTIER_FFI_SOURCE_DYLIB}"
+            COMMAND otool -D "${EASYTIER_FFI_DYLIB}"
             OUTPUT_VARIABLE EASYTIER_FFI_ID_OUTPUT
             RESULT_VARIABLE EASYTIER_FFI_ID_RESULT
             ERROR_QUIET
@@ -299,114 +306,90 @@ if(WIN32)
         )
     ")
 elseif(APPLE)
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-        set(EASYTIER_INSTALL_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64")
+    # FFI动态库放到Frameworks目录，匹配@rpath
+    install(CODE "
+        message(STATUS \"部署EasyTier FFI动态库到Frameworks...\")
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E make_directory
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks\"
+            RESULT_VARIABLE make_frameworks_result
+        )
+        if(NOT make_frameworks_result EQUAL 0)
+            message(FATAL_ERROR \"创建Frameworks目录失败，返回码: \${make_frameworks_result}\")
+        endif()
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
+                \"${EASYTIER_FFI_DYLIB}\"
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
+            RESULT_VARIABLE copy_ffi_result
+        )
+        if(NOT copy_ffi_result EQUAL 0)
+            message(FATAL_ERROR \"复制EasyTier FFI动态库失败，返回码: \${copy_ffi_result}\")
+        endif()
+        execute_process(
+            COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
+            RESULT_VARIABLE fix_ffi_id_result
+        )
+        if(NOT fix_ffi_id_result EQUAL 0)
+            message(FATAL_ERROR \"修正EasyTier FFI动态库install name失败，返回码: \${fix_ffi_id_result}\")
+        endif()
+        execute_process(
+            COMMAND install_name_tool -change ${EASYTIER_FFI_ORIGINAL_ID} @rpath/libeasytier_ffi.dylib
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/${ProjectName}\"
+            RESULT_VARIABLE fix_app_link_result
+        )
+        if(NOT fix_app_link_result EQUAL 0)
+            message(FATAL_ERROR \"修正主程序EasyTier FFI引用失败，返回码: \${fix_app_link_result}\")
+        endif()
+    ")
 
-        # 安装EasyTier目录
-        install(CODE "
-            message(STATUS \"部署EasyTier macOS arm64...\")
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${EASYTIER_INSTALL_MACOS_DIR}\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
-            )
-        ")
-
-        # 设置可执行权限
-        install(CODE "
-            message(STATUS \"设置EasyTier可执行权限...\")
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-core\"
-            )
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-cli\"
-            )
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
-            )
-        ")
-
-        # FFI动态库放到Frameworks目录，匹配@rpath
-        install(CODE "
-            message(STATUS \"部署EasyTier FFI动态库到Frameworks...\")
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E make_directory
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks\"
-            )
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
-                    \"${EASYTIER_INSTALL_MACOS_DIR}/libeasytier_ffi.dylib\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
-            )
-            execute_process(
-                COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
-            )
-        ")
-    else()
-        set(EASYTIER_INSTALL_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64")
-
-        # 安装EasyTier目录
-        install(CODE "
-            message(STATUS \"部署EasyTier macOS x86_64...\")
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                    \"${EASYTIER_INSTALL_MACOS_DIR}\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS\"
-            )
-        ")
-
-        # 设置可执行权限
-        install(CODE "
-            message(STATUS \"设置EasyTier可执行权限...\")
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-core\"
-            )
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-cli\"
-            )
-            execute_process(
-                COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/easytier-web-embed\"
-            )
-        ")
-
-        # FFI动态库放到Frameworks目录，匹配@rpath
-        install(CODE "
-            message(STATUS \"部署EasyTier FFI动态库到Frameworks...\")
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E make_directory
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks\"
-            )
-            execute_process(
-                COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
-                    \"${EASYTIER_INSTALL_MACOS_DIR}/libeasytier_ffi.dylib\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
-            )
-            execute_process(
-                COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Frameworks/libeasytier_ffi.dylib\"
-            )
-        ")
-    endif()
-
-    # 可选：尝试使用 macdeployqt 进行部署（如果可用）
     find_program(MACDEPLOYQT_EXECUTABLE macdeployqt)
-    if(MACDEPLOYQT_EXECUTABLE)
-        install(CODE "
-            message(STATUS \"使用macdeployqt部署Qt运行时...\")
-            execute_process(
-                COMMAND \"${MACDEPLOYQT_EXECUTABLE}\"
-                    \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app\"
-                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
-                RESULT_VARIABLE deploy_result
-            )
-            if(NOT deploy_result EQUAL 0)
-                message(WARNING \"macdeployqt执行失败，返回码: \${deploy_result}\")
-            endif()
-        ")
-    else()
-        message(STATUS "未找到macdeployqt工具，跳过自动部署。请确保目标系统已安装Qt运行时。")
+    if(NOT MACDEPLOYQT_EXECUTABLE)
+        message(FATAL_ERROR "macdeployqt is required to install a distributable macOS app. Add the Qt bin directory to PATH.")
     endif()
+    install(CODE "
+        message(STATUS \"使用macdeployqt部署Qt运行时...\")
+        set(cidr_executable \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/CIDRCalculator\")
+        if(NOT EXISTS \"\${cidr_executable}\")
+            message(FATAL_ERROR \"未找到CIDRCalculator辅助程序: \${cidr_executable}\")
+        endif()
+        set(publicservers_path \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/publicservers.json\")
+        set(publicservers_deploy_path \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Resources/publicservers.json\")
+        if(EXISTS \"\${publicservers_path}\")
+            file(RENAME \"\${publicservers_path}\" \"\${publicservers_deploy_path}\")
+        endif()
+        execute_process(
+            COMMAND \"${MACDEPLOYQT_EXECUTABLE}\"
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app\"
+                \"-executable=\${cidr_executable}\"
+                -no-codesign
+            WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+            RESULT_VARIABLE deploy_result
+        )
+        if(EXISTS \"\${publicservers_deploy_path}\")
+            file(RENAME \"\${publicservers_deploy_path}\" \"\${publicservers_path}\")
+        endif()
+        if(NOT deploy_result EQUAL 0)
+            message(FATAL_ERROR \"macdeployqt执行失败，返回码: \${deploy_result}\")
+        endif()
+        set(svg_icon_plugin \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/PlugIns/iconengines/libqsvgicon.dylib\")
+        set(svg_image_plugin \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/PlugIns/imageformats/libqsvg.dylib\")
+        foreach(svg_plugin IN ITEMS \"\${svg_icon_plugin}\" \"\${svg_image_plugin}\")
+            if(NOT EXISTS \"\${svg_plugin}\")
+                message(FATAL_ERROR \"未部署SVG插件: \${svg_plugin}. 请确认已安装qtsvg并链接Qt Svg组件。\")
+            endif()
+        endforeach()
+        message(STATUS \"SVG插件部署校验通过\")
+        execute_process(
+            COMMAND codesign --force --deep --sign -
+                \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app\"
+            RESULT_VARIABLE codesign_result
+        )
+        if(NOT codesign_result EQUAL 0)
+            message(FATAL_ERROR \"macOS app签名失败，返回码: \${codesign_result}\")
+        endif()
+    ")
 elseif(LINUX)
     # 安装EasyTier目录
     install(CODE "

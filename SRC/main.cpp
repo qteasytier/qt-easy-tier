@@ -8,40 +8,8 @@
 #include <QNetworkReply>
 #include <QPalette>
 #include <QColor>
-#include <QProcess>
-
-#ifdef Q_OS_MACOS
-#include <unistd.h>
-#endif
 
 void isAlreadyRunning(const QString& serverName, bool isAutoStart);
-
-#ifdef Q_OS_MACOS
-
-// mac提权防止创建tun失败
-void relaunchAsRoot() {
-    QString path = QCoreApplication::applicationFilePath();
-
-    QString appleScript = QString(
-        "do shell script quoted form of \"%1\" & \" > /dev/null 2>&1 &\" "
-        "with administrator privileges"
-    ).arg(path);
-
-    QProcess process;
-    process.start("osascript", QStringList() << "-e" << appleScript);
-    process.waitForFinished();
-}
-
-bool ensureRootPrivileges(const bool &isAutoStart) {
-    if (geteuid() == 0) {
-        return true;
-    }else{
-        relaunchAsRoot();
-    }
-
-    return false;
-}
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -53,13 +21,6 @@ int main(int argc, char *argv[])
         }
     }
     QApplication app(argc, argv);
-
-#ifdef Q_OS_MACOS
-    // app.setQuitOnLastWindowClosed(false); 
-    if (!ensureRootPrivileges(isAutoStart)) {
-        std::exit(0);
-    }
-#endif
 
     // 检查是否已有实例运行（确保单实例）
     QString serverName = "QtEasyTier2-by-Myqfeng";

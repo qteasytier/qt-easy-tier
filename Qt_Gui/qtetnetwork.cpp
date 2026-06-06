@@ -10,6 +10,10 @@
 #include <QStyleHints>
 #include <QResizeEvent>
 
+#ifdef Q_OS_MACOS
+#include <unistd.h>
+#endif
+
 #include "qtetnetwork.h"
 #include "qtetserversdialog.h"
 #include "qtetdrawutils.h"
@@ -1972,6 +1976,21 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
     if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
         saveConfFromUI(currentRow);
     }
+
+#ifdef Q_OS_MACOS
+    const NetworkConf &currentConf = (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size()))
+        ? m_networkConfs[currentRow]
+        : conf;
+    if (!currentConf.m_noTun && geteuid() != 0) {
+        QMessageBox::warning(
+            this,
+            tr("需要管理员权限"),
+            tr("当前网络未启用无 TUN 模式，需要管理员权限创建 TUN 设备。\n\n"
+               "请在高级设置中启用“无 TUN 模式”，或等待后续 macOS 特权 helper 支持。")
+        );
+        return;
+    }
+#endif
     
     // 清空该网络配置的运行状态和日志
     for (auto &networkConf : m_networkConfs) {
@@ -2069,6 +2088,24 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
                 
                 // 保存配置
                 saveAllNetworkConfs();
+            } else {
+                // 启动失败时确保状态和 UI 回到未运行，避免按钮看起来像无响应
+                m_networkConfs[i].setRunning(false);
+                m_networkConfs[i].m_runningStatus.clear();
+                updateListItemStyle(static_cast<int>(i));
+                updateRunButtonStyle();
+
+                if (m_networksList->currentRow() == static_cast<int>(i)) {
+                    updateCurrentNetworkUI();
+                    updateCurrentNetworkLogUI();
+                }
+
+                saveAllNetworkConfs();
+
+                const QString message = errorMsg.empty()
+                    ? tr("网络启动失败")
+                    : tr("网络启动失败：%1").arg(QString::fromStdString(errorMsg));
+                QMessageBox::warning(this, tr("启动失败"), message);
             }
             return;
         }
@@ -2113,6 +2150,14 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
                 
                 // 保存配置
                 saveAllNetworkConfs();
+            } else {
+                updateListItemStyle(static_cast<int>(i));
+                updateRunButtonStyle();
+
+                const QString message = errorMsg.empty()
+                    ? tr("网络停止失败")
+                    : tr("网络停止失败：%1").arg(QString::fromStdString(errorMsg));
+                QMessageBox::warning(this, tr("停止失败"), message);
             }
             return;
         }
@@ -2720,8 +2765,15 @@ void QtETNetwork::stopNodeMonitor()
 
 void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos)
 {
-    // 如果没有运行中的网络，直接返回
+    // 空结果也要刷新运行中配置的节点状态；后续 helper-backed collect 同样依赖这个语义。
     if (infos.empty()) {
+        for (auto &conf : m_networkConfs) {
+            if (conf.isRunning()) {
+                conf.m_runningStatus.clear();
+            }
+        }
+        updateCurrentNetworkUI();
+        updateCurrentNetworkLogUI();
         return;
     }
     
