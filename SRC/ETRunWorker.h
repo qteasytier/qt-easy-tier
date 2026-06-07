@@ -11,6 +11,10 @@
 #include <vector>
 #include <QMetaType>
 #include <mutex>
+#include <set>
+#ifdef Q_OS_MACOS
+#include "ETMacHelperClient.h"
+#endif
 
 // 注册 std::string 为 Qt 元类型，以便在信号槽中使用
 Q_DECLARE_METATYPE(std::string)
@@ -185,6 +189,10 @@ private:
      * @brief 互斥锁，用于保护 FFI 操作的线程安全
      */
     std::mutex m_mutex;
+#ifdef Q_OS_MACOS
+    ETMacHelperClient m_helperClient;
+    std::set<std::string> m_helperInstances;
+#endif
 };
 
 // 注册 EasyTierFFI::KVPair 为 Qt 元类型

@@ -11,11 +11,8 @@
 #include <QScrollArea>
 #include <QFile>
 #include <random>
-#include <iostream>
 
-#ifdef Q_OS_MACOS
-#include <unistd.h>
-#endif
+#include <iostream>
 
 // ==================== Base32 编解码常量 ====================
 static const QString BASE32_CHARS = QStringLiteral("ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
@@ -63,8 +60,8 @@ void QtETOneClick::initUI()
     // 初始化所有区域（全部放入滚动区域）
     initTitleArea();
     initFormArea();
-    initServerArea();
     initButtonArea();
+    initServerArea();
 
     // 添加弹簧让内容向上对齐
     m_contentLayout->addStretch();
@@ -126,6 +123,8 @@ void QtETOneClick::initFormArea()
     m_roomIdLabel->setText(QStringLiteral("联机码："));
 
     m_roomIdEdit = new QtETLineEdit(m_formWidget);
+    m_roomIdEdit->setObjectName(QStringLiteral("oneclick.roomCodeEdit"));
+    m_roomIdEdit->setAccessibleName(QStringLiteral("oneclick.roomCodeEdit"));
     m_roomIdEdit->setFont(labelFont);
     m_roomIdEdit->setAlignment(Qt::AlignCenter);  // 文字居中
     m_roomIdEdit->setReadOnly(false);  // 默认房客模式，可输入
@@ -137,6 +136,8 @@ void QtETOneClick::initFormArea()
     m_hostIpLabel->setText(QStringLiteral("房主虚拟IP："));
 
     m_hostIpEdit = new QtETLineEdit(m_formWidget);
+    m_hostIpEdit->setObjectName(QStringLiteral("oneclick.hostIpEdit"));
+    m_hostIpEdit->setAccessibleName(QStringLiteral("oneclick.hostIpEdit"));
     m_hostIpEdit->setFont(labelFont);
     m_hostIpEdit->setAlignment(Qt::AlignCenter);  // 文字居中
     m_hostIpEdit->setReadOnly(true);  // 只读，显示房主 IP
@@ -149,6 +150,8 @@ void QtETOneClick::initFormArea()
 
     // 一键联机按钮
     m_oneClickBtn = new QtETPushBtn(this);
+    m_oneClickBtn->setObjectName(QStringLiteral("oneclick.startStopButton"));
+    m_oneClickBtn->setAccessibleName(QStringLiteral("oneclick.startStopButton"));
     m_oneClickBtn->setMinimumWidth(200);
     m_oneClickBtn->setMaximumWidth(200);
     QFont btnFont;
@@ -173,9 +176,13 @@ void QtETOneClick::initServerArea()
 
     // 服务器地址输入框
     m_serverEdit = new QtETLineEdit(m_serverWidget);
+    m_serverEdit->setObjectName(QStringLiteral("oneclick.serverEdit"));
+    m_serverEdit->setAccessibleName(QStringLiteral("oneclick.serverEdit"));
 
     // 添加按钮
     m_addServerBtn = new QtETPushBtn(m_serverWidget);
+    m_addServerBtn->setObjectName(QStringLiteral("oneclick.addServerButton"));
+    m_addServerBtn->setAccessibleName(QStringLiteral("oneclick.addServerButton"));
     m_addServerBtn->setMinimumWidth(100);
     m_addServerBtn->setMaximumWidth(100);
     m_addServerBtn->setText(QStringLiteral("添加"));
@@ -183,6 +190,8 @@ void QtETOneClick::initServerArea()
 
     // 服务器列表
     m_serverListWidget = new QListWidget(m_serverWidget);
+    m_serverListWidget->setObjectName(QStringLiteral("oneclick.serverList"));
+    m_serverListWidget->setAccessibleName(QStringLiteral("oneclick.serverList"));
     m_serverListWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_serverListWidget->setMaximumHeight(120);
 
@@ -253,12 +262,16 @@ void QtETOneClick::initButtonArea()
 
     // 我做房主（默认不勾选，即房客模式）
     m_hostModeCheckBox = new QtETCheckBtn(m_bottomWidget);
+    m_hostModeCheckBox->setObjectName(QStringLiteral("oneclick.hostModeCheckBox"));
+    m_hostModeCheckBox->setAccessibleName(QStringLiteral("oneclick.hostModeCheckBox"));
     m_hostModeCheckBox->setText(QStringLiteral("我做房主"));
     m_hostModeCheckBox->setChecked(false);  // 默认房客模式
     m_hostModeCheckBox->setBriefTip(tr("打开时作为房主，关闭时作为房客"));
 
     // 低延迟优先
     m_latencyFirstCheckBox = new QtETCheckBtn(m_bottomWidget);
+    m_latencyFirstCheckBox->setObjectName(QStringLiteral("oneclick.latencyFirstCheckBox"));
+    m_latencyFirstCheckBox->setAccessibleName(QStringLiteral("oneclick.latencyFirstCheckBox"));
     m_latencyFirstCheckBox->setText(QStringLiteral("低延迟优先"));
     m_latencyFirstCheckBox->setChecked(true);  // 默认开启
     m_latencyFirstCheckBox->setBriefTip(tr("使用延迟优先的路由策略，提升联机体验"));
@@ -771,20 +784,9 @@ void QtETOneClick::onOneClickBtnClicked()
     // 如果正在运行，停止网络
     if (isRunning()) {
         stopCurrentNetwork();
-        return;
-    }
 
-#ifdef Q_OS_MACOS
-    if (geteuid() != 0) {
-        QMessageBox::warning(
-            this,
-            tr("需要管理员权限"),
-            tr("一键联机当前需要创建 TUN 设备，因此需要管理员权限。\n\n"
-               "请等待后续 macOS 特权 helper 支持，或在组网设置中使用“无 TUN 模式”。")
-        );
         return;
     }
-#endif
 
     // 启动网络
     try {
@@ -831,6 +833,7 @@ void QtETOneClick::onOneClickBtnClicked()
 void QtETOneClick::stopCurrentNetwork()
 {
     if (m_worker && isRunning()) {
+        m_roleBeforeStopping = m_currentRole;
         m_currentRole = UserRole::Stopping;
         updateInterfaceState();
         
@@ -855,7 +858,8 @@ void QtETOneClick::onNetworkStarted(const std::string &instName, bool success, c
         return;
     }
 
-    // 更新进度对话框
+    // Worker success only means the EasyTier instance started. Keep the progress
+    // dialog open until runtime info shows an actual peer connection.
     if (m_progressDialog) {
         m_progressDialog->setLabelText(tr("网络已启动，正在连接服务器..."));
     }
@@ -871,7 +875,9 @@ void QtETOneClick::onNetworkStopped(const std::string &instName, bool success, c
     }
 
     if (!success) {
-        m_currentRole = m_hostModeCheckBox->isChecked() ? UserRole::Host : UserRole::Guest;
+        m_currentRole = m_roleBeforeStopping == UserRole::None
+            ? (m_hostModeCheckBox->isChecked() ? UserRole::Host : UserRole::Guest)
+            : m_roleBeforeStopping;
         updateInterfaceState();
         const QString message = errorMsg.empty()
             ? tr("停止网络失败")
@@ -884,6 +890,7 @@ void QtETOneClick::onNetworkStopped(const std::string &instName, bool success, c
     m_monitorTimer->stop();
     
     m_currentRole = UserRole::None;
+    m_roleBeforeStopping = UserRole::None;
     updateInterfaceState();
 }
 
@@ -919,7 +926,6 @@ void QtETOneClick::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &info
             if (m_progressDialog && !peers.isEmpty()) {
                 closeProgressDialog();
             }
-            
             parsePeerInfo(peers, routes, root);
             break;
         }

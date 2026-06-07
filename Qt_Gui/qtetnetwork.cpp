@@ -8,11 +8,8 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QStyleHints>
-#include <QResizeEvent>
 
-#ifdef Q_OS_MACOS
-#include <unistd.h>
-#endif
+#include <QResizeEvent>
 
 #include "qtetnetwork.h"
 #include "qtetserversdialog.h"
@@ -223,6 +220,8 @@ void QtETNetwork::initLeftPanel()
 
     // 创建网络列表
     m_networksList = new QtETLabelList(m_leftFrame);
+    m_networksList->setObjectName(QStringLiteral("network.list"));
+    m_networksList->setAccessibleName(QStringLiteral("network.list"));
     m_networksList->setMinimumSize(LEFT_PANEL_MIN_WIDTH, 0);
     // maximum width handled by layout
 
@@ -230,12 +229,20 @@ void QtETNetwork::initLeftPanel()
 
     // 创建按钮
     m_runNetworkBtn = new QtETPushBtn(tr("运行网络"), m_leftFrame);
+    m_runNetworkBtn->setObjectName(QStringLiteral("network.runButton"));
+    m_runNetworkBtn->setAccessibleName(QStringLiteral("network.runButton"));
     m_runNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
     m_newNetworkBtn = new QtETPushBtn(tr("新建网络"), m_leftFrame);
+    m_newNetworkBtn->setObjectName(QStringLiteral("network.newButton"));
+    m_newNetworkBtn->setAccessibleName(QStringLiteral("network.newButton"));
     m_newNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     m_importConfBtn = new QtETPushBtn(tr("导入配置"), m_leftFrame);
+    m_importConfBtn->setObjectName(QStringLiteral("network.importButton"));
+    m_importConfBtn->setAccessibleName(QStringLiteral("network.importButton"));
     m_importConfBtn->setIcon(QIcon(QStringLiteral(":/icons/import.svg")));
     m_exportConfBtn = new QtETPushBtn(tr("导出配置"), m_leftFrame);
+    m_exportConfBtn->setObjectName(QStringLiteral("network.exportButton"));
+    m_exportConfBtn->setAccessibleName(QStringLiteral("network.exportButton"));
     m_exportConfBtn->setIcon(QIcon(QStringLiteral(":/icons/export.svg")));
 
     m_leftLayout->addWidget(m_runNetworkBtn);
@@ -254,6 +261,8 @@ void QtETNetwork::initRightPanel()
 {
     // 创建选项卡容器
     m_tabWidget = new QtETTabWidget(this);
+    m_tabWidget->setObjectName(QStringLiteral("network.tabs"));
+    m_tabWidget->setAccessibleName(QStringLiteral("network.tabs"));
     m_tabWidget->setCurrentIndex(0);
 
     // 创建基础设置选项卡
@@ -316,16 +325,22 @@ void QtETNetwork::initBasicSettingsPage()
 
     // 用户名输入框
     m_hostnameEdit = new QtETLineEdit(networkFormWidget);
+    m_hostnameEdit->setObjectName(QStringLiteral("network.hostnameEdit"));
+    m_hostnameEdit->setAccessibleName(QStringLiteral("network.hostnameEdit"));
     m_hostnameEdit->setPlaceholderText(tr("请输入用户名（默认为本机名称）"));
     networkFormLayout->addRow(tr("用户名:"), m_hostnameEdit);
 
     // 网络号输入框
     m_networkNameEdit = new QtETLineEdit(networkFormWidget);
+    m_networkNameEdit->setObjectName(QStringLiteral("network.nameEdit"));
+    m_networkNameEdit->setAccessibleName(QStringLiteral("network.nameEdit"));
     m_networkNameEdit->setPlaceholderText(tr("请输入网络名称"));
     networkFormLayout->addRow(tr("网络号:"), m_networkNameEdit);
 
     // 密码输入框（使用QtETLineEdit内置的密码切换按钮）
     m_networkSecretEdit = new QtETLineEdit(networkFormWidget);
+    m_networkSecretEdit->setObjectName(QStringLiteral("network.secretEdit"));
+    m_networkSecretEdit->setAccessibleName(QStringLiteral("network.secretEdit"));
     m_networkSecretEdit->setPlaceholderText(tr("请输入密码"));
     m_networkSecretEdit->setEchoMode(QLineEdit::Password);
 
@@ -333,6 +348,8 @@ void QtETNetwork::initBasicSettingsPage()
 
     // DHCP 开关
     m_dhcpCheckBox = new QtETCheckBtn(networkFormWidget);
+    m_dhcpCheckBox->setObjectName(QStringLiteral("network.dhcpCheckBox"));
+    m_dhcpCheckBox->setAccessibleName(QStringLiteral("network.dhcpCheckBox"));
     m_dhcpCheckBox->setText(tr("启用 DHCP"));
     m_dhcpCheckBox->setChecked(true);
     m_dhcpCheckBox->setBorderless(true);
@@ -341,6 +358,8 @@ void QtETNetwork::initBasicSettingsPage()
 
     // IPv4 地址输入框
     m_ipv4Edit = new QtETLineEdit(networkFormWidget);
+    m_ipv4Edit->setObjectName(QStringLiteral("network.ipv4Edit"));
+    m_ipv4Edit->setAccessibleName(QStringLiteral("network.ipv4Edit"));
     m_ipv4Edit->setPlaceholderText(tr("请输入 IPv4 地址"));
     m_ipv4Edit->setEnabled(false);
     // 设置 IP 地址验证器
@@ -385,8 +404,12 @@ void QtETNetwork::initBasicSettingsPage()
     // 服务器输入框和添加按钮
     QHBoxLayout *addServerLayout = new QHBoxLayout();
     m_serverEdit = new QtETLineEdit(serverWidget);
+    m_serverEdit->setObjectName(QStringLiteral("network.serverEdit"));
+    m_serverEdit->setAccessibleName(QStringLiteral("network.serverEdit"));
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
     m_addServerBtn = new QtETPushBtn(tr("添加"), serverWidget);
+    m_addServerBtn->setObjectName(QStringLiteral("network.addServerButton"));
+    m_addServerBtn->setAccessibleName(QStringLiteral("network.addServerButton"));
     m_addServerBtn->setMinimumWidth(80);
     m_addServerBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     addServerLayout->addWidget(m_serverEdit, 1);
@@ -396,6 +419,8 @@ void QtETNetwork::initBasicSettingsPage()
     // 服务器列表和删除按钮
     QHBoxLayout *serverListLayout = new QHBoxLayout();
     m_serverListWidget = new QListWidget(serverWidget);
+    m_serverListWidget->setObjectName(QStringLiteral("network.serverList"));
+    m_serverListWidget->setAccessibleName(QStringLiteral("network.serverList"));
     m_serverListWidget->setMinimumHeight(80);
 
     m_removeServerBtn = new QtETPushBtn(tr("删除"), serverWidget);
@@ -704,6 +729,8 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_useSmoltcpCheckBox->setBriefTip(tr("默认使用系统协议栈"));
 
     m_noTunCheckBox = new QtETCheckBtn(perfGrid);
+    m_noTunCheckBox->setObjectName(QStringLiteral("network.noTunCheckBox"));
+    m_noTunCheckBox->setAccessibleName(QStringLiteral("network.noTunCheckBox"));
     m_noTunCheckBox->setText(tr("无 TUN 模式"));
     m_noTunCheckBox->setChecked(false);
     m_noTunCheckBox->setToolTip(tr("不创建TUN网卡,开启时本节点无法主动访问其他节点,只能被动访问"));
@@ -1975,23 +2002,8 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
     const int &currentRow = m_networksList->currentRow();
     if (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size())) {
         saveConfFromUI(currentRow);
-    }
 
-#ifdef Q_OS_MACOS
-    const NetworkConf &currentConf = (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size()))
-        ? m_networkConfs[currentRow]
-        : conf;
-    if (!currentConf.m_noTun && geteuid() != 0) {
-        QMessageBox::warning(
-            this,
-            tr("需要管理员权限"),
-            tr("当前网络未启用无 TUN 模式，需要管理员权限创建 TUN 设备。\n\n"
-               "请在高级设置中启用“无 TUN 模式”，或等待后续 macOS 特权 helper 支持。")
-        );
-        return;
     }
-#endif
-    
     // 清空该网络配置的运行状态和日志
     for (auto &networkConf : m_networkConfs) {
         if (networkConf.getInstanceName() == conf.getInstanceName()) {
@@ -2073,11 +2085,14 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
             if (success) {
+                const bool wasRunning = m_networkConfs[i].isRunning();
                 // 更新运行状态
                 m_networkConfs[i].setRunning(true);
                 
                 // 增加运行网络计数并启动监测
-                m_runningNetworkCount++;
+                if (!wasRunning) {
+                    m_runningNetworkCount++;
+                }
                 startNodeMonitor();
                 
                 // 更新列表项样式
@@ -2123,6 +2138,7 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
             if (success) {
+                const bool wasRunning = m_networkConfs[i].isRunning();
                 // 更新运行状态
                 m_networkConfs[i].setRunning(false);
                 
@@ -2130,7 +2146,9 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
                 m_networkConfs[i].m_runningStatus.clear();
                 
                 // 减少运行网络计数，如果没有运行的网络则停止监测
-                m_runningNetworkCount--;
+                if (wasRunning) {
+                    m_runningNetworkCount--;
+                }
                 if (m_runningNetworkCount <= 0) {
                     m_runningNetworkCount = 0;
                     stopNodeMonitor();

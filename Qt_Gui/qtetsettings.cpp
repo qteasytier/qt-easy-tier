@@ -6,6 +6,10 @@
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
 #include "qtetdrawutils.h"
+#ifdef Q_OS_MACOS
+#include "ETMacHelperClient.h"
+#include "ETMacHelperServiceManager.h"
+#endif
 
 #include <QMessageBox>
 #include <QDesktopServices>
@@ -19,8 +23,59 @@
 #include <QPixmap>
 #include <QFontDatabase>
 #include <QScrollArea>
+#include <QFrame>
 #include <iostream>
 
+#ifdef Q_OS_MACOS
+namespace {
+QString toQString(const std::string &value)
+{
+    return QString::fromStdString(value);
+}
+QString bundleStateText(ETMacHelperServiceBundleStateKind kind)
+{
+    switch (kind) {
+    case ETMacHelperServiceBundleStateKind::Unsupported:
+        return QObject::tr("当前平台不支持");
+    case ETMacHelperServiceBundleStateKind::NotBundled:
+        return QObject::tr("未从 .app Bundle 运行");
+    case ETMacHelperServiceBundleStateKind::HelperExecutableMissing:
+        return QObject::tr("缺少 helper 可执行文件");
+    case ETMacHelperServiceBundleStateKind::HelperExecutableNotExecutable:
+        return QObject::tr("helper 不可执行");
+    case ETMacHelperServiceBundleStateKind::LaunchDaemonPlistMissing:
+        return QObject::tr("缺少 LaunchDaemon plist");
+    case ETMacHelperServiceBundleStateKind::ReadyForRegistration:
+        return QObject::tr("Bundle 已就绪");
+    case ETMacHelperServiceBundleStateKind::Unknown:
+        return QObject::tr("Bundle 状态未知");
+    }
+    return QObject::tr("Bundle 状态未知");
+}
+QString registrationStateText(ETMacHelperServiceRegistrationStateKind kind)
+{
+    switch (kind) {
+    case ETMacHelperServiceRegistrationStateKind::Unsupported:
+        return QObject::tr("不支持 SMAppService");
+    case ETMacHelperServiceRegistrationStateKind::NotBundled:
+        return QObject::tr("未从 .app Bundle 运行");
+    case ETMacHelperServiceRegistrationStateKind::BundleNotReady:
+        return QObject::tr("Bundle 未就绪");
+    case ETMacHelperServiceRegistrationStateKind::NotRegistered:
+        return QObject::tr("未安装");
+    case ETMacHelperServiceRegistrationStateKind::Enabled:
+        return QObject::tr("已安装");
+    case ETMacHelperServiceRegistrationStateKind::RequiresApproval:
+        return QObject::tr("等待管理员批准");
+    case ETMacHelperServiceRegistrationStateKind::NotFound:
+        return QObject::tr("服务未找到");
+    case ETMacHelperServiceRegistrationStateKind::Unknown:
+        return QObject::tr("注册状态未知");
+    }
+    return QObject::tr("注册状态未知");
+}
+} // namespace
+#endif
 
 QtETSettings::QtETSettings(QWidget *parent)
     : QWidget(parent)
@@ -67,8 +122,8 @@ void QtETSettings::initUI()
     titleFont.setPointSize(20);
     titleLabel->setFont(titleFont);
     titleLabel->setText(tr("设置"));
-    titleLabel->setAlignment(Qt::AlignCenter);
 
+    titleLabel->setAlignment(Qt::AlignCenter);
 
     titleLayout->addWidget(iconLabel, 0, Qt::AlignTop);
     titleLayout->addWidget(titleLabel, 0, Qt::AlignHCenter | Qt::AlignVCenter);
@@ -102,6 +157,14 @@ void QtETSettings::initUI()
     m_autoReconnectCheckBox->setFont(checkBoxFont);
     m_autoCheckUpdateCheckBox->setFont(checkBoxFont);
     m_autoStartCheckBox->setFont(checkBoxFont);
+    m_hideOnTrayCheckBox->setObjectName(QStringLiteral("settings.hideOnTrayCheckBox"));
+    m_hideOnTrayCheckBox->setAccessibleName(QStringLiteral("settings.hideOnTrayCheckBox"));
+    m_autoReconnectCheckBox->setObjectName(QStringLiteral("settings.autoReconnectCheckBox"));
+    m_autoReconnectCheckBox->setAccessibleName(QStringLiteral("settings.autoReconnectCheckBox"));
+    m_autoCheckUpdateCheckBox->setObjectName(QStringLiteral("settings.autoCheckUpdateCheckBox"));
+    m_autoCheckUpdateCheckBox->setAccessibleName(QStringLiteral("settings.autoCheckUpdateCheckBox"));
+    m_autoStartCheckBox->setObjectName(QStringLiteral("settings.autoStartCheckBox"));
+    m_autoStartCheckBox->setAccessibleName(QStringLiteral("settings.autoStartCheckBox"));
 
     // 设置简要提示
     m_hideOnTrayCheckBox->setBriefTip(tr("关闭窗口时最小化到系统托盘而不是退出程序"));
@@ -135,6 +198,8 @@ void QtETSettings::initUI()
     m_versionLabel->setAlignment(Qt::AlignLeft);
 
     m_checkUpdateBtn = new QtETPushBtn(tr("检查更新"), this);
+    m_checkUpdateBtn->setObjectName(QStringLiteral("settings.checkUpdateButton"));
+    m_checkUpdateBtn->setAccessibleName(QStringLiteral("settings.checkUpdateButton"));
     m_checkUpdateBtn->setFixedWidth(120);
 
     versionLayout->addWidget(m_versionLabel);
@@ -142,6 +207,9 @@ void QtETSettings::initUI()
     versionLayout->addWidget(m_checkUpdateBtn);
 
     // 添加到布局（垂直布局，一行一个）
+#ifdef Q_OS_MACOS
+    initMacHelperServiceSection(settingsLayout);
+#endif
     settingsLayout->addWidget(m_hideOnTrayCheckBox);
     settingsLayout->addWidget(m_autoReconnectCheckBox);
     settingsLayout->addWidget(m_autoCheckUpdateCheckBox);
@@ -169,10 +237,14 @@ void QtETSettings::initUI()
     buttonLayout->addStretch();
 
     m_discardBtn = new QtETPushBtn(tr("丢弃"), this);
+    m_discardBtn->setObjectName(QStringLiteral("settings.discardButton"));
+    m_discardBtn->setAccessibleName(QStringLiteral("settings.discardButton"));
     m_discardBtn->setFixedWidth(80);
     m_discardBtn->setEnabled(false);
 
     m_saveBtn = new QtETPushBtn(tr("保存"), this);
+    m_saveBtn->setObjectName(QStringLiteral("settings.saveButton"));
+    m_saveBtn->setAccessibleName(QStringLiteral("settings.saveButton"));
     m_saveBtn->setFixedWidth(80);
     m_saveBtn->setEnabled(false);
 
@@ -196,6 +268,11 @@ void QtETSettings::setupConnections()
     connect(m_saveBtn, &QPushButton::clicked, this, &QtETSettings::onSaveButtonClicked);
     connect(m_discardBtn, &QPushButton::clicked, this, &QtETSettings::onDiscardButtonClicked);
     connect(m_checkUpdateBtn, &QPushButton::clicked, this, &QtETSettings::onCheckUpdateButtonClicked);
+#ifdef Q_OS_MACOS
+    connect(m_macHelperRefreshBtn, &QPushButton::clicked, this, &QtETSettings::onRefreshMacHelperClicked);
+    connect(m_macHelperInstallBtn, &QPushButton::clicked, this, &QtETSettings::onInstallMacHelperClicked);
+    connect(m_macHelperUninstallBtn, &QPushButton::clicked, this, &QtETSettings::onUninstallMacHelperClicked);
+#endif
 }
 
 // ==================== UI 事件处理 ====================
@@ -252,6 +329,98 @@ void QtETSettings::onCheckUpdateButtonClicked()
     checkForUpdate(this, false);
 }
 
+#ifdef Q_OS_MACOS
+void QtETSettings::onRefreshMacHelperClicked()
+{
+    refreshMacHelperServiceState();
+}
+void QtETSettings::onInstallMacHelperClicked()
+{
+    QString preflightMessage;
+    if (!canChangeMacHelperService(&preflightMessage)) {
+        QMessageBox::warning(this, tr("无法变更辅助服务"), preflightMessage);
+        refreshMacHelperServiceState();
+        return;
+    }
+    const ETMacHelperServiceRegistrationState state = ETMacHelperServiceManager::queryRegistrationState();
+    if (state.kind == ETMacHelperServiceRegistrationStateKind::Enabled
+        || state.kind == ETMacHelperServiceRegistrationStateKind::RequiresApproval) {
+        const QMessageBox::StandardButton answer = QMessageBox::question(
+            this,
+            tr("重新安装辅助服务"),
+            tr("将先卸载当前辅助服务注册信息，然后重新注册当前 App Bundle 内的 helper。继续吗？"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes) {
+            return;
+        }
+        QString prepareMessage;
+        if (!prepareMacHelperForUnregister(&prepareMessage)) {
+            QMessageBox::warning(this, tr("无法准备辅助服务"), prepareMessage);
+            refreshMacHelperServiceState();
+            return;
+        }
+        std::string unregisterError;
+        if (!ETMacHelperServiceManager::unregisterService(&unregisterError)) {
+            QMessageBox::warning(
+                this,
+                tr("卸载失败"),
+                tr("无法卸载当前辅助服务：%1").arg(toQString(unregisterError)));
+            refreshMacHelperServiceState();
+            return;
+        }
+    }
+    std::string registerError;
+    if (!ETMacHelperServiceManager::registerService(&registerError)) {
+        QMessageBox::warning(
+            this,
+            tr("安装失败"),
+            tr("无法注册辅助服务：%1").arg(toQString(registerError)));
+        refreshMacHelperServiceState();
+        return;
+    }
+    refreshMacHelperServiceState();
+    QMessageBox::information(
+        this,
+        tr("辅助服务已注册"),
+        tr("辅助服务已提交给 macOS。若状态显示“等待管理员批准”，请在系统设置中批准 QtEasyTier 后再使用 TUN 网络。"));
+}
+void QtETSettings::onUninstallMacHelperClicked()
+{
+    QString preflightMessage;
+    if (!canChangeMacHelperService(&preflightMessage)) {
+        QMessageBox::warning(this, tr("无法卸载辅助服务"), preflightMessage);
+        refreshMacHelperServiceState();
+        return;
+    }
+    const QMessageBox::StandardButton answer = QMessageBox::question(
+        this,
+        tr("卸载辅助服务"),
+        tr("卸载后 QtEasyTier 将不能通过正式辅助服务创建 TUN 网络，直到重新安装。继续吗？"),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+    QString prepareMessage;
+    if (!prepareMacHelperForUnregister(&prepareMessage)) {
+        QMessageBox::warning(this, tr("无法准备辅助服务"), prepareMessage);
+        refreshMacHelperServiceState();
+        return;
+    }
+    std::string unregisterError;
+    if (!ETMacHelperServiceManager::unregisterService(&unregisterError)) {
+        QMessageBox::warning(
+            this,
+            tr("卸载失败"),
+            tr("无法卸载辅助服务：%1").arg(toQString(unregisterError)));
+        refreshMacHelperServiceState();
+        return;
+    }
+    refreshMacHelperServiceState();
+    QMessageBox::information(this, tr("辅助服务已卸载"), tr("辅助服务注册信息已移除。"));
+}
+#endif
 void QtETSettings::updateButtonState()
 {
     bool hasChanges = hasUnsavedChanges();
@@ -259,6 +428,166 @@ void QtETSettings::updateButtonState()
     m_discardBtn->setEnabled(hasChanges);
 }
 
+#ifdef Q_OS_MACOS
+void QtETSettings::initMacHelperServiceSection(QVBoxLayout *settingsLayout)
+{
+    m_macHelperFrame = new QFrame(this);
+    m_macHelperFrame->setObjectName(QStringLiteral("settings.macHelperFrame"));
+    m_macHelperFrame->setAccessibleName(QStringLiteral("settings.macHelperFrame"));
+    m_macHelperFrame->setFrameShape(QFrame::StyledPanel);
+    auto *helperLayout = new QVBoxLayout(m_macHelperFrame);
+    helperLayout->setSpacing(8);
+    helperLayout->setContentsMargins(12, 10, 12, 10);
+    auto *titleLabel = new QLabel(tr("macOS TUN 辅助服务"), m_macHelperFrame);
+    QFont titleFont = titleLabel->font();
+    titleFont.setPointSize(11);
+    titleFont.setBold(true);
+    titleLabel->setFont(titleFont);
+    m_macHelperStateLabel = new QLabel(m_macHelperFrame);
+    m_macHelperStateLabel->setObjectName(QStringLiteral("settings.macHelperStateLabel"));
+    m_macHelperStateLabel->setAccessibleName(QStringLiteral("settings.macHelperStateLabel"));
+    m_macHelperStateLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_macHelperDetailLabel = new QLabel(m_macHelperFrame);
+    m_macHelperDetailLabel->setObjectName(QStringLiteral("settings.macHelperDetailLabel"));
+    m_macHelperDetailLabel->setAccessibleName(QStringLiteral("settings.macHelperDetailLabel"));
+    m_macHelperDetailLabel->setWordWrap(true);
+    m_macHelperDetailLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto *buttonRow = new QWidget(m_macHelperFrame);
+    auto *buttonLayout = new QHBoxLayout(buttonRow);
+    buttonLayout->setSpacing(8);
+    buttonLayout->setContentsMargins(0, 0, 0, 0);
+    m_macHelperRefreshBtn = new QtETPushBtn(tr("刷新"), buttonRow);
+    m_macHelperRefreshBtn->setObjectName(QStringLiteral("settings.macHelperRefreshButton"));
+    m_macHelperRefreshBtn->setAccessibleName(QStringLiteral("settings.macHelperRefreshButton"));
+    m_macHelperRefreshBtn->setFixedWidth(90);
+    m_macHelperInstallBtn = new QtETPushBtn(tr("安装/升级"), buttonRow);
+    m_macHelperInstallBtn->setObjectName(QStringLiteral("settings.macHelperInstallButton"));
+    m_macHelperInstallBtn->setAccessibleName(QStringLiteral("settings.macHelperInstallButton"));
+    m_macHelperInstallBtn->setFixedWidth(110);
+#if QTEASYTIER_ENABLE_PROTOTYPE_HELPER
+    m_macHelperInstallBtn->hide();
+#endif
+    m_macHelperUninstallBtn = new QtETPushBtn(tr("卸载"), buttonRow);
+    m_macHelperUninstallBtn->setObjectName(QStringLiteral("settings.macHelperUninstallButton"));
+    m_macHelperUninstallBtn->setAccessibleName(QStringLiteral("settings.macHelperUninstallButton"));
+    m_macHelperUninstallBtn->setFixedWidth(90);
+#if QTEASYTIER_ENABLE_PROTOTYPE_HELPER
+    m_macHelperUninstallBtn->hide();
+#endif
+    buttonLayout->addWidget(m_macHelperRefreshBtn);
+    buttonLayout->addWidget(m_macHelperInstallBtn);
+    buttonLayout->addWidget(m_macHelperUninstallBtn);
+    buttonLayout->addStretch();
+    helperLayout->addWidget(titleLabel);
+    helperLayout->addWidget(m_macHelperStateLabel);
+    helperLayout->addWidget(m_macHelperDetailLabel);
+    helperLayout->addWidget(buttonRow);
+    settingsLayout->addWidget(m_macHelperFrame);
+    refreshMacHelperServiceState();
+}
+void QtETSettings::refreshMacHelperServiceState()
+{
+    if (!m_macHelperStateLabel || !m_macHelperDetailLabel) {
+        return;
+    }
+    const ETMacHelperServiceRegistrationState registrationState =
+        ETMacHelperServiceManager::queryRegistrationState();
+    const ETMacHelperServiceBundleState &bundleState = registrationState.bundleState;
+    QString statusText = tr("状态：%1").arg(registrationStateText(registrationState.kind));
+    QStringList details;
+    details << tr("Bundle：%1").arg(bundleStateText(bundleState.kind));
+    details << tr("Label：%1").arg(toQString(registrationState.label));
+    if (!bundleState.helperPath.empty()) {
+        details << tr("Helper：%1").arg(toQString(bundleState.helperPath));
+    }
+    if (!bundleState.plistPath.empty()) {
+        details << tr("Plist：%1").arg(toQString(bundleState.plistPath));
+    }
+    if (!registrationState.errorMsg.empty()) {
+        details << tr("错误：%1").arg(toQString(registrationState.errorMsg));
+    } else if (!bundleState.errorMsg.empty()) {
+        details << tr("错误：%1").arg(toQString(bundleState.errorMsg));
+    }
+    if (registrationState.kind == ETMacHelperServiceRegistrationStateKind::Enabled) {
+        details << tr("运行：已注册，未在设置页加载时同步查询运行态。");
+        details << tr("提示：安装、升级或卸载辅助服务前会检查运行中的 helper 实例。");
+    }
+#if QTEASYTIER_ENABLE_PROTOTYPE_HELPER
+    details << tr("社区测试包使用临时 helper 创建 TUN 网络，不提供正式辅助服务安装/卸载操作。");
+#endif
+    if (registrationState.kind == ETMacHelperServiceRegistrationStateKind::RequiresApproval) {
+        details << tr("请在系统设置中批准 QtEasyTier 的后台项目/登录项后再使用 TUN 网络。");
+    }
+    const bool bundleReady = bundleState.kind == ETMacHelperServiceBundleStateKind::ReadyForRegistration;
+    const bool lifecycleAvailable =
+        registrationState.kind != ETMacHelperServiceRegistrationStateKind::Unsupported
+        && registrationState.kind != ETMacHelperServiceRegistrationStateKind::NotBundled
+        && registrationState.kind != ETMacHelperServiceRegistrationStateKind::BundleNotReady;
+    const bool registered = registrationState.kind == ETMacHelperServiceRegistrationStateKind::Enabled
+        || registrationState.kind == ETMacHelperServiceRegistrationStateKind::RequiresApproval;
+    m_macHelperStateLabel->setText(statusText);
+    const QString detailText = details.join(QStringLiteral("\n"));
+    m_macHelperDetailLabel->setText(detailText);
+    m_macHelperStateLabel->setAccessibleDescription(statusText);
+    m_macHelperDetailLabel->setAccessibleDescription(detailText);
+    if (m_macHelperFrame) {
+        m_macHelperFrame->setAccessibleDescription(statusText + QStringLiteral("\n") + detailText);
+    }
+#if QTEASYTIER_ENABLE_PROTOTYPE_HELPER
+    m_macHelperInstallBtn->setEnabled(false);
+    m_macHelperUninstallBtn->setEnabled(false);
+#else
+    m_macHelperInstallBtn->setEnabled(bundleReady && lifecycleAvailable);
+    m_macHelperUninstallBtn->setEnabled(registered);
+#endif
+}
+bool QtETSettings::canChangeMacHelperService(QString *message) const
+{
+    const ETMacHelperServiceRegistrationState registrationState =
+        ETMacHelperServiceManager::queryRegistrationState();
+    if (registrationState.kind != ETMacHelperServiceRegistrationStateKind::Enabled) {
+        return true;
+    }
+    ETMacHelperClient helperClient;
+    std::string errorMsg;
+    const ETMacHelperState helperState = helperClient.queryHelperState(&errorMsg);
+    if (helperState.kind != ETMacHelperStateKind::Available) {
+        return true;
+    }
+    if (helperState.status.ownedInstanceCount > 0) {
+        if (message) {
+            *message = tr("当前辅助服务仍有 %1 个运行中的网络实例。请先停止这些网络，再安装、升级或卸载辅助服务。")
+                .arg(helperState.status.ownedInstanceCount);
+        }
+        return false;
+    }
+    return true;
+}
+bool QtETSettings::prepareMacHelperForUnregister(QString *message) const
+{
+    const ETMacHelperServiceRegistrationState registrationState =
+        ETMacHelperServiceManager::queryRegistrationState();
+    if (registrationState.kind != ETMacHelperServiceRegistrationStateKind::Enabled) {
+        return true;
+    }
+    ETMacHelperClient helperClient;
+    std::string errorMsg;
+    if (helperClient.prepareUninstall(&errorMsg)) {
+        return true;
+    }
+    std::string queryError;
+    const ETMacHelperState helperState = helperClient.queryHelperState(&queryError);
+    if (helperState.kind != ETMacHelperStateKind::Available) {
+        return true;
+    }
+    if (message) {
+        *message = errorMsg.empty()
+            ? tr("无法确认辅助服务是否仍有运行中的网络实例。请先停止所有网络，或重启后再试。")
+            : tr("无法准备辅助服务变更：%1").arg(toQString(errorMsg));
+    }
+    return false;
+}
+#endif
 // ==================== 设置读写 ====================
 
 QString QtETSettings::getConfigPath()
@@ -586,5 +915,5 @@ void QtETSettings::checkForUpdate(QWidget *parent, bool silent)
         // 删除网络管理器
         networkManager->deleteLater();
     });
-}
 
+}

@@ -11,8 +11,8 @@
 /// @brief 是否为 Beta 版本
 #define IS_BETA_VERSION false
 /// @brief QtEasyTier Slogan
-#define SLOGAN "工欲善其事，必先利其器"
 
+#define SLOGAN "工欲善其事，必先利其器"
 
 #include <QWidget>
 #include <QLabel>
@@ -28,6 +28,7 @@
 
 class QtETCheckBtn;
 class QtETPushBtn;
+class QFrame;
 
 /**
  * @brief 设置页面类
@@ -115,6 +116,11 @@ private slots:
 
     /// @brief 检查更新按钮点击
     void onCheckUpdateButtonClicked();
+#ifdef Q_OS_MACOS
+    void onRefreshMacHelperClicked();
+    void onInstallMacHelperClicked();
+    void onUninstallMacHelperClicked();
+#endif
 
 private:
     /// @brief 初始化界面
@@ -125,6 +131,12 @@ private:
 
     /// @brief 更新按钮状态
     void updateButtonState();
+#ifdef Q_OS_MACOS
+    void initMacHelperServiceSection(QVBoxLayout *settingsLayout);
+    void refreshMacHelperServiceState();
+    bool canChangeMacHelperService(QString *message) const;
+    bool prepareMacHelperForUnregister(QString *message) const;
+#endif
 
     /// @brief 从配置文件读取设置（静态方法内部使用）
     static QJsonObject loadSettingsFromFile();
@@ -141,6 +153,14 @@ private:
     // ========== 版本显示控件 ==========
     QLabel *m_versionLabel = nullptr;               ///< QtEasyTier 版本标签
     QtETPushBtn *m_checkUpdateBtn = nullptr;        ///< 检查更新按钮
+#ifdef Q_OS_MACOS
+    QFrame *m_macHelperFrame = nullptr;
+    QLabel *m_macHelperStateLabel = nullptr;
+    QLabel *m_macHelperDetailLabel = nullptr;
+    QtETPushBtn *m_macHelperRefreshBtn = nullptr;
+    QtETPushBtn *m_macHelperInstallBtn = nullptr;
+    QtETPushBtn *m_macHelperUninstallBtn = nullptr;
+#endif
 
     // ========== 操作按钮 ==========
     QtETPushBtn *m_discardBtn = nullptr;            ///< 丢弃按钮

@@ -11,7 +11,7 @@ jobs:
   # ==================== macOS 构建 ====================
   macos-build:
     name: macOS Build (Qt 6.10.1)
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -24,7 +24,7 @@ jobs:
           cache: true
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DQTEASYTIER_ENABLE_PROTOTYPE_HELPER=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -32,13 +32,58 @@ jobs:
       - name: Install
         run: cmake --install build --config Release
 
+      - name: Validate installed app
+        run: |
+          APP="Install/QtEasyTier.app"
+          EXEC="$APP/Contents/MacOS/QtEasyTier"
+          CIDR="$APP/Contents/MacOS/CIDRCalculator"
+          test -x "$EXEC"
+          test -x "$CIDR"
+          test -f "$APP/Contents/Frameworks/libeasytier_ffi.dylib"
+          test -f "$APP/Contents/Frameworks/QtSvg.framework/Versions/A/QtSvg"
+          test -f "$APP/Contents/PlugIns/iconengines/libqsvgicon.dylib"
+          test -f "$APP/Contents/PlugIns/imageformats/libqsvg.dylib"
+          test "$(lipo -archs "$EXEC")" = "arm64"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")" = "QtEasyTier"
+          if /usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP/Contents/Info.plist" >/dev/null 2>&1; then
+            echo "LSUIElement must not be set for the normal GUI app bundle"
+            exit 1
+          fi
+          otool -L "$EXEC" | grep -F "@rpath/libeasytier_ffi.dylib"
+          otool -L "$EXEC" | grep -F "@loader_path/../Frameworks/QtSvg.framework"
+          otool -L "$CIDR" | grep -F "@loader_path/../Frameworks/QtSvg.framework"
+          otool -D "$APP/Contents/Frameworks/libeasytier_ffi.dylib" | grep -F "@rpath/libeasytier_ffi.dylib"
+          otool -L "$CIDR" | grep -F "@loader_path/../Frameworks/QtCore.framework"
+          bad_deps=0
+          while IFS= read -r macho; do
+            if ! file "$macho" | grep -q 'Mach-O'; then
+              continue
+            fi
+            install_name="$(otool -D "$macho" 2>/dev/null | sed -n '2p' || true)"
+            refs="$(otool -L "$macho" | awk -v install_name="$install_name" 'substr($0, 1, 1) == "\t" { dep = $1; if (dep != install_name) print }' | grep -E '/opt/homebrew|/usr/local|/Users/' || true)"
+            if [ -n "$refs" ]; then
+              echo "Installed app Mach-O contains local absolute dependency paths: $macho"
+              printf '%s\n' "$refs"
+              bad_deps=1
+            fi
+          done < <(find "$APP" -type f -print)
+          if [ "$bad_deps" -ne 0 ]; then
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          if strings "$APP/Contents/MacOS/QtEasyTierHelper" | grep -q 'QTEASYTIER_PROTOTYPE_HELPER_DISABLED'; then
+            echo "GitHub macOS artifact should be a community testing build with prototype helper enabled"
+            exit 1
+          fi
       - name: Package DMG
-        run: bash package/mac/build_mac.sh "$(pwd)"
+        run: |
+          MACOS_COMMUNITY_BUILD=1 bash package/mac/build_mac.sh "$(pwd)"
+          hdiutil verify Install/QtEasyTier_v*_macos_*_community.dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QtEasyTier-macos
+          name: QtEasyTier-macos-community
           path: Install/*.dmg
           if-no-files-found: error
 
@@ -109,8 +154,12 @@ jobs:
       - name: Create zip
         shell: pwsh
         run: |
-          $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(.*VERSION ([0-9.]+)').Matches.Groups[1].Value
-          $zipPath = "Install\QtEasyTier_v$ver_win_amd64_normal.zip"
+          $projectLine = (Select-String -Path CMakeLists.txt -Pattern 'project\(').Line
+          if ($projectLine -notmatch 'VERSION\s+([0-9.]+)') {
+            throw "Unable to parse project version from CMakeLists.txt"
+          }
+          $ver = $Matches[1]
+          $zipPath = "Install\QtEasyTier_v${ver}_win_amd64_normal.zip"
           Compress-Archive -Path "Install\bin\*" -DestinationPath $zipPath
           Write-Host "Created: $zipPath"
 

@@ -130,6 +130,7 @@ private:
         Stopping    ///< 停止中
     };
     UserRole m_currentRole = UserRole::None;
+    UserRole m_roleBeforeStopping = UserRole::None;
 
     // 房间信息
     QString m_currentNetworkId;             ///< 当前网络号

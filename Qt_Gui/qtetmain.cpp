@@ -24,6 +24,13 @@ QtETMain::QtETMain(QWidget *parent)
 {
     ui->setupUi(this);
     setMinimumSize(680, 460);
+    ui->homeBtn->setAccessibleName(QStringLiteral("nav.homeButton"));
+    ui->networkBtn->setAccessibleName(QStringLiteral("nav.networkButton"));
+    ui->oneClickBtn->setAccessibleName(QStringLiteral("nav.oneClickButton"));
+    ui->serversBtn->setAccessibleName(QStringLiteral("nav.serversButton"));
+    ui->settingsBtn->setAccessibleName(QStringLiteral("nav.settingsButton"));
+    ui->gitBtn->setAccessibleName(QStringLiteral("nav.gitButton"));
+    ui->helpBtn->setAccessibleName(QStringLiteral("nav.helpButton"));
 
 // =============== 初始化调色板 ===============
     // 设置一次调色板
@@ -102,6 +109,7 @@ void QtETMain::closeEvent(QCloseEvent *event)
             QMessageBox::information(nullptr, "Tip", "暂不支持mac隐藏到托盘");
             onQuitApp();
             event->accept();
+            return;
         #endif
         // 隐藏到托盘而不是关闭
         hide();
@@ -254,8 +262,8 @@ void QtETMain::onSchemeChanged(const Qt::ColorScheme &scheme)
         // 强制更新一次应用的调色板
         qApp->style()->unpolish(qApp);
         qApp->style()->polish(qApp);
-        qApp->processEvents();
 
+        qApp->processEvents();
 
     } else {
         // 处理亮色模式，设置sideWidget背景调色板为浅色
@@ -326,8 +334,8 @@ void QtETMain::initHelloPage()
     sloganLabel->setFont(sloganFont);
     sloganLabel->setAlignment(Qt::AlignCenter);
     sloganLabel->setStyleSheet("color: #66ccff;");
-    mainLayout->addWidget(sloganLabel);
 
+    mainLayout->addWidget(sloganLabel);
 
     mainLayout->addStretch();
 
