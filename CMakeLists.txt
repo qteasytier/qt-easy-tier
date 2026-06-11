@@ -8,6 +8,12 @@ project(${ProjectName} VERSION 2.1.2 LANGUAGES CXX)
 
 # 缓存变量：是否将配置保存到程序目录（便携模式）
 set(SAVE_CONF_IN_APP_DIR false CACHE BOOL "Save configuration in application directory (portable mode)")
+set(QTEASYTIER_ENABLE_PROTOTYPE_HELPER false CACHE BOOL "Enable macOS prototype helper fallback for local development and smoke tests")
+if(QTEASYTIER_ENABLE_PROTOTYPE_HELPER)
+    set(QTEASYTIER_ENABLE_PROTOTYPE_HELPER_DEFINE 1)
+else()
+    set(QTEASYTIER_ENABLE_PROTOTYPE_HELPER_DEFINE 0)
+endif()
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
@@ -79,6 +85,10 @@ file(GLOB_RECURSE SOURCES "SRC/*.cpp" )
 file(GLOB_RECURSE QT_SOURCES "Qt_Items/*.cpp" "Qt_Gui/*.cpp")
 file(GLOB_RECURSE QT_UI "Qt_Items/*.ui" "Qt_Gui/*.ui")
 file(GLOB_RECURSE QT_RESOURCES "Qt_QRC/*.qrc")
+list(REMOVE_ITEM SOURCES "${CMAKE_SOURCE_DIR}/SRC/QtEasyTierHelper.cpp")
+if(NOT APPLE)
+    list(REMOVE_ITEM SOURCES "${CMAKE_SOURCE_DIR}/SRC/ETMacHelperClient.cpp")
+endif()
 
 set(ALL_SOURCES ${SOURCES} ${QT_SOURCES} ${HEAD} ${QT_UI} ${QT_RESOURCES})
 
@@ -142,6 +152,7 @@ endif()
 target_compile_definitions(${ProjectName} PRIVATE
         PROJECT_VERSION="${PROJECT_VERSION}"
         SAVE_CONF_IN_APP_DIR=${SAVE_CONF_IN_APP_DIR}  # 是否将配置保存到程序目录
+        QTEASYTIER_ENABLE_PROTOTYPE_HELPER=${QTEASYTIER_ENABLE_PROTOTYPE_HELPER_DEFINE}
 )
 
 # ==========================================
@@ -157,6 +168,41 @@ if(APPLE)
     set_target_properties(${ProjectName} PROPERTIES
             BUILD_RPATH "@loader_path;@executable_path/../Frameworks"
             INSTALL_RPATH "@executable_path/../Frameworks"
+    )
+endif()
+if(APPLE)
+    # 读取源dylib原始install name，用于修正主程序与helper中的依赖引用
+    execute_process(
+            COMMAND otool -D "${EASYTIER_FFI_DYLIB}"
+            OUTPUT_VARIABLE EASYTIER_FFI_ID_OUTPUT
+            RESULT_VARIABLE EASYTIER_FFI_ID_RESULT
+            ERROR_QUIET
+    )
+    if(EASYTIER_FFI_ID_RESULT EQUAL 0)
+        string(REPLACE "\n" ";" EASYTIER_FFI_ID_LINES "${EASYTIER_FFI_ID_OUTPUT}")
+        list(LENGTH EASYTIER_FFI_ID_LINES EASYTIER_FFI_ID_LINES_LEN)
+        if(EASYTIER_FFI_ID_LINES_LEN GREATER 1)
+            list(GET EASYTIER_FFI_ID_LINES 1 EASYTIER_FFI_ORIGINAL_ID)
+            string(STRIP "${EASYTIER_FFI_ORIGINAL_ID}" EASYTIER_FFI_ORIGINAL_ID)
+        endif()
+    endif()
+    if(NOT EASYTIER_FFI_ORIGINAL_ID)
+        message(FATAL_ERROR "Unable to read EasyTier FFI dylib install name from ${EASYTIER_FFI_DYLIB}")
+    endif()
+    add_executable(QtEasyTierHelper SRC/QtEasyTierHelper.cpp)
+    target_include_directories(QtEasyTierHelper PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/include)
+    target_link_libraries(QtEasyTierHelper PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network easytier_ffi)
+    target_compile_definitions(QtEasyTierHelper PRIVATE
+            PROJECT_VERSION="${PROJECT_VERSION}"
+            QTEASYTIER_ENABLE_PROTOTYPE_HELPER=${QTEASYTIER_ENABLE_PROTOTYPE_HELPER_DEFINE}
+    )
+    set_target_properties(QtEasyTierHelper PROPERTIES
+            BUILD_RPATH "@loader_path;@executable_path/../Frameworks"
+            INSTALL_RPATH "@executable_path/../Frameworks"
+    )
+    add_custom_command(TARGET QtEasyTierHelper POST_BUILD
+            COMMAND install_name_tool -change ${EASYTIER_FFI_ORIGINAL_ID} @rpath/libeasytier_ffi.dylib $<TARGET_FILE:QtEasyTierHelper>
+            COMMENT "修正QtEasyTierHelper的EasyTier FFI引用..."
     )
 endif()
 
@@ -199,26 +245,8 @@ elseif(APPLE)
             ${EASYTIER_FFI_DYLIB}
             $<TARGET_FILE_DIR:${ProjectName}>/../Frameworks/libeasytier_ffi.dylib
             COMMENT "复制EasyTier FFI动态库到Frameworks目录..."
-    )
 
-    # 读取源dylib原始install name，用于修正主程序中的依赖引用
-    execute_process(
-            COMMAND otool -D "${EASYTIER_FFI_DYLIB}"
-            OUTPUT_VARIABLE EASYTIER_FFI_ID_OUTPUT
-            RESULT_VARIABLE EASYTIER_FFI_ID_RESULT
-            ERROR_QUIET
     )
-    if(EASYTIER_FFI_ID_RESULT EQUAL 0)
-        string(REPLACE "\n" ";" EASYTIER_FFI_ID_LINES "${EASYTIER_FFI_ID_OUTPUT}")
-        list(LENGTH EASYTIER_FFI_ID_LINES EASYTIER_FFI_ID_LINES_LEN)
-        if(EASYTIER_FFI_ID_LINES_LEN GREATER 1)
-            list(GET EASYTIER_FFI_ID_LINES 1 EASYTIER_FFI_ORIGINAL_ID)
-            string(STRIP "${EASYTIER_FFI_ORIGINAL_ID}" EASYTIER_FFI_ORIGINAL_ID)
-        endif()
-    endif()
-    if(NOT EASYTIER_FFI_ORIGINAL_ID)
-        set(EASYTIER_FFI_ORIGINAL_ID "/Users/tfly/code/EasyTier/target/release/deps/libeasytier_ffi.dylib")
-    endif()
 
     # 修正FFI动态库id和主程序依赖，避免dyld按绝对路径加载
     add_custom_command(TARGET ${ProjectName} POST_BUILD
@@ -253,10 +281,21 @@ add_custom_command(TARGET ${ProjectName} POST_BUILD
         COMMENT "复制CIDR计算器到主程序目录..."
 )
 
+if(APPLE)
+    add_dependencies(${ProjectName} QtEasyTierHelper)
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:QtEasyTierHelper>
+            $<TARGET_FILE_DIR:${ProjectName}>
+            COMMENT "复制QtEasyTierHelper到主程序目录..."
+    )
+endif()
 # ===================================安装项目====================================
 
 # 设置安装目录
-set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/Install)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/Install" CACHE PATH "Install path" FORCE)
+endif()
 # 安装目标
 include(GNUInstallDirs)
 install(TARGETS ${ProjectName}
@@ -265,6 +304,11 @@ install(TARGETS ${ProjectName}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+if(APPLE)
+    install(TARGETS QtEasyTierHelper
+            RUNTIME DESTINATION ${ProjectName}.app/Contents/MacOS
+    )
+endif()
 # 安装公共服务器列表（与可执行文件同目录）
 install(FILES ${CMAKE_SOURCE_DIR}/assets/publicservers.json
         DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -342,6 +386,18 @@ elseif(APPLE)
         if(NOT fix_app_link_result EQUAL 0)
             message(FATAL_ERROR \"修正主程序EasyTier FFI引用失败，返回码: \${fix_app_link_result}\")
         endif()
+        set(helper_executable \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/QtEasyTierHelper\")
+        if(NOT EXISTS \"\${helper_executable}\")
+            message(FATAL_ERROR \"未找到QtEasyTierHelper辅助程序: \${helper_executable}\")
+        endif()
+        execute_process(
+            COMMAND install_name_tool -change ${EASYTIER_FFI_ORIGINAL_ID} @rpath/libeasytier_ffi.dylib
+                \"\${helper_executable}\"
+            RESULT_VARIABLE fix_helper_link_result
+        )
+        if(NOT fix_helper_link_result EQUAL 0)
+            message(FATAL_ERROR \"修正QtEasyTierHelper EasyTier FFI引用失败，返回码: \${fix_helper_link_result}\")
+        endif()
     ")
 
     find_program(MACDEPLOYQT_EXECUTABLE macdeployqt)
@@ -351,8 +407,12 @@ elseif(APPLE)
     install(CODE "
         message(STATUS \"使用macdeployqt部署Qt运行时...\")
         set(cidr_executable \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/CIDRCalculator\")
+        set(helper_executable \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/QtEasyTierHelper\")
         if(NOT EXISTS \"\${cidr_executable}\")
             message(FATAL_ERROR \"未找到CIDRCalculator辅助程序: \${cidr_executable}\")
+        endif()
+        if(NOT EXISTS \"\${helper_executable}\")
+            message(FATAL_ERROR \"未找到QtEasyTierHelper辅助程序: \${helper_executable}\")
         endif()
         set(publicservers_path \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/MacOS/publicservers.json\")
         set(publicservers_deploy_path \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app/Contents/Resources/publicservers.json\")
@@ -363,7 +423,7 @@ elseif(APPLE)
             COMMAND \"${MACDEPLOYQT_EXECUTABLE}\"
                 \"\${CMAKE_INSTALL_PREFIX}/${ProjectName}.app\"
                 \"-executable=\${cidr_executable}\"
-                -no-codesign
+                \"-executable=\${helper_executable}\"
             WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
             RESULT_VARIABLE deploy_result
         )

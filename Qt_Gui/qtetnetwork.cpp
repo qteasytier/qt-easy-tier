@@ -10,7 +10,7 @@
 #include <QStyleHints>
 #include <QResizeEvent>
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && !QTEASYTIER_ENABLE_PROTOTYPE_HELPER
 #include <unistd.h>
 #endif
 
@@ -1977,7 +1977,7 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
         saveConfFromUI(currentRow);
     }
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && !QTEASYTIER_ENABLE_PROTOTYPE_HELPER
     const NetworkConf &currentConf = (currentRow >= 0 && currentRow < static_cast<int>(m_networkConfs.size()))
         ? m_networkConfs[currentRow]
         : conf;
@@ -1986,7 +1986,7 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
             this,
             tr("需要管理员权限"),
             tr("当前网络未启用无 TUN 模式，需要管理员权限创建 TUN 设备。\n\n"
-               "请在高级设置中启用“无 TUN 模式”，或等待后续 macOS 特权 helper 支持。")
+               "请在高级设置中启用“无 TUN 模式”，或使用 macOS community build。")
         );
         return;
     }

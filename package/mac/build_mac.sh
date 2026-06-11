@@ -2,7 +2,7 @@
 set -e
 
 PROJECT_DIR="${1:-$(pwd)}"
-VERSION="$2"
+VERSION="${2:-}"
 
 # 从 CMakeLists.txt 提取版本号
 if [ -z "$VERSION" ]; then
@@ -28,10 +28,12 @@ APP_NAME="QtEasyTier"
 APP_PATH="$PROJECT_DIR/Install/${APP_NAME}.app"
 APP_EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
 CIDR_EXECUTABLE="$APP_PATH/Contents/MacOS/CIDRCalculator"
+HELPER_EXECUTABLE="$APP_PATH/Contents/MacOS/QtEasyTierHelper"
 APP_FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
 SVG_ICON_PLUGIN="$APP_PATH/Contents/PlugIns/iconengines/libqsvgicon.dylib"
 SVG_IMAGE_PLUGIN="$APP_PATH/Contents/PlugIns/imageformats/libqsvg.dylib"
 SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:--}"
+COMMUNITY_BUILD="${MACOS_COMMUNITY_BUILD:-0}"
 
 if [ ! -d "$APP_PATH" ]; then
     echo "错误: 未找到 .app Bundle: $APP_PATH"
@@ -46,6 +48,17 @@ fi
 
 if [ ! -x "$CIDR_EXECUTABLE" ]; then
     echo "错误: 未找到CIDRCalculator辅助程序: $CIDR_EXECUTABLE"
+    exit 1
+fi
+
+if [ ! -x "$HELPER_EXECUTABLE" ]; then
+    echo "错误: 未找到QtEasyTierHelper辅助程序: $HELPER_EXECUTABLE"
+    exit 1
+fi
+
+if [ "$COMMUNITY_BUILD" = "1" ] && strings "$HELPER_EXECUTABLE" | grep -q 'QTEASYTIER_PROTOTYPE_HELPER_DISABLED'; then
+    echo "错误: macOS community build 需要启用 prototype helper"
+    echo "请使用 -DQTEASYTIER_ENABLE_PROTOTYPE_HELPER=ON 重新配置并构建"
     exit 1
 fi
 
@@ -85,6 +98,14 @@ bundle_dependency_ref() {
     fi
 }
 
+macho_install_name() {
+    otool -D "$1" 2>/dev/null | awk '
+        NR == 1 { next }
+        /:$/ { next }
+        NF { print; exit }
+    '
+}
+
 fix_local_dependency_paths() {
     local scan_root="$1"
     local macho install_name refs dep new_ref
@@ -94,7 +115,7 @@ fix_local_dependency_paths() {
             continue
         fi
 
-        install_name=$(otool -D "$macho" 2>/dev/null | sed -n '2p' || true)
+        install_name=$(macho_install_name "$macho" || true)
         if [ -n "$install_name" ] && printf '%s\n' "$install_name" | grep -Eq '/opt/homebrew|/usr/local|/Users/'; then
             new_ref=$(bundle_dependency_ref "$install_name")
             echo "修正 install name: $macho"
@@ -128,7 +149,7 @@ check_no_local_dependency_paths() {
             continue
         fi
 
-        install_name=$(otool -D "$macho" 2>/dev/null | sed -n '2p' || true)
+        install_name=$(macho_install_name "$macho" || true)
         if [ -n "$install_name" ] && printf '%s\n' "$install_name" | grep -Eq '/opt/homebrew|/usr/local|/Users/'; then
             echo "错误: app Mach-O 文件包含本机绝对 install name: $macho"
             printf '%s\n' "$install_name"
@@ -166,7 +187,11 @@ if ! codesign --verify --deep --strict --verbose=2 "$APP_PATH"; then
     exit 1
 fi
 
-DMG_NAME="${APP_NAME}_v${VERSION}_macos_${ARCH}"
+DMG_SUFFIX=""
+if [ "$COMMUNITY_BUILD" = "1" ]; then
+    DMG_SUFFIX="_community"
+fi
+DMG_NAME="${APP_NAME}_v${VERSION}_macos_${ARCH}${DMG_SUFFIX}"
 DMG_PATH="$PROJECT_DIR/Install/${DMG_NAME}.dmg"
 
 echo "创建 DMG 镜像..."

@@ -134,6 +134,17 @@ void ETRunWorker::runNetwork(const std::string &instName, const std::string &tom
 {
     // 使用锁保护 FFI 调用，确保线程安全
     std::lock_guard<std::mutex> lock(m_mutex);
+#ifdef Q_OS_MACOS
+    if (ETMacHelperClient::shouldUseHelper(tomlConfig)) {
+        std::string errorMsg;
+        const bool success = m_helperClient.startNetwork(instName, tomlConfig, &errorMsg);
+        if (success) {
+            m_helperInstances.insert(instName);
+        }
+        emit etRunStarted(instName, success, errorMsg);
+        return;
+    }
+#endif
     
     // 调用 FFI 运行网络实例
     const bool success = EasyTierFFI::runNetworkInstance(tomlConfig);
@@ -151,6 +162,39 @@ void ETRunWorker::stopNetwork(const std::string &instName)
 {
     // 使用锁保护 FFI 调用，确保线程安全
     std::lock_guard<std::mutex> lock(m_mutex);
+#ifdef Q_OS_MACOS
+    bool stopViaHelper = m_helperInstances.find(instName) != m_helperInstances.end();
+    if (!stopViaHelper) {
+        std::vector<ETMacHelperInfo> helperInfos;
+        std::string collectError;
+        if (m_helperClient.collectInfos(helperInfos, &collectError)) {
+            for (const auto &helperInfo : helperInfos) {
+                if (helperInfo.key == instName) {
+                    stopViaHelper = true;
+                    m_helperInstances.insert(instName);
+                    break;
+                }
+            }
+        }
+    }
+    if (stopViaHelper) {
+        std::string errorMsg;
+        const bool success = m_helperClient.stopNetwork(instName, &errorMsg);
+        if (success) {
+            m_helperInstances.erase(instName);
+            if (ETMacHelperClient::isUsingPrototypeRuntime()) {
+                std::vector<ETMacHelperInfo> helperInfos;
+                std::string collectError;
+                if (m_helperClient.collectInfos(helperInfos, &collectError) && helperInfos.empty()) {
+                    std::string shutdownError;
+                    m_helperClient.shutdown(&shutdownError);
+                }
+            }
+        }
+        emit etRunStopped(instName, success, errorMsg);
+        return;
+    }
+#endif
     
     // 使用 retain_network_instance 终止指定实例
     // 传入空列表表示终止所有实例，这里我们需要保留其他实例
@@ -200,6 +244,18 @@ void ETRunWorker::collectInfos()
     std::vector<EasyTierFFI::KVPair> infos;
     size_t maxLen = MAX_NETWORK_INSTANCES;
     EasyTierFFI::collectNetworkInfos(infos, maxLen);
+#ifdef Q_OS_MACOS
+    std::vector<ETMacHelperInfo> helperInfos;
+    std::string helperError;
+    if (m_helperClient.collectInfos(helperInfos, &helperError)) {
+        for (const auto &helperInfo : helperInfos) {
+            EasyTierFFI::KVPair pair;
+            pair.key = helperInfo.key;
+            pair.value = helperInfo.value;
+            infos.push_back(std::move(pair));
+        }
+    }
+#endif
     
     emit infosCollected(infos);
 }

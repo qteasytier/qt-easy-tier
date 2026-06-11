@@ -13,7 +13,7 @@
 #include <random>
 #include <iostream>
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && !QTEASYTIER_ENABLE_PROTOTYPE_HELPER
 #include <unistd.h>
 #endif
 
@@ -774,13 +774,13 @@ void QtETOneClick::onOneClickBtnClicked()
         return;
     }
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && !QTEASYTIER_ENABLE_PROTOTYPE_HELPER
     if (geteuid() != 0) {
         QMessageBox::warning(
             this,
             tr("需要管理员权限"),
             tr("一键联机当前需要创建 TUN 设备，因此需要管理员权限。\n\n"
-               "请等待后续 macOS 特权 helper 支持，或在组网设置中使用“无 TUN 模式”。")
+               "请使用 macOS community build，或在组网设置中使用“无 TUN 模式”。")
         );
         return;
     }

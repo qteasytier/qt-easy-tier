@@ -11,7 +11,7 @@ jobs:
   # ==================== macOS 构建 ====================
   macos-build:
     name: macOS Build (Qt 6.10.1)
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -24,7 +24,7 @@ jobs:
           cache: true
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DQTEASYTIER_ENABLE_PROTOTYPE_HELPER=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -33,12 +33,14 @@ jobs:
         run: cmake --install build --config Release
 
       - name: Package DMG
-        run: bash package/mac/build_mac.sh "$(pwd)"
+        run: |
+          MACOS_COMMUNITY_BUILD=1 bash package/mac/build_mac.sh "$(pwd)"
+          hdiutil verify Install/QtEasyTier_v*_macos_*_community.dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QtEasyTier-macos
+          name: QtEasyTier-macos-community
           path: Install/*.dmg
           if-no-files-found: error
 
@@ -110,7 +112,7 @@ jobs:
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(.*VERSION ([0-9.]+)').Matches.Groups[1].Value
-          $zipPath = "Install\QtEasyTier_v$ver_win_amd64_normal.zip"
+          $zipPath = "Install\QtEasyTier_v${ver}_win_amd64_normal.zip"
           Compress-Archive -Path "Install\bin\*" -DestinationPath $zipPath
           Write-Host "Created: $zipPath"
 
