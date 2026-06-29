@@ -534,7 +534,10 @@ bool ETMacHelperClient::ensurePrototypeHelperRunning(std::string *errorMsg)
     escapedTokenPath.replace(QStringLiteral("'"), QStringLiteral("'\\''"));
 
     const QString shellCommand = QStringLiteral(
-        "nohup '%1' --daemon --socket '%2' --token-file '%3' --owner-uid '%4' --allow-shutdown >/dev/null 2>&1 &")
+        "/usr/bin/perl -e 'use POSIX; exit if fork; POSIX::setsid(); "
+        "exit if fork; exec(@ARGV) or exit(127);' "
+        "'%1' --daemon --socket '%2' --token-file '%3' --owner-uid '%4' --allow-shutdown "
+        ">/dev/null 2>&1 </dev/null")
         .arg(escapedHelperPath,
             escapedSocketPath,
             escapedTokenPath,
