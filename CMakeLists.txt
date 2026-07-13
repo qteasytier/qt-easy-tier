@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(QtEasyTier VERSION 0.1 LANGUAGES CXX)
+project(QtEasyTier VERSION 3.0.0 LANGUAGES CXX)
 
 set(QTET_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Output")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")

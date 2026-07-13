@@ -115,30 +115,50 @@ private slots:
         QCOMPARE(restored.foreignNetworkWhitelist, QStringLiteral("10.0.0.0/8"));
     }
 
-    /// 测试目标: 验证 TOML 输出包含所有预期的布尔和数值字段
-    /// 使用最简配置，确保每个字段按其类型正确序列化
+    /// 测试目标: 验证 TOML 输出省略与默认值一致的布尔字段
+    /// 使用最简配置，确保默认布尔值不会产生冗余输出
     void tomlFullOutput()
     {
         // 准备测试数据：最简配置
         NetworkConf conf("test");
         conf.hostname = QStringLiteral("node");
-        conf.dhcp = true;
-        conf.enableEncryption = true;
         conf.enableKcpProxy = true;
         conf.mtu = 1400;
 
         QString toml = NetworkConfToml::toToml(conf);
 
-        // 检查各布尔和数值字段是否正确序列化
-        QVERIFY(toml.contains("dhcp = true"));
-        QVERIFY(toml.contains("latency_first = false"));
-        QVERIFY(toml.contains("private_mode = true"));
+        // 默认布尔值不输出，非默认布尔值仍输出
+        QVERIFY(!toml.contains("dhcp = true"));
+        QVERIFY(!toml.contains("latency_first = false"));
+        QVERIFY(!toml.contains("private_mode = true"));
         QVERIFY(!toml.contains("[network_identity]"));
-        QVERIFY(toml.contains("enable_encryption = true"));
-        QVERIFY(toml.contains("no_tun = false"));
+        QVERIFY(!toml.contains("enable_encryption = true"));
+        QVERIFY(!toml.contains("no_tun = false"));
         QVERIFY(toml.contains("mtu = 1400"));
         QVERIFY(toml.contains("enable_kcp_proxy = true"));
-        QVERIFY(toml.contains("enable_quic_proxy = false"));
+        QVERIFY(!toml.contains("enable_quic_proxy = false"));
+    }
+
+    /// 测试目标: 验证 TOML 省略默认布尔值后反序列化仍恢复默认值
+    void tomlDefaultBoolOmissionRoundtrip()
+    {
+        NetworkConf conf("defaults");
+        conf.hostname = QStringLiteral("node");
+
+        const QString toml = NetworkConfToml::toToml(conf);
+
+        QVERIFY(!toml.contains(QStringLiteral("dhcp = true")));
+        QVERIFY(!toml.contains(QStringLiteral("enable_kcp_proxy = false")));
+
+        const auto restored = NetworkConfToml::fromToml(toml, "defaults");
+
+        QCOMPARE(restored.dhcp, true);
+        QCOMPARE(restored.enableEncryption, true);
+        QCOMPARE(restored.privateMode, true);
+        QCOMPARE(restored.enableKcpProxy, false);
+        QCOMPARE(restored.bindDevice, true);
+        QCOMPARE(restored.multiThread, true);
+        QCOMPARE(restored.enableIpv6, true);
     }
 
     /// 测试目标: 验证同时存在 peer、根级数组、proxy_network 时 round-trip 不丢字段

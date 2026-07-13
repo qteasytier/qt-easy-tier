@@ -58,6 +58,7 @@ namespace NetworkConfToml {
 
 QString toToml(const NetworkConf &conf, bool includeInstanceName)
 {
+    const NetworkConf defaults;
     QStringList lines;
 
     // --- 根级字段 ---
@@ -65,7 +66,8 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
         lines << QStringLiteral("instance_name = %1").arg(esc(conf.instanceName()));
     if (!conf.hostname.isEmpty())
         lines << QStringLiteral("hostname = %1").arg(esc(conf.hostname));
-    lines << QStringLiteral("dhcp = %1").arg(conf.dhcp ? QStringLiteral("true") : QStringLiteral("false"));
+    if (conf.dhcp != defaults.dhcp)
+        lines << QStringLiteral("dhcp = %1").arg(conf.dhcp ? QStringLiteral("true") : QStringLiteral("false"));
 
     if (!conf.ipv4.isEmpty())
         lines << QStringLiteral("ipv4 = %1").arg(esc(conf.ipv4));
@@ -73,8 +75,9 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
     // --- 辅助输出 Lambda ---
 
     /// @brief 输出布尔标志
-    auto flagBool = [&](const QString &key, bool v) {
-        lines << QStringLiteral("%1 = %2").arg(key, v ? QStringLiteral("true") : QStringLiteral("false"));
+    auto flagBool = [&](const QString &key, bool v, bool def) {
+        if (v != def)
+            lines << QStringLiteral("%1 = %2").arg(key, v ? QStringLiteral("true") : QStringLiteral("false"));
     };
 
     /// @brief 输出字符串标志（仅非空时输出）
@@ -147,37 +150,37 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
     lines << QString{};
     lines << QStringLiteral("[flags]");
 
-    flagBool("enable_encryption", conf.enableEncryption);
+    flagBool("enable_encryption", conf.enableEncryption, defaults.enableEncryption);
     flagStr("encryption_algorithm", conf.encryptionAlgorithm);
-    flagBool("latency_first", conf.latencyFirst);
-    flagBool("private_mode", conf.privateMode);
-    flagBool("no_tun", conf.noTun);
+    flagBool("latency_first", conf.latencyFirst, defaults.latencyFirst);
+    flagBool("private_mode", conf.privateMode, defaults.privateMode);
+    flagBool("no_tun", conf.noTun, defaults.noTun);
     flagInt("mtu", conf.mtu);
-    flagBool("enable_kcp_proxy", conf.enableKcpProxy);
-    flagBool("disable_kcp_input", conf.disableKcpInput);
-    flagBool("enable_quic_proxy", conf.enableQuicProxy);
-    flagBool("disable_quic_input", conf.disableQuicInput);
-    flagBool("disable_relay_kcp", conf.disableRelayKcp);
-    flagBool("disable_relay_quic", conf.disableRelayQuic);
-    flagBool("enable_relay_foreign_network_kcp", conf.enableRelayForeignNetworkKcp);
-    flagBool("enable_relay_foreign_network_quic", conf.enableRelayForeignNetworkQuic);
-    flagBool("disable_udp_hole_punching", conf.disableUdpHolePunching);
-    flagBool("disable_tcp_hole_punching", conf.disableTcpHolePunching);
-    flagBool("disable_upnp", conf.disableUpnp);
-    flagBool("need_p2p", conf.needP2p);
-    flagBool("lazy_p2p", conf.lazyP2p);
-    flagBool("p2p_only", conf.p2pOnly);
-    flagBool("disable_p2p", conf.disableP2p);
-    flagBool("disable_sym_hole_punching", conf.disableSymHolePunching);
-    flagBool("relay_all_peer_rpc", conf.relayAllPeerRpc);
-    flagBool("bind_device", conf.bindDevice);
-    flagBool("multi_thread", conf.multiThread);
-    flagBool("use_smoltcp", conf.useSmoltcp);
-    flagBool("enable_ipv6", conf.enableIpv6);
+    flagBool("enable_kcp_proxy", conf.enableKcpProxy, defaults.enableKcpProxy);
+    flagBool("disable_kcp_input", conf.disableKcpInput, defaults.disableKcpInput);
+    flagBool("enable_quic_proxy", conf.enableQuicProxy, defaults.enableQuicProxy);
+    flagBool("disable_quic_input", conf.disableQuicInput, defaults.disableQuicInput);
+    flagBool("disable_relay_kcp", conf.disableRelayKcp, defaults.disableRelayKcp);
+    flagBool("disable_relay_quic", conf.disableRelayQuic, defaults.disableRelayQuic);
+    flagBool("enable_relay_foreign_network_kcp", conf.enableRelayForeignNetworkKcp, defaults.enableRelayForeignNetworkKcp);
+    flagBool("enable_relay_foreign_network_quic", conf.enableRelayForeignNetworkQuic, defaults.enableRelayForeignNetworkQuic);
+    flagBool("disable_udp_hole_punching", conf.disableUdpHolePunching, defaults.disableUdpHolePunching);
+    flagBool("disable_tcp_hole_punching", conf.disableTcpHolePunching, defaults.disableTcpHolePunching);
+    flagBool("disable_upnp", conf.disableUpnp, defaults.disableUpnp);
+    flagBool("need_p2p", conf.needP2p, defaults.needP2p);
+    flagBool("lazy_p2p", conf.lazyP2p, defaults.lazyP2p);
+    flagBool("p2p_only", conf.p2pOnly, defaults.p2pOnly);
+    flagBool("disable_p2p", conf.disableP2p, defaults.disableP2p);
+    flagBool("disable_sym_hole_punching", conf.disableSymHolePunching, defaults.disableSymHolePunching);
+    flagBool("relay_all_peer_rpc", conf.relayAllPeerRpc, defaults.relayAllPeerRpc);
+    flagBool("bind_device", conf.bindDevice, defaults.bindDevice);
+    flagBool("multi_thread", conf.multiThread, defaults.multiThread);
+    flagBool("use_smoltcp", conf.useSmoltcp, defaults.useSmoltcp);
+    flagBool("enable_ipv6", conf.enableIpv6, defaults.enableIpv6);
     flagStr("dev_name", conf.devName);
-    flagBool("enable_exit_node", conf.enableExitNode);
-    flagBool("proxy_forward_by_system", conf.systemForwarding);
-    flagBool("accept_dns", conf.acceptDns);
+    flagBool("enable_exit_node", conf.enableExitNode, defaults.enableExitNode);
+    flagBool("proxy_forward_by_system", conf.systemForwarding, defaults.systemForwarding);
+    flagBool("accept_dns", conf.acceptDns, defaults.acceptDns);
     flagStr("default_protocol", conf.defaultProtocol);
 
     // 外部网络白名单：只有在启用且有值时输出
@@ -317,7 +320,7 @@ NetworkConf fromToml(const QString &toml, const QString &instanceName)
         conf.privateMode  = readBool(*flags, "private_mode", true);
         conf.noTun         = readBool(*flags, "no_tun");
         conf.mtu           = readInt(*flags, "mtu", 1380);
-        conf.enableKcpProxy  = readBool(*flags, "enable_kcp_proxy", true);
+        conf.enableKcpProxy  = readBool(*flags, "enable_kcp_proxy", false);
         conf.disableKcpInput = readBool(*flags, "disable_kcp_input");
         conf.enableQuicProxy = readBool(*flags, "enable_quic_proxy");
         conf.disableQuicInput = readBool(*flags, "disable_quic_input");
