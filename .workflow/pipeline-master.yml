@@ -24,7 +24,7 @@ stages:
           - ''
           - QT_VERSION="${QT_VERSION:-6.8.3}"
           - QT_DIR="${QT_DIR:-$HOME/Qt}"
-          - QT_PATH="${QT_DIR}/${QT_VERSION}/gcc_64"
+          - QT_PATH="${QT_DIR}/${QT_VERSION}/linux_gcc_64"
           - BUILD_DIR="${BUILD_DIR:-build}"
           - JOBS="${JOBS:-$(nproc)}"
           - ''
