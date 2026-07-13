@@ -239,7 +239,7 @@ NetworkConf NetworkConf::fromFieldMap(const QVariantMap &map, const QString &ins
     conf.customRoutes    = sl("custom_routes");
 
     // --- 传输协议 ---
-    conf.enableKcpProxy  = b("enable_kcp_proxy", true);
+    conf.enableKcpProxy  = b("enable_kcp_proxy");
     conf.disableKcpInput = b("disable_kcp_input");
     conf.enableQuicProxy = b("enable_quic_proxy");
     conf.disableQuicInput = b("disable_quic_input");

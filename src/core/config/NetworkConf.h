@@ -113,7 +113,7 @@ public:
 
     // ==================== 传输协议 ====================
 
-    bool enableKcpProxy = true;              ///< 是否启用 KCP 代理
+    bool enableKcpProxy = false;              ///< 是否启用 KCP 代理
     bool disableKcpInput = false;            ///< 是否禁用 KCP 入站
     bool enableQuicProxy = false;            ///< 是否启用 QUIC 代理
     bool disableQuicInput = false;           ///< 是否禁用 QUIC 入站
