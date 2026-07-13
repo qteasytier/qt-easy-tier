@@ -22,7 +22,7 @@ stages:
           - '#!/usr/bin/env bash'
           - set -euo pipefail
           - ''
-          - QT_VERSION="${QT_VERSION:-6.8.5}"
+          - QT_VERSION="${QT_VERSION:-6.8.3}"
           - QT_DIR="${QT_DIR:-$HOME/Qt}"
           - QT_PATH="${QT_DIR}/${QT_VERSION}/gcc_64"
           - BUILD_DIR="${BUILD_DIR:-build}"
