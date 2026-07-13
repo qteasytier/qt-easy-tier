@@ -139,11 +139,16 @@ void NetworkPageViewModel::stopConfig(const QString &instanceName)
         QMetaObject::invokeMethod(m_vpnManager, "stopConfig", Q_ARG(QString, instanceName));
 }
 
-void NetworkPageViewModel::importConfig(const QString &filePath)
+void NetworkPageViewModel::importConfigFile(const QString &filePath)
 {
-    // 代理到配置列表模型执行导入
     if (m_configListModel)
-        m_configListModel->importConfig(filePath);
+        m_configListModel->importConfigFile(filePath);
+}
+
+void NetworkPageViewModel::importConfigUrl(const QString &url)
+{
+    if (m_configListModel)
+        m_configListModel->importConfigUrl(url);
 }
 
 void NetworkPageViewModel::setCurrentInstanceName(const QString &instanceName)

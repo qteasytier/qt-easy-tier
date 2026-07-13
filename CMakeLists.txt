@@ -118,6 +118,8 @@ add_qtet_library(qtet_config
     src/core/config/NetworkConf.cpp
     src/core/config/NetworkConfToml.cpp
     src/core/config/ConfigValidator.cpp
+    src/core/config/ConfigUrlCodec.cpp
+    src/core/config/ConfigUrlCodec.h
     src/core/application/config/ConfigPayloadBuilder.cpp
     src/core/application/config/ConfigPayloadBuilder.h
 )

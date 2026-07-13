@@ -169,7 +169,7 @@ bool ConfigListModel::renameConfig(const QString &instanceName, const QString &n
     return true;
 }
 
-void ConfigListModel::importConfig(const QString &filePath)
+void ConfigListModel::importConfigFile(const QString &filePath)
 {
     emit importStarted();
     auto *watcher = new QFutureWatcher<ConfigOperationResult>(this);
@@ -188,7 +188,26 @@ void ConfigListModel::importConfig(const QString &filePath)
     watcher->setFuture(m_importExportService->importFromFile(QUrl(filePath)));
 }
 
-bool ConfigListModel::exportConfig(const QString &instanceName, const QString &filePath)
+void ConfigListModel::importConfigUrl(const QString &url)
+{
+    emit importStarted();
+    auto *watcher = new QFutureWatcher<ConfigOperationResult>(this);
+    connect(watcher, &QFutureWatcher<ConfigOperationResult>::finished, this,
+            [this, watcher]() {
+        watcher->deleteLater();
+        const auto result = watcher->result();
+        if (result.success) {
+            refresh();
+            emit importSucceeded();
+        } else {
+            emit importFailed(result.message);
+        }
+    });
+
+    watcher->setFuture(m_importExportService->importFromUrl(url));
+}
+
+bool ConfigListModel::exportConfigFile(const QString &instanceName, const QString &filePath)
 {
     const auto result = m_importExportService->exportToFile(instanceName, QUrl(filePath));
     if (!result.success) {
@@ -196,4 +215,14 @@ bool ConfigListModel::exportConfig(const QString &instanceName, const QString &f
         return false;
     }
     return true;
+}
+
+QString ConfigListModel::exportConfigUrl(const QString &instanceName)
+{
+    ConfigTextResult result = m_importExportService->exportToUrl(instanceName);
+    if (!result.success) {
+        emit errorOccurred(result.error);
+        return {};
+    }
+    return result.value;
 }

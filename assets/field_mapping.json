@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "reserved": {
+    "0": false,
+    "1": true
+  },
+  "mapping": {
+    "hostname": 2,
+    "ipv4": 3,
+    "dhcp": 4,
+    "instance_name": 5,
+
+    "listeners": 6,
+    "exit_nodes": 7,
+    "routes": 8,
+
+    "network_identity": 9,
+    "network_name": 10,
+    "network_secret": 11,
+
+    "peer": 12,
+    "uri": 13,
+    "peer_public_key": 14,
+
+    "proxy_network": 15,
+    "cidr": 16,
+    "mapped_cidr": 17,
+    "allow": 18,
+
+    "flags": 19,
+    "enable_encryption": 20,
+    "encryption_algorithm": 21,
+    "latency_first": 22,
+    "private_mode": 23,
+    "no_tun": 24,
+    "mtu": 25,
+    "enable_kcp_proxy": 26,
+    "disable_kcp_input": 27,
+    "enable_quic_proxy": 28,
+    "disable_quic_input": 29,
+    "disable_relay_kcp": 30,
+    "disable_relay_quic": 31,
+    "enable_relay_foreign_network_kcp": 32,
+    "enable_relay_foreign_network_quic": 33,
+    "disable_udp_hole_punching": 34,
+    "disable_tcp_hole_punching": 35,
+    "disable_upnp": 36,
+    "need_p2p": 37,
+    "lazy_p2p": 38,
+    "p2p_only": 39,
+    "disable_p2p": 40,
+    "disable_sym_hole_punching": 41,
+    "relay_all_peer_rpc": 42,
+    "bind_device": 43,
+    "multi_thread": 44,
+    "use_smoltcp": 45,
+    "enable_ipv6": 46,
+    "dev_name": 47,
+    "enable_exit_node": 48,
+    "proxy_forward_by_system": 49,
+    "accept_dns": 50,
+    "default_protocol": 51,
+    "relay_network_whitelist": 52,
+
+    "secure_mode": 53,
+    "enabled": 54,
+    "local_private_key": 55
+  }
+}

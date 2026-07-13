@@ -19,5 +19,6 @@
     </qresource>
     <qresource prefix="/">
         <file>publicservers.json</file>
+        <file>field_mapping.json</file>
     </qresource>
 </RCC>
