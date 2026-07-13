@@ -599,7 +599,7 @@ ColumnLayout {
             text: qsTr("导出配置")
             // 无当前配置时禁用
             enabled: ConfigEditorViewModel.currentInstanceName !== ""
-            onClicked: exportFileDialog.open()
+            onClicked: exportChoiceDialog.open()
         }
 
         // 弹性空间，将取消/保存推至右侧
@@ -624,6 +624,79 @@ ColumnLayout {
         }
     }
 
+    // 导出方式选择对话框
+    Dialog {
+        id: exportChoiceDialog
+        title: qsTr("导出配置")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        RowLayout {
+            spacing: 12
+            Button {
+                text: qsTr("导出为文件")
+                Layout.fillWidth: true
+                onClicked: {
+                    exportChoiceDialog.close()
+                    exportFileDialog.open()
+                }
+            }
+            Button {
+                text: qsTr("导出为 URL")
+                Layout.fillWidth: true
+                onClicked: {
+                    exportChoiceDialog.close()
+                    var urlStr = ConfigListModel.exportConfigUrl(ConfigEditorViewModel.currentInstanceName)
+                    if (urlStr !== "") {
+                        exportUrlField.text = urlStr
+                        exportUrlDialog.open()
+                    }
+                }
+            }
+        }
+    }
+
+    // 导出 URL 展示对话框
+    Dialog {
+        id: exportUrlDialog
+        title: qsTr("导出 URL")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent ? parent.width - 48 : 480)
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label { text: qsTr("复制以下 URL 即可分享配置：") }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+
+                TextArea {
+                    id: exportUrlField
+                    readOnly: true
+                    wrapMode: TextEdit.WrapAnywhere
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: qsTr("复制")
+                    onClicked: {
+                        exportUrlField.selectAll()
+                        exportUrlField.copy()
+                    }
+                }
+                Button {
+                    text: qsTr("确定")
+                    onClicked: exportUrlDialog.close()
+                }
+            }
+        }
+    }
+
     // 导出配置文件对话框
     FileDialog {
         id: exportFileDialog
@@ -636,7 +709,7 @@ ColumnLayout {
             // 自动补全 .toml 后缀
             if (!url.endsWith(".toml"))
                 url += ".toml"
-            ConfigListModel.exportConfig(ConfigEditorViewModel.currentInstanceName, url)
+            ConfigListModel.exportConfigFile(ConfigEditorViewModel.currentInstanceName, url)
         }
     }
 }

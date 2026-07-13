@@ -16,8 +16,8 @@
 #include <toml.hpp>
 
 ConfigImportExportService::ConfigImportExportService(NetworkConfigRepository *repository,
-                                                      DaemonApi *daemonApi,
-                                                      QObject *parent)
+                                                       DaemonApi *daemonApi,
+                                                       QObject *parent)
     : QObject(parent)
     , m_repository(repository)
     , m_daemonApi(daemonApi)
@@ -28,7 +28,6 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
 {
     const QString localPath = fileUrl.toLocalFile();
 
-    // 尝试打开文件，失败则立即返回错误
     QFile file(localPath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return finishedResult(ConfigOperationResult::fail(QStringLiteral("无法打开文件: %1").arg(localPath)));
@@ -36,13 +35,51 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
     const QString content = QString::fromUtf8(file.readAll());
     file.close();
 
-    // 生成不重复的实例名
+    return importFromToml(content, QFileInfo(localPath).baseName());
+}
+
+QFuture<ConfigOperationResult> ConfigImportExportService::importFromUrl(const QString &url)
+{
+    ConfigTextResult decoded = ConfigUrlCodec::decodeUrl(url);
+    if (!decoded.success)
+        return finishedResult(ConfigOperationResult::fail(decoded.error));
+
+    return importFromToml(decoded.value, QStringLiteral("URL导入配置"));
+}
+
+ConfigOperationResult ConfigImportExportService::exportToFile(const QString &instanceName, const QUrl &fileUrl)
+{
+    ConfigTextResult tomlResult = tomlForExport(instanceName);
+    if (!tomlResult.success)
+        return ConfigOperationResult::fail(tomlResult.error);
+
+    const QString localPath = fileUrl.toLocalFile();
+    QFile file(localPath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return ConfigOperationResult::fail(QStringLiteral("无法写入文件: %1").arg(localPath));
+
+    file.write(tomlResult.value.toUtf8());
+    file.close();
+    return ConfigOperationResult::ok(instanceName);
+}
+
+ConfigTextResult ConfigImportExportService::exportToUrl(const QString &instanceName)
+{
+    ConfigTextResult tomlResult = tomlForExport(instanceName);
+    if (!tomlResult.success)
+        return tomlResult;
+
+    return ConfigUrlCodec::encodeToml(tomlResult.value);
+}
+
+QFuture<ConfigOperationResult> ConfigImportExportService::importFromToml(const QString &content,
+                                                                           const QString &displayName)
+{
     QString instanceName;
     do {
         instanceName = generateInstanceName();
     } while (m_repository && m_repository->exists(instanceName));
 
-    // 校验 TOML 语法合法性
     try {
         const auto parsed = toml::parse(content.toStdString());
         Q_UNUSED(parsed)
@@ -51,11 +88,9 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
             QStringLiteral("TOML 格式错误: %1").arg(QString::fromUtf8(e.what()))));
     }
 
-    // 将 TOML 反序列化为 NetworkConf，并以文件名作为显示名
     NetworkConf cfg = NetworkConfToml::fromToml(content, instanceName);
-    cfg.displayName = QFileInfo(localPath).baseName();
+    cfg.displayName = displayName;
 
-    // 业务规则校验
     const QStringList errors = ConfigValidator::validate(cfg);
     if (!errors.isEmpty())
         return finishedResult(ConfigOperationResult::fail(errors.join(QStringLiteral("\n"))));
@@ -63,7 +98,6 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
     if (!m_daemonApi)
         return finishedResult(ConfigOperationResult::fail(QStringLiteral("daemon 配置校验不可用")));
 
-    // 异步调用 daemon 校验，通过后才真正保存配置
     auto *futureInterface = new QFutureInterface<ConfigOperationResult>();
     futureInterface->reportStarted();
     auto resultFuture = futureInterface->future();
@@ -73,7 +107,6 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
             [this, cfg, watcher, futureInterface]() mutable {
         watcher->deleteLater();
         try {
-            // daemon 校验成功，获取结果（不使用时仅检查无异常）
             watcher->result();
 
             if (!m_repository || !m_repository->save(cfg)) {
@@ -92,24 +125,16 @@ QFuture<ConfigOperationResult> ConfigImportExportService::importFromFile(const Q
     return resultFuture;
 }
 
-ConfigOperationResult ConfigImportExportService::exportToFile(const QString &instanceName, const QUrl &fileUrl)
+ConfigTextResult ConfigImportExportService::tomlForExport(const QString &instanceName) const
 {
     if (!m_repository)
-        return ConfigOperationResult::fail(QStringLiteral("配置仓库不可用"));
+        return ConfigTextResult::fail(QStringLiteral("配置仓库不可用"));
 
-    // 从仓库加载配置并序列化为 TOML 写入文件
     auto loaded = m_repository->load(instanceName);
     if (!loaded.has_value())
-        return ConfigOperationResult::fail(QStringLiteral("配置不存在: %1").arg(instanceName));
+        return ConfigTextResult::fail(QStringLiteral("配置不存在: %1").arg(instanceName));
 
-    const QString localPath = fileUrl.toLocalFile();
-    QFile file(localPath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return ConfigOperationResult::fail(QStringLiteral("无法写入文件: %1").arg(localPath));
-
-    file.write(NetworkConfToml::toToml(loaded.value()).toUtf8());
-    file.close();
-    return ConfigOperationResult::ok(instanceName);
+    return ConfigTextResult::ok(NetworkConfToml::toToml(loaded.value()));
 }
 
 QString ConfigImportExportService::generateInstanceName() const
@@ -119,7 +144,6 @@ QString ConfigImportExportService::generateInstanceName() const
 
 QFuture<ConfigOperationResult> ConfigImportExportService::finishedResult(const ConfigOperationResult &result) const
 {
-    // 将同步结果包装为已完成的 QFuture，用于同步校验失败时立即返回
     QFutureInterface<ConfigOperationResult> futureInterface;
     futureInterface.reportStarted();
     futureInterface.reportResult(result);

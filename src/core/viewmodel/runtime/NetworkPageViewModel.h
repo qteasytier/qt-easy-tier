@@ -70,7 +70,9 @@ public:
     /// 停止指定配置（自动选中 + 调用 VpnManager::stopConfig）
     Q_INVOKABLE void stopConfig(const QString &instanceName);
     /// 从文件导入配置
-    Q_INVOKABLE void importConfig(const QString &filePath);
+    Q_INVOKABLE void importConfigFile(const QString &filePath);
+    /// 从 qtet:// URL 导入配置
+    Q_INVOKABLE void importConfigUrl(const QString &url);
 
 signals:
     /// 当前选中实例名称变化时发射
