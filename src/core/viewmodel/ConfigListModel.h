@@ -68,10 +68,16 @@ public:
     Q_INVOKABLE bool renameConfig(const QString &instanceName, const QString &newDisplayName);
 
     /// 从 TOML 文件导入配置（异步：先本地校验，再远程 daemon 校验）
-    Q_INVOKABLE void importConfig(const QString &filePath);
+    Q_INVOKABLE void importConfigFile(const QString &filePath);
+
+    /// 从 qtet:// URL 导入配置（异步）
+    Q_INVOKABLE void importConfigUrl(const QString &url);
 
     /// 导出指定配置为 TOML 文件
-    Q_INVOKABLE bool exportConfig(const QString &instanceName, const QString &filePath);
+    Q_INVOKABLE bool exportConfigFile(const QString &instanceName, const QString &filePath);
+
+    /// 导出指定配置为 qtet:// URL 字符串，失败时返回空字符串并通过 errorOccurred 信号通知
+    Q_INVOKABLE QString exportConfigUrl(const QString &instanceName);
 
 signals:
     /// 操作失败时发射，QML 层展示错误提示

@@ -17,6 +17,9 @@ endfunction()
 add_core_test(tst_network_conf tst_network_conf.cpp)
 target_link_libraries(tst_network_conf PRIVATE qtet_config)
 
+add_core_test(tst_config_url_codec tst_config_url_codec.cpp)
+target_link_libraries(tst_config_url_codec PRIVATE qtet_config)
+
 add_core_test(tst_sqlite_repository tst_sqlite_repository.cpp)
 target_link_libraries(tst_sqlite_repository PRIVATE qtet_repository)
 

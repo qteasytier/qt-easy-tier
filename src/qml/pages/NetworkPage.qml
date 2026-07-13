@@ -55,7 +55,7 @@ Rectangle {
                 }
                 onStartRequested: function(instanceName) { NetworkPageViewModel.startConfig(instanceName) }
                 onStopRequested: function(instanceName) { NetworkPageViewModel.stopConfig(instanceName) }
-                onImportRequested: importFileDialog.open()
+                onImportRequested: importChoiceDialog.open()
             }
 
             // 分隔线
@@ -100,6 +100,65 @@ Rectangle {
             }
         }
 
+        // 导入方式选择对话框
+        Dialog {
+            id: importChoiceDialog
+            title: qsTr("导入配置")
+            modal: true
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            standardButtons: Dialog.Cancel
+            RowLayout {
+                spacing: 12
+                Button {
+                    text: qsTr("从文件导入")
+                    Layout.fillWidth: true
+                    onClicked: {
+                        importChoiceDialog.close()
+                        importFileDialog.open()
+                    }
+                }
+                Button {
+                    text: qsTr("从 URL 导入")
+                    Layout.fillWidth: true
+                    onClicked: {
+                        importChoiceDialog.close()
+                        importUrlDialog.open()
+                    }
+                }
+            }
+        }
+
+        // 导入 URL 对话框
+        Dialog {
+            id: importUrlDialog
+            title: qsTr("从 URL 导入")
+            modal: true
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            width: Math.min(520, parent ? parent.width - 48 : 480)
+            standardButtons: Dialog.Ok | Dialog.Cancel
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 8
+                Label { text: qsTr("粘贴 qtet:// 开头的配置 URL：") }
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 80
+
+                    TextArea {
+                        id: importUrlField
+                        placeholderText: "qtet://..."
+                        wrapMode: TextEdit.WrapAnywhere
+                    }
+                }
+            }
+            onAccepted: {
+                NetworkPageViewModel.importConfigUrl(importUrlField.text)
+                importUrlField.text = ""
+            }
+        }
+
         // 导入配置文件对话框
         FileDialog {
             id: importFileDialog
@@ -107,7 +166,7 @@ Rectangle {
             nameFilters: [qsTr("TOML 文件 (*.toml)"), qsTr("所有文件 (*)")]
             fileMode: FileDialog.OpenFile
             onAccepted: {
-                NetworkPageViewModel.importConfig(selectedFile.toString())
+                NetworkPageViewModel.importConfigFile(selectedFile.toString())
             }
         }
 
