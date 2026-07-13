@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="qtet.png">favicon/qtet.png</file>
+        <file alias="qtet-green.png">favicon/qtet-green.png</file>
+        <file alias="qtet-red.png">favicon/qtet-red.png</file>
+        <file alias="net-page.svg">images/net-page.svg</file>
+        <file alias="eye.svg">images/eye.svg</file>
+        <file alias="eye-slash.svg">images/eye-slash.svg</file>
+        <file alias="add.svg">images/add.svg</file>
+        <file alias="import.svg">images/import.svg</file>
+        <file alias="export.svg">images/export.svg</file>
+        <file alias="delete.svg">images/delete.svg</file>
+        <file alias="edit.svg">images/edit.svg</file>
+        <file alias="play.svg">images/play.svg</file>
+        <file alias="stop.svg">images/stop.svg</file>
+        <file alias="log.svg">images/log.svg</file>
+        <file alias="settings.svg">images/settings.svg</file>
+        <file alias="favorites.svg">images/favorites.svg</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>publicservers.json</file>
+    </qresource>
+</RCC>
