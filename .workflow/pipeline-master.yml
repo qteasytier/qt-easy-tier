@@ -44,7 +44,7 @@ stages:
           - if [ ! -d "$QT_PATH" ]; then
           - '    pip3 install -q -i https://mirrors.huaweicloud.com/repository/pypi/simple/ --trusted-host mirrors.huaweicloud.com aqtinstall'
           - '    mkdir -p "$QT_DIR"'
-          - '    aqt install-qt linux desktop "$QT_VERSION" gcc_64 -O "$QT_DIR"'
+          - '    aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$QT_DIR"'
           - fi
           - ''
           - export CMAKE_PREFIX_PATH="$QT_PATH"

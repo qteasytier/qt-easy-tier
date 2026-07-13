@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=QtEasyTier
+Comment=EasyTier Web Connector
+Exec=/opt/qteasytier/appQtEasyTier
+Icon=/opt/etconnector/qtet.png
+Terminal=false
+Categories=Utility;Qt;Web;Network;Internet;
