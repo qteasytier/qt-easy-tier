@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QUrl>
 #include <QWindow>
 
 #include "app/AppLaunchOptions.h"
@@ -44,8 +45,8 @@ int main(int argc, char *argv[])
     // 将所有 C++ 服务对象注册为 QML 单例，供 QML 界面绑定
     registerQmlSingletons(engine, services);
 
-    // 从 QtEasyTier 模块加载主 QML 界面
-    engine.loadFromModule("QtEasyTier", "Main");
+    // 从内嵌 QRC 加载主 QML 界面，避免依赖程序目录中的本地 QML 文件。
+    engine.load(QUrl(QStringLiteral("qrc:/QtEasyTier/Main.qml")));
 
     if (engine.rootObjects().isEmpty()) {
         LogHelper::logError(QStringLiteral("QML 主界面加载失败"));

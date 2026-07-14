@@ -6,7 +6,6 @@ set(QTET_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Output")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")
-set(QT_QML_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -284,30 +283,38 @@ target_link_libraries(appQtEasyTier PRIVATE
     qtet_appsupport
 )
 
+set(QTET_QML_FILES
+    src/qml/Main.qml
+    src/qml/components/Sidebar.qml
+    src/qml/components/SidebarItem.qml
+    src/qml/components/PageContainer.qml
+    src/qml/components/Card.qml
+    src/qml/components/EditableList.qml
+    src/qml/components/EditableListItem.qml
+    src/qml/components/QtETabWidget.qml
+    src/qml/components/ServerListItem.qml
+    src/qml/components/ProxyNetworkListItem.qml
+    src/qml/components/ImportNodesDialog.qml
+    src/qml/components/Theme.qml
+    src/qml/pages/LeftPanel.qml
+    src/qml/pages/NetworkPage.qml
+    src/qml/pages/NetworkOptions.qml
+    src/qml/pages/NetworkRuningStatus.qml
+    src/qml/pages/SettingsPage.qml
+    src/qml/pages/FavoriteNodesPage.qml
+    src/qml/pages/LogPage.qml
+)
+
+foreach(qml_file IN LISTS QTET_QML_FILES)
+    file(RELATIVE_PATH qml_resource_alias "${CMAKE_CURRENT_SOURCE_DIR}/src/qml" "${CMAKE_CURRENT_SOURCE_DIR}/${qml_file}")
+    set_source_files_properties(${qml_file} PROPERTIES QT_RESOURCE_ALIAS "${qml_resource_alias}")
+endforeach()
+
 qt_add_qml_module(appQtEasyTier
     URI QtEasyTier
     VERSION 1.0
     RESOURCE_PREFIX "/"
-    QML_FILES
-        src/qml/Main.qml
-        src/qml/components/Sidebar.qml
-        src/qml/components/SidebarItem.qml
-        src/qml/components/PageContainer.qml
-        src/qml/components/Card.qml
-        src/qml/components/EditableList.qml
-        src/qml/components/EditableListItem.qml
-        src/qml/components/QtETabWidget.qml
-        src/qml/components/ServerListItem.qml
-        src/qml/components/ProxyNetworkListItem.qml
-        src/qml/components/ImportNodesDialog.qml
-        src/qml/components/Theme.qml
-        src/qml/pages/LeftPanel.qml
-        src/qml/pages/NetworkPage.qml
-        src/qml/pages/NetworkOptions.qml
-        src/qml/pages/NetworkRuningStatus.qml
-        src/qml/pages/SettingsPage.qml
-        src/qml/pages/FavoriteNodesPage.qml
-        src/qml/pages/LogPage.qml
+    QML_FILES ${QTET_QML_FILES}
 )
 
 enable_testing()
