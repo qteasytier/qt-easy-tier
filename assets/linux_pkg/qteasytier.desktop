@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=QtEasyTier
-Comment=EasyTier Web Connector
+Comment=QtEasyTier 是一个基于 EasyTier ，使用 Qt 框架开发的异地组网工具。
 Exec=/opt/qteasytier/appQtEasyTier
-Icon=/opt/etconnector/qtet.png
+Icon=/opt/qteasytier/qtet.png
 Terminal=false
 Categories=Utility;Qt;Web;Network;Internet;
