@@ -12,6 +12,7 @@ jobs:
 
     env:
       BUILD_DIR: build
+      QT_VERSION: 6.8.3
 
     steps:
       - name: Checkout
@@ -32,8 +33,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake ninja-build git bash dpkg-dev \
-            qt6-base-dev qt6-declarative-dev qt6-svg-dev qt6-tools-dev \
+            build-essential cmake ninja-build git bash curl dpkg-dev libfuse2t64 \
             libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
             libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
             libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
@@ -45,21 +45,51 @@ jobs:
             libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
             libglu1-mesa-dev libpng-dev
 
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: linux_gcc_64
+
+      - name: Download linuxdeployqt
+        shell: bash
+        run: |
+          curl -L -o linuxdeployqt.AppImage \
+            https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x linuxdeployqt.AppImage
+          echo "LINUXDEPLOYQT=${{ github.workspace }}/linuxdeployqt.AppImage" >> "$GITHUB_ENV"
+
+      - name: Show Qt version
+        run: |
+          qmake -query QT_VERSION
+          qmake -query QT_INSTALL_PREFIX
+
       - name: Configure
         run: |
           cmake -S . -B "$BUILD_DIR" \
             -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR"
 
       - name: Build
         run: |
           cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
+      - name: Deploy Qt runtime
+        run: |
+          bash scripts/deploy-linux-qt.sh \
+            --build-dir "$BUILD_DIR" \
+            --deploy-dir "$BUILD_DIR/Deploy" \
+            --qml-dir "${{ github.workspace }}/src/qml" \
+            --linuxdeployqt "$LINUXDEPLOYQT"
+
       - name: Build deb package
         working-directory: ${{ github.workspace }}/build/Output
         run: |
           bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
-            -v "${{ steps.version.outputs.version }}"
+            -v "${{ steps.version.outputs.version }}" \
+            --source-dir "${{ github.workspace }}/build/Deploy"
 
       - name: Upload deb artifact
         uses: actions/upload-artifact@v4
