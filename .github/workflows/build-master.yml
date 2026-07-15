@@ -33,7 +33,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake ninja-build git bash curl dpkg-dev libfuse2t64 \
+            build-essential cmake ninja-build git bash dpkg-dev \
             libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
             libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
             libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
@@ -52,14 +52,6 @@ jobs:
           target: desktop
           arch: linux_gcc_64
 
-      - name: Download linuxdeployqt
-        shell: bash
-        run: |
-          curl -L -o linuxdeployqt.AppImage \
-            https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-          chmod +x linuxdeployqt.AppImage
-          echo "LINUXDEPLOYQT=${{ github.workspace }}/linuxdeployqt.AppImage" >> "$GITHUB_ENV"
-
       - name: Show Qt version
         run: |
           qmake -query QT_VERSION
@@ -76,14 +68,6 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
-      - name: Build AppImage
-        run: |
-          bash scripts/build-appimage.sh \
-            --build-dir "$BUILD_DIR" \
-            --qml-dir "${{ github.workspace }}/src/qml" \
-            --linuxdeployqt "$LINUXDEPLOYQT" \
-            --version "${{ steps.version.outputs.version }}"
-
       - name: Build deb package
         working-directory: ${{ github.workspace }}/build/Output
         run: |
@@ -95,11 +79,4 @@ jobs:
         with:
           name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64
           path: build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.deb
-          if-no-files-found: error
-
-      - name: Upload AppImage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64-appimage
-          path: build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.AppImage
           if-no-files-found: error
