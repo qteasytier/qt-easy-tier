@@ -3,7 +3,7 @@ set -e
 
 # 克隆并构建 qtet-daemon
 
-REPO_URL="${REPO_URL:-https://gitee.com/qteasytier/qtet-daemon.git}"
+REPO_URL="${REPO_URL:-https://github.com/qteasytier/qtet-daemon.git}"
 CLONE_DIR="${CLONE_DIR:-qtet-daemon}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 
