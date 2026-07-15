@@ -90,3 +90,4 @@ configs-wal
 **/configs
 .opencode/
 .worktrees/
+docs/
