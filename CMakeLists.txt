@@ -25,7 +25,9 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS
     QuickDialogs2
 )
 
-qt_policy(SET QTP0004 NEW)
+if(COMMAND qt_policy)
+    qt_policy(SET QTP0004 NEW)
+endif()
 
 qt_standard_project_setup(REQUIRES 6.5)
 
