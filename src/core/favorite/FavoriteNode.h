@@ -9,7 +9,16 @@
  */
 #pragma once
 #include <QString>
-#include <QtTypes>
+
+#if defined(__has_include)
+#  if __has_include(<QtTypes>)
+#    include <QtTypes>
+#  else
+#    include <QtGlobal>
+#  endif
+#else
+#  include <QtGlobal>
+#endif
 
 struct FavoriteNode {
     qint64 id = -1;          ///< 数据库主键，-1 表示未持久化
