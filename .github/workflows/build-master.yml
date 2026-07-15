@@ -76,24 +76,30 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
-      - name: Deploy Qt runtime
+      - name: Build AppImage
         run: |
-          bash scripts/deploy-linux-qt.sh \
+          bash scripts/build-appimage.sh \
             --build-dir "$BUILD_DIR" \
-            --deploy-dir "$BUILD_DIR/Deploy" \
             --qml-dir "${{ github.workspace }}/src/qml" \
-            --linuxdeployqt "$LINUXDEPLOYQT"
+            --linuxdeployqt "$LINUXDEPLOYQT" \
+            --version "${{ steps.version.outputs.version }}"
 
       - name: Build deb package
         working-directory: ${{ github.workspace }}/build/Output
         run: |
           bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
-            -v "${{ steps.version.outputs.version }}" \
-            --source-dir "${{ github.workspace }}/build/Deploy"
+            -v "${{ steps.version.outputs.version }}"
 
       - name: Upload deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64
           path: build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.deb
+          if-no-files-found: error
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64-appimage
+          path: build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.AppImage
           if-no-files-found: error
