@@ -3,7 +3,28 @@ set -e
 
 # 克隆并构建 qtet-daemon
 
-REPO_URL="${REPO_URL:-https://github.com/qteasytier/qtet-daemon.git}"
+USE_GITEE=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --gitee)
+            USE_GITEE=true
+            ;;
+        *)
+            echo "[ERROR] 未知参数: $arg"
+            echo "用法: $0 [--gitee]"
+            exit 1
+            ;;
+    esac
+done
+
+if [ -n "${REPO_URL:-}" ]; then
+    REPO_URL="$REPO_URL"
+elif [ "$USE_GITEE" = true ]; then
+    REPO_URL="https://gitee.com/qteasytier/qtet-daemon.git"
+else
+    REPO_URL="https://github.com/qteasytier/qtet-daemon.git"
+fi
 CLONE_DIR="${CLONE_DIR:-qtet-daemon}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 
@@ -33,4 +54,3 @@ echo "[INFO] 构建完成"
 echo "  daemon:     build/Output/qtet-daemon"
 echo "  cli-client: build/Output/cli-client"
 echo "  测试:       build/Output/tst_*"
-

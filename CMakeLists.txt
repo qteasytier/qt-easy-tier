@@ -12,7 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+# 构建后端可选参数
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
+option(CLONE_DAEMON_FROM_GITEE "Clone qtet-daemon from Gitee instead of GitHub" OFF)
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS
     Core
@@ -70,6 +72,11 @@ if(BUILD_WITH_DAEMON)
     find_program(BASH_EXECUTABLE bash REQUIRED)
     find_program(GIT_EXECUTABLE git)
 
+    set(QTET_DAEMON_CLONE_ARGS)
+    if(CLONE_DAEMON_FROM_GITEE)
+        list(APPEND QTET_DAEMON_CLONE_ARGS "--gitee")
+    endif()
+
     set(QTET_DAEMON_SRC_DIR "${CMAKE_BINARY_DIR}/qtet-daemon")
     set(QTET_DAEMON_OUTPUT_DIR "${QTET_DAEMON_SRC_DIR}/build/Output")
 
@@ -86,7 +93,7 @@ if(BUILD_WITH_DAEMON)
             COMMAND "${CMAKE_COMMAND}" -E env
                     "CLONE_DIR=qtet-daemon"
                     "BUILD_TYPE=$<IF:$<CONFIG:Debug>,Debug,Release>"
-                    "${BASH_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build_daemon.sh"
+                    "${BASH_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build_daemon.sh" ${QTET_DAEMON_CLONE_ARGS}
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
             COMMENT "Building qtet-daemon runtime"
             VERBATIM

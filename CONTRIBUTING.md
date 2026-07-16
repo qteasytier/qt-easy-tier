@@ -18,6 +18,12 @@ ctest --test-dir build --output-on-failure
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
 ```
 
+默认从 GitHub 克隆后端源码；如需改用 Gitee，可开启：
+
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM_GITEE=ON
+```
+
 运行应用：
 
 ```bash
@@ -808,7 +814,7 @@ qtet_config / qtet_log
 - 下层不要反向依赖上层。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
 - 新 C++ 源文件应加入所属模块 target，而不是随意加入应用 target。
-- 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤。
+- 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；传入 `-DCLONE_DAEMON_FROM_GITEE=ON` 时会给 `scripts/build_daemon.sh` 追加 `--gitee`，从 Gitee 克隆后端源码。
 
 各 target 大致职责：
 
