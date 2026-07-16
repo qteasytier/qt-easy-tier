@@ -2,7 +2,7 @@
 
 本文档面向参与 QtEasyTier 开发的维护者和贡献者，重点说明当前源码架构、模块边界、对象生命周期、QML 暴露方式、CMake target 组织方式，以及新增代码时应遵守的放置规则。
 
-QtEasyTier 是一个 Qt 6.5+ / C++20 / QML 桌面应用。C++ 后端承担主要业务逻辑，QML 主要负责界面展示与绑定。QML 模块 URI 为 `QtEasyTier`，应用入口位于 `src/main.cpp`。
+QtEasyTier 是一个 Qt 6.8+ / C++20 / QML 桌面应用。C++ 后端承担主要业务逻辑，QML 主要负责界面展示与绑定。QML 模块 URI 为 `QtEasyTier`，应用入口位于 `src/main.cpp`。
 
 ## 快速构建与测试
 
@@ -15,14 +15,14 @@ ctest --test-dir build --output-on-failure
 运行应用：
 
 ```bash
-./build/appQtEasyTier
+./build/Output/appQtEasyTier
 ```
 
 运行单个测试示例：
 
 ```bash
 ctest --test-dir build -R tst_network_conf --output-on-failure
-./build/tests/tst_network_conf
+./build/Output/tst_network_conf
 ```
 
 ## 总体架构
@@ -34,15 +34,15 @@ src/
 ├── main.cpp                         应用入口
 ├── app/                             应用装配层
 ├── core/
-│   ├── config/                      配置数据结构、TOML 序列化、校验
+│   ├── config/                      配置数据结构、TOML 序列化、校验、URL 编解码
 │   ├── repository/                  SQLite 持久化
 │   ├── service/                     daemon IPC 与 daemon API 封装
 │   ├── application/                 应用业务服务层
 │   ├── viewmodel/                   暴露给 QML 的 ViewModel / Model
 │   ├── vpn_manager/                 VPN 生命周期状态机
-│   ├── platform/                    平台相关能力
+│   ├── system_tray/                 系统托盘与托盘消息
 │   ├── log/                         日志基础设施
-│   └── util/                        工具类
+│   └── util/                        工具类与平台相关实现
 └── qml/                             QML UI
 ```
 
@@ -95,7 +95,9 @@ src/main.cpp
     ↓
 registerQmlSingletons(engine, services)
     ↓
-engine.loadFromModule("QtEasyTier", "Main")
+engine.load(QUrl("qrc:/QtEasyTier/Main.qml"))
+    ↓
+SystemTrayManager 绑定主窗口
     ↓
 进入 QApplication::exec()
 ```
@@ -108,11 +110,17 @@ engine.loadFromModule("QtEasyTier", "Main")
 
 ```text
 src/app/
+├── AppLaunchOptions.h
+├── AppLaunchOptions.cpp
 ├── AppServices.h
 ├── AppServices.cpp
 ├── QmlSingletonRegistrar.h
 └── QmlSingletonRegistrar.cpp
 ```
+
+### AppLaunchOptions
+
+`AppLaunchOptions` 只放与应用入口相关的轻量启动参数解析逻辑，例如判断当前是否来自开机自启动入口，避免在 `main.cpp` 中堆叠不可测试的判断。
 
 ### AppServices
 
@@ -126,6 +134,7 @@ src/app/
 - 日志 sink
 - `FontHelper`
 - `AppState`
+- `SystemTrayManager`
 
 它集中管理对象生命周期，避免 ViewModel 自己维护进程级静态 singleton。
 
@@ -136,7 +145,7 @@ main.cpp
     ↓
 AppServices
     ↓
-Repository / Service / Application Service / ViewModel / VpnManager
+Repository / Service / Application Service / ViewModel / VpnManager / SystemTrayManager
 ```
 
 新增应用级对象时，优先判断它是否应该由 `AppServices` 创建和持有。一般来说，需要贯穿整个应用生命周期、需要暴露给 QML，或需要在多个服务之间共享的对象，适合放入 `AppServices`。
@@ -185,7 +194,7 @@ QtEasyTier
 入口由 C++ 加载：
 
 ```cpp
-engine.loadFromModule("QtEasyTier", "Main");
+engine.load(QUrl(QStringLiteral("qrc:/QtEasyTier/Main.qml")));
 ```
 
 QML 应通过 ViewModel 和 Model 访问后端能力，不应直接依赖底层 daemon client、repository 或平台实现。
@@ -510,6 +519,7 @@ src/core/config/
 - `NetworkConf` 数据结构。
 - TOML 序列化和反序列化。
 - 配置校验。
+- URL 编解码（`ConfigUrlCodec`）。
 
 这一层是配置领域基础模块，不应依赖 UI、ViewModel 或 VPN manager。
 
@@ -577,7 +587,7 @@ qtet-daemon.sock
 qtet-daemon
 ```
 
-测试中通常通过内存 `QLocalServer` 模拟 daemon，不需要真实后台进程。
+测试中通常通过内存 `QLocalServer` 模拟 daemon，不需要真实 daemon 后台进程。
 
 ## vpn_manager 层
 
@@ -637,6 +647,31 @@ NodeInfoModel / RuntimeLogModel
 QML
 ```
 
+## system_tray 层
+
+路径：
+
+```text
+src/core/system_tray/
+```
+
+职责：
+
+- 系统托盘图标、右键菜单和窗口显隐行为。
+- 真实系统通知输出。
+- 统一的托盘消息类型与分发接口。
+
+主要对象：
+
+```text
+SystemTrayManager
+TrayMessageDispatcher
+TrayMessageHelper
+TrayMessageSink
+```
+
+`SystemTrayManager` 在 `main.cpp` 中绑定主窗口，并控制关闭到托盘行为。它由 `AppServices` 创建和持有，但不注册为 QML singleton。上层代码通过 `TrayMessageSink` 接口输出托盘消息，避免直接依赖 `SystemTrayManager`。
+
 ## log 基础模块
 
 路径：
@@ -684,16 +719,22 @@ src/core/util/
 ```text
 LogHelper
 FontHelper
+AutoStartHelper
+DaemonRegisterHelper
 ```
 
 `FontHelper` 由 `AppServices` 显式构造并注册给 QML，不应恢复为静态 singleton。
 
+`DaemonRegisterHelper` 负责 daemon 系统服务注册/启动相关平台操作，被 `AppServices` 在 daemon 断连时调用。
+
 ## platform 层
 
-路径：
+虽然源码目录 `src/core/platform/` 当前不存在，但 `qtet_platform` target 仍作为一个概念层存在，实际源码放在 `src/core/util/` 下，目前包含：
 
 ```text
-src/core/platform/
+AutoStartHelper
+DaemonRegisterHelper
+FontHelper
 ```
 
 职责是封装平台相关能力。上层通常应通过 application service 使用这些能力，例如通过 `AutoStartService` 使用自启动能力，而不是让 QML 或 ViewModel 直接依赖具体平台实现。
@@ -730,6 +771,7 @@ qtet_log
 qtet_repository
 qtet_service
 qtet_platform
+qtet_system_tray
 qtet_application
 qtet_vpn
 qtet_viewmodel
@@ -752,6 +794,8 @@ qtet_repository / qtet_service / qtet_platform
 qtet_config / qtet_log
 ```
 
+`qtet_system_tray` 由 `qtet_appsupport` 直接链接，与 `qtet_viewmodel` 处于同一层级，依赖 `qtet_service` 和 `qtet_log`。
+
 原则：
 
 - 上层可以依赖下层。
@@ -763,11 +807,12 @@ qtet_config / qtet_log
 
 | Target | 职责 |
 | --- | --- |
-| `qtet_config` | 配置数据结构、TOML 序列化、校验 |
+| `qtet_config` | 配置数据结构、TOML 序列化、校验、URL 编解码 |
 | `qtet_log` | 日志基础类型、日志分发、日志工具入口 |
 | `qtet_repository` | SQLite repository 和数据库连接 |
 | `qtet_service` | daemon IPC 和 daemon API |
-| `qtet_platform` | 平台相关实现 |
+| `qtet_platform` | 平台相关实现（源码在 `src/core/util/`） |
+| `qtet_system_tray` | 系统托盘、托盘消息、真实通知输出 |
 | `qtet_application` | 应用业务服务层 |
 | `qtet_vpn` | VPN 生命周期和运行状态管理 |
 | `qtet_viewmodel` | 暴露给 QML 的 ViewModel / Model |
@@ -787,10 +832,12 @@ tests/
 
 ```text
 tst_network_conf
+tst_config_url_codec
 tst_sqlite_repository
 tst_config_list_model
 tst_favorite_node_repository
 tst_daemon_client
+tst_daemon_register_helper
 tst_autostart_helper
 tst_settings_store
 tst_autostart_service
@@ -799,6 +846,9 @@ tst_import_nodes_viewmodel
 tst_app_services
 tst_log_repository
 tst_log_helper
+tst_tray_message_dispatcher
+tst_system_tray_manager
+tst_app_launch_options
 ```
 
 新增生产代码时，应优先为对应模块补充测试。涉及 daemon 的测试可以使用内存 `QLocalServer` 模拟，不要求真实 daemon 后台。
@@ -886,13 +936,14 @@ src/qml/pages/
 
 | 要新增的内容 | 推荐目录 | CMake target |
 | --- | --- | --- |
-| 配置结构、TOML、校验 | `src/core/config/` | `qtet_config` |
+| 配置结构、TOML、校验、URL 编解码 | `src/core/config/` | `qtet_config` |
 | 日志基础设施 | `src/core/log/` 或 `src/core/util/LogHelper.*` | `qtet_log` |
 | SQLite repository | `src/core/repository/` | `qtet_repository` |
 | daemon IPC / API | `src/core/service/` | `qtet_service` |
-| 平台相关实现 | `src/core/platform/` | `qtet_platform` |
+| 平台相关实现 | `src/core/util/` | `qtet_platform` |
 | 应用业务服务 | `src/core/application/` | `qtet_application` |
 | VPN 状态机 / 运行状态 | `src/core/vpn_manager/` | `qtet_vpn` |
+| 系统托盘 / 托盘消息 | `src/core/system_tray/` | `qtet_system_tray` |
 | QML ViewModel / Model | `src/core/viewmodel/` | `qtet_viewmodel` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
 | QML 页面 / 组件 | `src/qml/` | `qt_add_qml_module` 的 `QML_FILES` |
@@ -914,6 +965,7 @@ src/qml/pages/
 - 不要给 ViewModel 或 `FontHelper` 重新添加静态 singleton。
 - 不要把 QML singleton 注册散落到多个位置。
 - 不要让 QML 直接依赖 `DaemonClient`。
+- 不要把 `SystemTrayManager` 注册为 QML singleton；托盘行为由 `AppServices` 和 `main.cpp` 协作完成。
 - 不要重新添加 `VpnManager.nodeInfos` / `VpnManager.logEntries` 这类旧兼容属性。
 - 不要重新添加 `LogHelper::init(...)`。
 - 不要在测试 target 中重复编译大量生产 `.cpp`，应链接模块 target。
@@ -970,6 +1022,7 @@ qtet-daemon.sock
 - 是否需要更新 `assets/resources.qrc` 或 `qt_add_qml_module(... QML_FILES ...)`。
 - 是否需要为 daemon API 补充 `DaemonApi` 方法。
 - 是否需要补充 repository migration 或测试。
+- 是否影响系统托盘行为（新增/修改 tray 消息、窗口关闭逻辑等）。
 
 提交前，至少运行：
 
@@ -998,5 +1051,6 @@ ctest --test-dir build-check --output-on-failure
 - 保持底层基础设施模块可测试、可复用。
 - 保持 CMake target 与源码目录职责一致。
 - 保持测试通过模块 target 链接生产代码。
+- 保持系统托盘行为由 `SystemTrayManager` 集中管理，不直接散落在 QML 或 ViewModel 中。
 
 如果一项改动会破坏这些目标，应优先重新审视设计，而不是为了短期方便绕过架构边界。
