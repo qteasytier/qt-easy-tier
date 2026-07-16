@@ -74,9 +74,23 @@ jobs:
           bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
             -v "${{ steps.version.outputs.version }}"
 
-      - name: Upload deb artifact
+      - name: Build AppImage
+        working-directory: ${{ github.workspace }}/build/Output
+        env:
+          QTDIR: ${{ env.Qt6_DIR }}
+        run: |
+          APP_IMAGE_TOOL="/tmp/appimagetool-947-x86_64.AppImage"
+          wget -c "https://github.com/probonopd/go-appimage/releases/download/continuous/appimagetool-947-x86_64.AppImage" -O "${APP_IMAGE_TOOL}"
+          chmod +x "${APP_IMAGE_TOOL}"
+          bash "${{ github.workspace }}/assets/package/linux/build_appimage.sh" \
+            -v "${{ steps.version.outputs.version }}" \
+            --app-image-tool "${APP_IMAGE_TOOL}"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64
-          path: build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.deb
+          path: |
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.deb
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.AppImage
           if-no-files-found: error
