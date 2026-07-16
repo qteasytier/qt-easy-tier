@@ -77,16 +77,18 @@ jobs:
       - name: Build AppImage
         working-directory: ${{ github.workspace }}/build/Output
         env:
-          QTDIR: ${{ env.Qt6_DIR }}
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          LINUXDEPLOYQT_ALLOW_NEW_GLIBC: 1
         run: |
-          APP_IMAGE_TOOL="/tmp/appimagetool-947-x86_64.AppImage"
-          wget -c "https://github.com/probonopd/go-appimage/releases/download/continuous/appimagetool-947-x86_64.AppImage" -O "${APP_IMAGE_TOOL}"
-          chmod +x "${APP_IMAGE_TOOL}"
-          rm -f "${Qt6_DIR}/plugins/sqldrivers/libqsqlmimer"* 2>/dev/null || true
-          patchelf --remove-needed libmimerapi.so "${Qt6_DIR}/lib/libQt6Sql.so" 2>/dev/null || true
+          export QTDIR="${Qt6_DIR}"
+          export QMAKE="${Qt6_DIR}/bin/qmake"
+          LINUXDEPLOYQT="/tmp/linuxdeployqt-continuous-x86_64.AppImage"
+          wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" -O "${LINUXDEPLOYQT}"
+          chmod +x "${LINUXDEPLOYQT}"
           bash "${{ github.workspace }}/assets/package/linux/build_appimage.sh" \
             -v "${{ steps.version.outputs.version }}" \
-            --app-image-tool "${APP_IMAGE_TOOL}"
+            --linuxdeployqt "${LINUXDEPLOYQT}" \
+            --qml-dir "${{ github.workspace }}/src/qml"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
