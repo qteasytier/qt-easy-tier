@@ -12,6 +12,12 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
+默认构建会同时构建并收集 `qtet-daemon`。只构建前端或离线验证 CMake 时，可以关闭后端构建：
+
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
+```
+
 运行应用：
 
 ```bash
@@ -763,7 +769,7 @@ assets/publicservers.json
 
 ## CMake target 组织
 
-根 `CMakeLists.txt` 定义以下模块 target：
+根 `CMakeLists.txt` 负责全局配置、应用 target、QML 模块和后端构建开关；以下模块 target 分别由对应源码目录的 `CMakeLists.txt` 定义：
 
 ```text
 qtet_config
@@ -802,6 +808,7 @@ qtet_config / qtet_log
 - 下层不要反向依赖上层。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
 - 新 C++ 源文件应加入所属模块 target，而不是随意加入应用 target。
+- 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤。
 
 各 target 大致职责：
 
