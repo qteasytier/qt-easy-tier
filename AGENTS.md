@@ -48,7 +48,7 @@ ctest --test-dir build --output-on-failure
 ## 数据、资源、运行时
 
 - `src/main.cpp` 固定 `organizationName = qteasytier`、`applicationName = QtEasyTier`；Linux 下 `AppConfigLocation` 通常为 `~/.config/qteasytier/QtEasyTier/`。
-- 默认 SQLite 数据库：`~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db`。
+- 默认 SQLite 数据库：`~/.config/qteasytier/QtEasyTier/qteasytier.db`。
 - 全局设置走 `SettingsStore`/`SettingsViewModel` 的 `settings3.json`，不走 SQLite。
 - 应用默认连接 Unix socket `qtet-daemon.sock`；`tst_daemon_client` 使用内存 `QLocalServer` 模拟 daemon，不需要真实后台。
 - `assets/publicservers.json` 通过 `assets/resources.qrc` 进入 `:/publicservers.json`，由 `PublicServerProvider` 读取。

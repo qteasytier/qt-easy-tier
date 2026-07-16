@@ -73,10 +73,10 @@ public:
 
     /**
      * @brief 计算默认数据库存储路径
-     * @return 平台相关的 AppConfigLocation/qteasy-tier-configs.db 路径
+     * @return 平台相关的 AppConfigLocation/qteasytier.db 路径
      *
      * 例如 Linux 平台：
-     * ~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db
+     * ~/.config/qteasytier/QtEasyTier/qteasytier.db
      */
     static QString defaultDatabasePath();
 

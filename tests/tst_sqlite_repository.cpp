@@ -6,12 +6,13 @@
  * - 保存单条配置并重新加载，验证字段完整性
  * - 保存多条配置后 loadAll() 数量正确
  * - 删除配置时字段级联删除
- * - 默认数据库路径非空且以 .db 结尾
+ * - 默认数据库路径非空且文件名为 qteasytier.db
  *
  * 每个测试使用独立随机命名临时数据库，确保测试完全隔离。
  */
 #include <QTest>
 #include <QDir>
+#include <QFileInfo>
 #include <QUuid>
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
@@ -104,14 +105,14 @@ void TestSqliteRepository::configFieldsCascadeDelete()
 }
 
 /// 验证 DatabaseConnection::defaultDatabasePath() 返回非空路径
-/// 且以 .db 后缀结尾（SQLite 标准扩展名）
+/// 且默认数据库文件名固定为 qteasytier.db
 void TestSqliteRepository::defaultDatabasePathIsNotEmpty()
 {
     const QString path = DatabaseConnection::defaultDatabasePath();
     // 检查路径非空
     QVERIFY(!path.isEmpty());
-    // 检查路径以 .db 结尾
-    QVERIFY(path.endsWith(".db"));
+    // 检查默认数据库文件名
+    QCOMPARE(QFileInfo(path).fileName(), QStringLiteral("qteasytier.db"));
 }
 
 QTEST_MAIN(TestSqliteRepository)

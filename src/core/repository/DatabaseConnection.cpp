@@ -46,13 +46,13 @@ DatabaseConnection::~DatabaseConnection()
  * 使用 QStandardPaths::AppConfigLocation 获取平台相关的应用配置目录，
  * 并自动创建该目录（如果不存在）。
  *
- * 路径示例（Linux）：~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db
+ * 路径示例（Linux）：~/.config/qteasytier/QtEasyTier/qteasytier.db
  */
 QString DatabaseConnection::defaultDatabasePath()
 {
     const QString configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QDir().mkpath(configDir);
-    return configDir + QStringLiteral("/qteasy-tier-configs.db");
+    return configDir + QStringLiteral("/qteasytier.db");
 }
 
 /**

@@ -556,7 +556,7 @@ src/core/repository/
 默认数据库位置：
 
 ```text
-~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db
+~/.config/qteasytier/QtEasyTier/qteasytier.db
 ```
 
 repository 层不应依赖 QML，也不应包含页面逻辑。
@@ -1003,7 +1003,7 @@ Linux 下 `AppConfigLocation` 通常为：
 SQLite 数据库默认路径：
 
 ```text
-~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db
+~/.config/qteasytier/QtEasyTier/qteasytier.db
 ```
 
 全局设置文件：

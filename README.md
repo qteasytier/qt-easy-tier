@@ -112,7 +112,7 @@ Linux 下应用配置目录通常位于：
 默认 SQLite 数据库：
 
 ```text
-~/.config/qteasytier/QtEasyTier/qteasy-tier-configs.db
+~/.config/qteasytier/QtEasyTier/qteasytier.db
 ```
 
 全局设置文件由 `SettingsStore` 管理，默认使用 `settings3.json`。
