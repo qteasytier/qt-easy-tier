@@ -2,7 +2,8 @@
 set -euo pipefail
 
 VERSION=""
-APP_IMAGE_TOOL="${APP_IMAGE_TOOL:-appimagetool}"
+LINUXDEPLOYQT="${LINUXDEPLOYQT:-linuxdeployqt}"
+QML_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -14,12 +15,20 @@ while [[ $# -gt 0 ]]; do
             VERSION="$2"
             shift 2
             ;;
-        --app-image-tool)
+        --linuxdeployqt)
             if [[ $# -lt 2 ]]; then
                 echo "错误: $1 需要一个参数"
                 exit 1
             fi
-            APP_IMAGE_TOOL="$2"
+            LINUXDEPLOYQT="$2"
+            shift 2
+            ;;
+        --qml-dir)
+            if [[ $# -lt 2 ]]; then
+                echo "错误: $1 需要一个参数"
+                exit 1
+            fi
+            QML_DIR="$2"
             shift 2
             ;;
         *)
@@ -61,15 +70,15 @@ if [[ ! -f "$ICON_SRC" ]]; then
     exit 1
 fi
 
-if ! command -v "$APP_IMAGE_TOOL" >/dev/null 2>&1; then
-    echo "错误: 未找到 appimagetool: $APP_IMAGE_TOOL"
+if ! command -v "$LINUXDEPLOYQT" >/dev/null 2>&1; then
+    echo "错误: 未找到 linuxdeployqt: $LINUXDEPLOYQT"
     exit 1
 fi
 
 echo "[INFO] 输出目录: $OUTPUT_DIR"
 echo "[INFO] 版本号: $VERSION"
 echo "[INFO] AppImage 名称: $APPIMAGE_NAME"
-echo "[INFO] appimagetool: $APP_IMAGE_TOOL"
+echo "[INFO] linuxdeployqt: $LINUXDEPLOYQT"
 
 rm -rf "$APP_DIR"
 
@@ -93,10 +102,19 @@ sed \
 cp -a "$APP_DIR/usr/share/applications/qteasytier.desktop" "$APP_DIR/qteasytier.desktop"
 
 echo "[INFO] 部署 Qt 依赖..."
-"$APP_IMAGE_TOOL" deploy "$APP_DIR/usr/share/applications/qteasytier.desktop"
+LINUXDEPLOYQT_ARGS=("$APP_DIR/usr/share/applications/qteasytier.desktop")
+if [[ -n "${QMAKE:-}" ]]; then
+    LINUXDEPLOYQT_ARGS+=("-qmake=${QMAKE}")
+fi
+if [[ -n "$QML_DIR" ]]; then
+    LINUXDEPLOYQT_ARGS+=("-qmldir=$QML_DIR")
+fi
+if [[ "${LINUXDEPLOYQT_ALLOW_NEW_GLIBC:-}" == "1" ]]; then
+    LINUXDEPLOYQT_ARGS+=("-unsupported-allow-new-glibc")
+fi
 
 echo "[INFO] 构建 AppImage..."
-VERSION="$VERSION" "$APP_IMAGE_TOOL" "$APP_DIR"
+VERSION="$VERSION" "$LINUXDEPLOYQT" "${LINUXDEPLOYQT_ARGS[@]}" -appimage
 GENERATED_APPIMAGE="$APP_DIR-x86_64.AppImage"
 if [[ -f "$GENERATED_APPIMAGE" ]]; then
     mv "$GENERATED_APPIMAGE" "$OUTPUT_DIR/$APPIMAGE_NAME"
