@@ -65,5 +65,5 @@ target_link_libraries(tst_tray_message_dispatcher PRIVATE qtet_system_tray)
 add_core_test(tst_system_tray_manager tst_system_tray_manager.cpp)
 target_link_libraries(tst_system_tray_manager PRIVATE qtet_system_tray qtet_application)
 
-add_core_test(tst_app_launch_options tst_app_launch_options.cpp)
-target_link_libraries(tst_app_launch_options PRIVATE qtet_appsupport)
+add_core_test(tst_app_launch_manager tst_app_launch_manager.cpp)
+target_link_libraries(tst_app_launch_manager PRIVATE qtet_appsupport)

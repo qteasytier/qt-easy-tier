@@ -209,8 +209,8 @@ add_qtet_library(qtet_viewmodel
 target_link_libraries(qtet_viewmodel PUBLIC Qt6::Core Qt6::Sql qtet_application qtet_config qtet_repository qtet_service qtet_platform qtet_vpn qtet_log)
 
 add_qtet_library(qtet_appsupport
-    src/app/AppLaunchOptions.cpp
-    src/app/AppLaunchOptions.h
+    src/app/AppLaunchManager.cpp
+    src/app/AppLaunchManager.h
     src/app/AppServices.cpp
     src/app/AppServices.h
     src/app/QmlSingletonRegistrar.cpp
