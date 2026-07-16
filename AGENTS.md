@@ -27,7 +27,7 @@ ctest --test-dir build --output-on-failure
 
 ## 代码边界
 
-- `src/app` 是装配层：`AppLaunchOptions` 解析启动参数，`AppServices` 创建并持有服务/ViewModel，`QmlSingletonRegistrar` 集中 `qmlRegisterSingletonType`。
+- `src/app` 是装配层：`AppLaunchManager` 解析启动参数并管理前端单实例 socket，`AppServices` 创建并持有服务/ViewModel，`QmlSingletonRegistrar` 集中 `qmlRegisterSingletonType`。
 - `src/core/config`：`NetworkConf`、TOML 序列化、校验、URL 编解码。
 - `src/core/repository`：SQLite repository；`DatabaseConnection::open()` 负责幂等建表/迁移。
 - `src/core/service`：`qtet-daemon` IPC、JSON-RPC、自定义帧协议和 `DaemonApi`。
@@ -56,7 +56,7 @@ ctest --test-dir build --output-on-failure
 
 ## 测试清单
 
-- 测试注册在 `tests/CMakeLists.txt`，当前目标：`tst_network_conf`、`tst_config_url_codec`、`tst_sqlite_repository`、`tst_config_list_model`、`tst_favorite_node_repository`、`tst_daemon_client`、`tst_daemon_register_helper`、`tst_autostart_helper`、`tst_settings_store`、`tst_autostart_service`、`tst_public_server_provider`、`tst_import_nodes_viewmodel`、`tst_app_services`、`tst_log_repository`、`tst_log_helper`、`tst_tray_message_dispatcher`、`tst_system_tray_manager`、`tst_app_launch_options`。
+- 测试注册在 `tests/CMakeLists.txt`，当前目标：`tst_network_conf`、`tst_config_url_codec`、`tst_sqlite_repository`、`tst_config_list_model`、`tst_favorite_node_repository`、`tst_daemon_client`、`tst_daemon_register_helper`、`tst_autostart_helper`、`tst_settings_store`、`tst_autostart_service`、`tst_public_server_provider`、`tst_import_nodes_viewmodel`、`tst_app_services`、`tst_log_repository`、`tst_log_helper`、`tst_tray_message_dispatcher`、`tst_system_tray_manager`、`tst_app_launch_manager`。
 - 新测试使用 `add_core_test(name file.cpp)`，再按职责链接 `qtet_*` 模块 target。
 
 ## 仓库杂项

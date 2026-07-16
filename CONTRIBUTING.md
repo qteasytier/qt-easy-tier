@@ -110,17 +110,17 @@ SystemTrayManager 绑定主窗口
 
 ```text
 src/app/
-├── AppLaunchOptions.h
-├── AppLaunchOptions.cpp
+├── AppLaunchManager.h
+├── AppLaunchManager.cpp
 ├── AppServices.h
 ├── AppServices.cpp
 ├── QmlSingletonRegistrar.h
 └── QmlSingletonRegistrar.cpp
 ```
 
-### AppLaunchOptions
+### AppLaunchManager
 
-`AppLaunchOptions` 只放与应用入口相关的轻量启动参数解析逻辑，例如判断当前是否来自开机自启动入口，避免在 `main.cpp` 中堆叠不可测试的判断。
+`AppLaunchManager` 只放与应用入口相关的轻量启动逻辑，例如判断当前是否来自开机自启动入口、管理前端单实例 socket，避免在 `main.cpp` 中堆叠不可测试的判断。
 
 ### AppServices
 
@@ -848,7 +848,7 @@ tst_log_repository
 tst_log_helper
 tst_tray_message_dispatcher
 tst_system_tray_manager
-tst_app_launch_options
+tst_app_launch_manager
 ```
 
 新增生产代码时，应优先为对应模块补充测试。涉及 daemon 的测试可以使用内存 `QLocalServer` 模拟，不要求真实 daemon 后台。

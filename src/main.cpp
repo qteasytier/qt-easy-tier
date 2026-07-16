@@ -17,7 +17,7 @@
 #include <QUrl>
 #include <QWindow>
 
-#include "app/AppLaunchOptions.h"
+#include "app/AppLaunchManager.h"
 #include "app/AppServices.h"
 #include "app/QmlSingletonRegistrar.h"
 #include "core/repository/DatabaseConnection.h"
@@ -30,7 +30,17 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("qteasytier"));
     app.setApplicationName(QStringLiteral("QtEasyTier"));
     app.setWindowIcon(QIcon(":/icons/qtet.png"));
-    const bool autoStartLaunch = isAutoStartLaunch(QApplication::arguments());
+
+    AppLaunchManager launchManager;
+    if (launchManager.tryConnectToExistingInstance())
+        return 0;
+
+    if (!launchManager.listenForSingleInstance()) {
+        LogHelper::logError(QStringLiteral("单实例监听启动失败"));
+        return 1;
+    }
+
+    const bool autoStartLaunch = AppLaunchManager::isAutoStartLaunch(QApplication::arguments());
 
     // 打开默认路径的 SQLite 数据库（自动建表/迁移）
     DatabaseConnection db(DatabaseConnection::defaultDatabasePath());
@@ -60,6 +70,8 @@ int main(int argc, char *argv[])
     }
 
     services.systemTrayManager()->setMainWindow(mainWindow);
+    QObject::connect(&launchManager, &AppLaunchManager::activationRequested,
+                     services.systemTrayManager(), &SystemTrayManager::showMainWindowFromTray);
     // 只有系统托盘可用时才保持后台运行；否则沿用 Qt 默认的关闭即退出行为。
     const bool trayAvailable = services.systemTrayManager()->isAvailable();
     QApplication::setQuitOnLastWindowClosed(!trayAvailable);
