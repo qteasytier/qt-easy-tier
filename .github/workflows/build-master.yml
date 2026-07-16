@@ -7,7 +7,7 @@ on:
 
 jobs:
   linux-deb:
-    name: Linux deb package
+    name: Linux build
     runs-on: ubuntu-24.04
 
     env:
