@@ -83,8 +83,11 @@ jobs:
           export QTDIR="${Qt6_DIR}"
           export QMAKE="${Qt6_DIR}/bin/qmake"
           LINUXDEPLOYQT="/tmp/linuxdeployqt-continuous-x86_64.AppImage"
+          APPIMAGETOOL="/tmp/appimagetool"
           wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" -O "${LINUXDEPLOYQT}"
-          chmod +x "${LINUXDEPLOYQT}"
+          wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O "${APPIMAGETOOL}"
+          chmod +x "${LINUXDEPLOYQT}" "${APPIMAGETOOL}"
+          export PATH="/tmp:${PATH}"
           bash "${{ github.workspace }}/assets/package/linux/build_appimage.sh" \
             -v "${{ steps.version.outputs.version }}" \
             --linuxdeployqt "${LINUXDEPLOYQT}" \
