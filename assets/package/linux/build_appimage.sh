@@ -2,8 +2,7 @@
 set -euo pipefail
 
 VERSION=""
-LINUXDEPLOYQT="${LINUXDEPLOYQT:-linuxdeployqt}"
-QML_DIR=""
+APP_IMAGE_TOOL="${APP_IMAGE_TOOL:-appimagetool}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -15,20 +14,12 @@ while [[ $# -gt 0 ]]; do
             VERSION="$2"
             shift 2
             ;;
-        --linuxdeployqt)
+        --app-image-tool)
             if [[ $# -lt 2 ]]; then
                 echo "错误: $1 需要一个参数"
                 exit 1
             fi
-            LINUXDEPLOYQT="$2"
-            shift 2
-            ;;
-        --qml-dir)
-            if [[ $# -lt 2 ]]; then
-                echo "错误: $1 需要一个参数"
-                exit 1
-            fi
-            QML_DIR="$2"
+            APP_IMAGE_TOOL="$2"
             shift 2
             ;;
         *)
@@ -70,17 +61,117 @@ if [[ ! -f "$ICON_SRC" ]]; then
     exit 1
 fi
 
-if ! command -v "$LINUXDEPLOYQT" >/dev/null 2>&1; then
-    echo "错误: 未找到 linuxdeployqt: $LINUXDEPLOYQT"
+if ! command -v "$APP_IMAGE_TOOL" >/dev/null 2>&1; then
+    echo "错误: 未找到 appimagetool: $APP_IMAGE_TOOL"
     exit 1
 fi
 
 echo "[INFO] 输出目录: $OUTPUT_DIR"
 echo "[INFO] 版本号: $VERSION"
 echo "[INFO] AppImage 名称: $APPIMAGE_NAME"
-echo "[INFO] linuxdeployqt: $LINUXDEPLOYQT"
+echo "[INFO] appimagetool: $APP_IMAGE_TOOL"
+
+SKIPPED_PLUGINS_DIR="$OUTPUT_DIR/appimage-skipped-plugins"
+DEPLOY_LOG="$OUTPUT_DIR/appimage-deploy.log"
+
+restore_skipped_plugins() {
+    if [[ ! -d "$SKIPPED_PLUGINS_DIR" ]]; then
+        return
+    fi
+
+    local qt_plugins_dir=""
+    if [[ -n "${Qt6_DIR:-}" ]]; then
+        qt_plugins_dir="${Qt6_DIR}/plugins"
+    elif [[ -n "${QTDIR:-}" ]]; then
+        qt_plugins_dir="${QTDIR}/plugins"
+    fi
+
+    if [[ -z "$qt_plugins_dir" || ! -d "$qt_plugins_dir" ]]; then
+        return
+    fi
+
+    while IFS= read -r -d '' skipped_plugin; do
+        local relative_path="${skipped_plugin#$SKIPPED_PLUGINS_DIR/}"
+        local restore_path="$qt_plugins_dir/$relative_path"
+        mkdir -p "$(dirname "$restore_path")"
+        mv "$skipped_plugin" "$restore_path"
+        echo "[INFO] 已恢复跳过的 Qt 插件: $relative_path"
+    done < <(find "$SKIPPED_PLUGINS_DIR" -type f -print0)
+}
+
+trap restore_skipped_plugins EXIT
+
+extract_missing_library() {
+    sed -nE 's/.*did not find library ([^[:space:]]+).*/\1/p' "$DEPLOY_LOG" | head -n 1
+}
+
+skip_plugins_requiring_library() {
+    local missing_library="$1"
+    local qt_plugins_dir=""
+    if [[ -n "${Qt6_DIR:-}" ]]; then
+        qt_plugins_dir="${Qt6_DIR}/plugins"
+    elif [[ -n "${QTDIR:-}" ]]; then
+        qt_plugins_dir="${QTDIR}/plugins"
+    fi
+
+    if [[ -z "$qt_plugins_dir" || ! -d "$qt_plugins_dir" ]]; then
+        echo "错误: 无法定位 Qt 插件目录，不能自动跳过依赖 $missing_library 的插件"
+        return 1
+    fi
+
+    local skipped_count=0
+    while IFS= read -r -d '' plugin_file; do
+        if readelf -d "$plugin_file" 2>/dev/null | grep -F "[$missing_library]" >/dev/null; then
+            local relative_path="${plugin_file#$qt_plugins_dir/}"
+            local skipped_path="$SKIPPED_PLUGINS_DIR/$relative_path"
+            mkdir -p "$(dirname "$skipped_path")"
+            mv "$plugin_file" "$skipped_path"
+            echo "[INFO] 自动跳过缺失依赖 $missing_library 的 Qt 插件: $relative_path"
+            skipped_count=$((skipped_count + 1))
+        fi
+    done < <(find "$qt_plugins_dir" -type f -print0)
+
+    if [[ "$skipped_count" -eq 0 ]]; then
+        echo "错误: 未在 Qt 插件目录中找到依赖 $missing_library 的插件"
+        return 1
+    fi
+}
+
+deploy_with_missing_plugin_skip() {
+    local desktop_file="$1"
+    local max_attempts=10
+    local attempt=1
+
+    while [[ "$attempt" -le "$max_attempts" ]]; do
+        echo "[INFO] 运行 go-appimage deploy，第 $attempt 次..."
+        set +e
+        "$APP_IMAGE_TOOL" deploy "$desktop_file" 2>&1 | tee "$DEPLOY_LOG"
+        local deploy_status=${PIPESTATUS[0]}
+        set -e
+
+        if [[ "$deploy_status" -eq 0 ]]; then
+            return 0
+        fi
+
+        local missing_library
+        missing_library="$(extract_missing_library)"
+        if [[ -z "$missing_library" ]]; then
+            echo "错误: go-appimage deploy 失败，且未发现可自动跳过的缺失库信息"
+            return "$deploy_status"
+        fi
+
+        echo "[INFO] go-appimage deploy 缺失库: $missing_library"
+        skip_plugins_requiring_library "$missing_library"
+        attempt=$((attempt + 1))
+    done
+
+    echo "错误: go-appimage deploy 自动跳过插件后仍失败，已达到最大重试次数 $max_attempts"
+    return 1
+}
 
 rm -rf "$APP_DIR"
+rm -rf "$SKIPPED_PLUGINS_DIR"
+rm -f "$DEPLOY_LOG"
 
 mkdir -p "$APP_DIR/usr/bin"
 mkdir -p "$APP_DIR/usr/share/applications"
@@ -102,19 +193,10 @@ sed \
 cp -a "$APP_DIR/usr/share/applications/qteasytier.desktop" "$APP_DIR/qteasytier.desktop"
 
 echo "[INFO] 部署 Qt 依赖..."
-LINUXDEPLOYQT_ARGS=("$APP_DIR/usr/share/applications/qteasytier.desktop")
-if [[ -n "${QMAKE:-}" ]]; then
-    LINUXDEPLOYQT_ARGS+=("-qmake=${QMAKE}")
-fi
-if [[ -n "$QML_DIR" ]]; then
-    LINUXDEPLOYQT_ARGS+=("-qmldir=$QML_DIR")
-fi
-if [[ "${LINUXDEPLOYQT_ALLOW_NEW_GLIBC:-}" == "1" ]]; then
-    LINUXDEPLOYQT_ARGS+=("-unsupported-allow-new-glibc")
-fi
+deploy_with_missing_plugin_skip "$APP_DIR/usr/share/applications/qteasytier.desktop"
 
 echo "[INFO] 构建 AppImage..."
-VERSION="$VERSION" "$LINUXDEPLOYQT" "${LINUXDEPLOYQT_ARGS[@]}" -verbose=2 -appimage
+VERSION="$VERSION" "$APP_IMAGE_TOOL" "$APP_DIR"
 GENERATED_APPIMAGE="$APP_DIR-x86_64.AppImage"
 if [[ -f "$GENERATED_APPIMAGE" ]]; then
     mv "$GENERATED_APPIMAGE" "$OUTPUT_DIR/$APPIMAGE_NAME"
