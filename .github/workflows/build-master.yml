@@ -83,6 +83,7 @@ jobs:
           wget -c "https://github.com/probonopd/go-appimage/releases/download/continuous/appimagetool-947-x86_64.AppImage" -O "${APP_IMAGE_TOOL}"
           chmod +x "${APP_IMAGE_TOOL}"
           rm -f "${Qt6_DIR}/plugins/sqldrivers/libqsqlmimer"* 2>/dev/null || true
+          patchelf --remove-needed libmimerapi.so "${Qt6_DIR}/lib/libQt6Sql.so" 2>/dev/null || true
           bash "${{ github.workspace }}/assets/package/linux/build_appimage.sh" \
             -v "${{ steps.version.outputs.version }}" \
             --app-image-tool "${APP_IMAGE_TOOL}"
