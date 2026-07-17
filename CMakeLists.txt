@@ -24,6 +24,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
     Network
     Test
     Quick
+    QuickControls2
     Widgets
     Concurrent
     Svg
@@ -78,6 +79,7 @@ target_link_libraries(appQtEasyTier PRIVATE
     Qt6::Sql
     Qt6::Network
     Qt6::Quick
+    Qt6::QuickControls2
     Qt6::Widgets
     Qt6::Concurrent
     Qt6::Svg
