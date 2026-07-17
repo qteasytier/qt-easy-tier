@@ -14,17 +14,33 @@
 #include <QTemporaryFile>
 #include <QTextStream>
 
+#if defined(Q_OS_WIN)
+#include <qt_windows.h>
+#include <shellapi.h>
+#ifdef StartService
+#undef StartService
+#endif
+#endif
+
 namespace {
 constexpr char kServiceName[] = "qtet-daemon.service";
 constexpr char kDaemonName[] = "qtet-daemon";
+constexpr char kWindowsServiceName[] = "qtet-daemon";
+constexpr char kWindowsDaemonName[] = "qtet-daemon.exe";
+constexpr char kWindowsInstallerName[] = "DaemonInstaller.exe";
 constexpr int kProcessTimeoutMs = 30000;
 
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 QString g_servicePathOverride;
 QString g_daemonPathOverride;
+QString g_installerPathOverride;
+bool g_serviceRegisteredOverrideEnabled = false;
+bool g_serviceRegisteredOverride = false;
 bool g_processRunningOverrideEnabled = false;
 bool g_processRunningOverride = false;
+#endif
 
+#if defined(Q_OS_LINUX)
 QString systemdServicePath()
 {
     if (!g_servicePathOverride.isEmpty())
@@ -37,6 +53,20 @@ QString linuxDaemonBinaryPath()
     if (!g_daemonPathOverride.isEmpty())
         return g_daemonPathOverride;
     return QDir(QCoreApplication::applicationDirPath()).filePath(QLatin1String(kDaemonName));
+}
+
+bool runProcess(const QString &program, const QStringList &arguments, int timeoutMs = kProcessTimeoutMs)
+{
+    QProcess process;
+    process.start(program, arguments);
+    if (!process.waitForStarted(timeoutMs))
+        return false;
+    if (!process.waitForFinished(timeoutMs)) {
+        process.kill();
+        process.waitForFinished();
+        return false;
+    }
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
 }
 
 QString systemdEscapePath(QString path)
@@ -78,20 +108,6 @@ QString serviceContent(const QString &daemonPath)
     return content;
 }
 
-bool runProcess(const QString &program, const QStringList &arguments, int timeoutMs = kProcessTimeoutMs)
-{
-    QProcess process;
-    process.start(program, arguments);
-    if (!process.waitForStarted(timeoutMs))
-        return false;
-    if (!process.waitForFinished(timeoutMs)) {
-        process.kill();
-        process.waitForFinished();
-        return false;
-    }
-    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
-}
-
 bool writeTemporaryServiceFile(QTemporaryFile &file, const QString &daemonPath)
 {
     if (!file.open())
@@ -128,11 +144,84 @@ bool startService()
     return runProcess(QStringLiteral("pkexec"), {QStringLiteral("systemctl"), QStringLiteral("start"), QLatin1String(kServiceName)}, 120000);
 }
 #endif
+
+#if defined(Q_OS_WIN)
+QString windowsDaemonBinaryPath()
+{
+    if (!g_daemonPathOverride.isEmpty())
+        return g_daemonPathOverride;
+    return QDir(QCoreApplication::applicationDirPath()).filePath(QLatin1String(kWindowsDaemonName));
+}
+
+QString windowsServiceInstallerPath()
+{
+    if (!g_installerPathOverride.isEmpty())
+        return g_installerPathOverride;
+    return QDir(QCoreApplication::applicationDirPath()).filePath(QLatin1String(kWindowsInstallerName));
+}
+
+bool runProcessWithOutput(const QString &program, const QStringList &arguments, QString *output, int timeoutMs = kProcessTimeoutMs)
+{
+    QProcess process;
+    process.start(program, arguments);
+    if (!process.waitForStarted(timeoutMs))
+        return false;
+    if (!process.waitForFinished(timeoutMs)) {
+        process.kill();
+        process.waitForFinished();
+        return false;
+    }
+    if (output)
+        *output = QString::fromLocal8Bit(process.readAllStandardOutput()) + QString::fromLocal8Bit(process.readAllStandardError());
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+}
+
+bool runElevated(const QString &program, const QString &parameters, int timeoutMs = 120000)
+{
+    SHELLEXECUTEINFOW shellExecuteInfo = {};
+    shellExecuteInfo.cbSize = sizeof(shellExecuteInfo);
+    shellExecuteInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+    shellExecuteInfo.lpVerb = L"runas";
+
+    const std::wstring programW = QDir::toNativeSeparators(program).toStdWString();
+    const std::wstring parametersW = parameters.toStdWString();
+    shellExecuteInfo.lpFile = programW.c_str();
+    shellExecuteInfo.lpParameters = parametersW.c_str();
+    shellExecuteInfo.nShow = SW_SHOWNORMAL;
+
+    if (!ShellExecuteExW(&shellExecuteInfo))
+        return false;
+    if (!shellExecuteInfo.hProcess)
+        return true;
+
+    const DWORD waitResult = WaitForSingleObject(shellExecuteInfo.hProcess, static_cast<DWORD>(timeoutMs));
+    if (waitResult != WAIT_OBJECT_0) {
+        CloseHandle(shellExecuteInfo.hProcess);
+        return false;
+    }
+
+    DWORD exitCode = 1;
+    const bool gotExitCode = GetExitCodeProcess(shellExecuteInfo.hProcess, &exitCode);
+    CloseHandle(shellExecuteInfo.hProcess);
+    return gotExitCode && exitCode == 0;
+}
+
+bool installAndStartWindowsService()
+{
+    const QString installerPath = windowsServiceInstallerPath();
+    return runElevated(installerPath, QStringLiteral("install")) && runElevated(installerPath, QStringLiteral("start"));
+}
+
+bool startWindowsService()
+{
+    return runElevated(windowsServiceInstallerPath(), QStringLiteral("start"));
+}
+#endif
 } // namespace
 
 DaemonRegisterHelper::RequiredAction DaemonRegisterHelper::requiredAction()
 {
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
     const QString path = daemonBinaryPath();
     const QFileInfo daemonInfo(path);
 
@@ -147,19 +236,34 @@ DaemonRegisterHelper::RequiredAction DaemonRegisterHelper::requiredAction()
         return RequiredAction::DaemonBinaryMissing;
     }
 
+#if defined(Q_OS_WIN)
+    const QString installerPath = serviceInstallerPath();
+    const QFileInfo installerInfo(installerPath);
+    if (!installerInfo.exists() || !installerInfo.isFile() || !installerInfo.isExecutable()) {
+        LogHelper::logWarning(QStringLiteral("WinSW 安装器缺失或不可执行: exists=%1 file=%2 executable=%3 path=%4")
+                                  .arg(installerInfo.exists())
+                                  .arg(installerInfo.isFile())
+                                  .arg(installerInfo.isExecutable())
+                                  .arg(installerPath),
+                              "DaemonRegister");
+        LogHelper::logInfo(QStringLiteral("检测结果: WinSW 安装器缺失，服务注册状态与进程状态未继续检测"), "DaemonRegister");
+        return RequiredAction::DaemonBinaryMissing;
+    }
+#endif
+
     const bool registered = isServiceRegistered();
     if (!registered) {
-        LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，systemd 服务未注册，进程状态未继续检测"), "DaemonRegister");
+        LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，后端服务未注册，进程状态未继续检测"), "DaemonRegister");
         return RequiredAction::RegisterService;
     }
 
     const bool running = isDaemonProcessRunning();
     if (!running) {
-        LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，systemd 服务已注册，qtet-daemon 进程未运行"), "DaemonRegister");
+        LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，后端服务已注册，qtet-daemon 进程未运行"), "DaemonRegister");
         return RequiredAction::StartService;
     }
 
-    LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，systemd 服务已注册，qtet-daemon 进程运行中"), "DaemonRegister");
+    LogHelper::logInfo(QStringLiteral("检测结果: daemon 二进制可用，后端服务已注册，qtet-daemon 进程运行中"), "DaemonRegister");
     return RequiredAction::None;
 #else
     LogHelper::logInfo(QStringLiteral("检测结果: 当前平台不支持自动注册后端服务"), "DaemonRegister");
@@ -169,27 +273,49 @@ DaemonRegisterHelper::RequiredAction DaemonRegisterHelper::requiredAction()
 
 DaemonRegisterHelper::EnsureResult DaemonRegisterHelper::ensureDaemonService()
 {
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
     const QString daemonPath = daemonBinaryPath();
     switch (requiredAction()) {
     case RequiredAction::None:
         return EnsureResult::AlreadyRunning;
     case RequiredAction::DaemonBinaryMissing:
+#if defined(Q_OS_WIN)
+        LogHelper::logWarning(QStringLiteral("qtet-daemon 或服务安装器不存在或不可执行：%1 %2")
+                                  .arg(daemonPath, serviceInstallerPath()),
+                              "DaemonRegister");
+#else
         LogHelper::logWarning(QStringLiteral("qtet-daemon 不存在或不可执行：%1").arg(daemonPath), "DaemonRegister");
+#endif
         return EnsureResult::DaemonBinaryMissing;
     case RequiredAction::RegisterService:
+#if defined(Q_OS_LINUX)
         if (!installAndStartService(daemonPath)) {
             LogHelper::logWarning(QStringLiteral("注册并启动 qtet-daemon systemd 服务失败"), "DaemonRegister");
             return EnsureResult::RegisterFailed;
         }
         LogHelper::logInfo(QStringLiteral("已请求注册并启动 qtet-daemon systemd 服务"), "DaemonRegister");
+#else
+        if (!installAndStartWindowsService()) {
+            LogHelper::logWarning(QStringLiteral("注册并启动 qtet-daemon Windows 服务失败"), "DaemonRegister");
+            return EnsureResult::RegisterFailed;
+        }
+        LogHelper::logInfo(QStringLiteral("已请求注册并启动 qtet-daemon Windows 服务"), "DaemonRegister");
+#endif
         return EnsureResult::RegisteredAndStartRequested;
     case RequiredAction::StartService:
+#if defined(Q_OS_LINUX)
         if (!startService()) {
             LogHelper::logWarning(QStringLiteral("启动 qtet-daemon systemd 服务失败"), "DaemonRegister");
             return EnsureResult::StartFailed;
         }
         LogHelper::logInfo(QStringLiteral("已请求启动 qtet-daemon systemd 服务"), "DaemonRegister");
+#else
+        if (!startWindowsService()) {
+            LogHelper::logWarning(QStringLiteral("启动 qtet-daemon Windows 服务失败"), "DaemonRegister");
+            return EnsureResult::StartFailed;
+        }
+        LogHelper::logInfo(QStringLiteral("已请求启动 qtet-daemon Windows 服务"), "DaemonRegister");
+#endif
         return EnsureResult::StartRequested;
     case RequiredAction::UnsupportedPlatform:
         return EnsureResult::UnsupportedPlatform;
@@ -203,7 +329,14 @@ DaemonRegisterHelper::EnsureResult DaemonRegisterHelper::ensureDaemonService()
 bool DaemonRegisterHelper::isServiceRegistered()
 {
 #if defined(Q_OS_LINUX)
+    if (g_serviceRegisteredOverrideEnabled)
+        return g_serviceRegisteredOverride;
     return QFile::exists(systemdServicePath());
+#elif defined(Q_OS_WIN)
+    if (g_serviceRegisteredOverrideEnabled)
+        return g_serviceRegisteredOverride;
+    QString output;
+    return runProcessWithOutput(QStringLiteral("sc"), {QStringLiteral("query"), QLatin1String(kWindowsServiceName)}, &output, 5000);
 #else
     return false;
 #endif
@@ -215,6 +348,13 @@ bool DaemonRegisterHelper::isDaemonProcessRunning()
     if (g_processRunningOverrideEnabled)
         return g_processRunningOverride;
     return runProcess(QStringLiteral("pidof"), {QLatin1String(kDaemonName)}, 5000);
+#elif defined(Q_OS_WIN)
+    if (g_processRunningOverrideEnabled)
+        return g_processRunningOverride;
+    QString output;
+    if (!runProcessWithOutput(QStringLiteral("sc"), {QStringLiteral("query"), QLatin1String(kWindowsServiceName)}, &output, 5000))
+        return false;
+    return output.contains(QStringLiteral("RUNNING"), Qt::CaseInsensitive);
 #else
     return false;
 #endif
@@ -224,6 +364,17 @@ QString DaemonRegisterHelper::daemonBinaryPath()
 {
 #if defined(Q_OS_LINUX)
     return linuxDaemonBinaryPath();
+#elif defined(Q_OS_WIN)
+    return windowsDaemonBinaryPath();
+#else
+    return QString();
+#endif
+}
+
+QString DaemonRegisterHelper::serviceInstallerPath()
+{
+#if defined(Q_OS_WIN)
+    return windowsServiceInstallerPath();
 #else
     return QString();
 #endif
@@ -249,5 +400,29 @@ void DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(bool enable
 QString DaemonRegisterHelper::systemdServiceContentForTesting(const QString &daemonPath)
 {
     return serviceContent(daemonPath);
+}
+#endif
+
+#if defined(Q_OS_WIN)
+void DaemonRegisterHelper::setDaemonBinaryPathOverrideForTesting(const QString &path)
+{
+    g_daemonPathOverride = path;
+}
+
+void DaemonRegisterHelper::setServiceInstallerPathOverrideForTesting(const QString &path)
+{
+    g_installerPathOverride = path;
+}
+
+void DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(bool enabled, bool registered)
+{
+    g_serviceRegisteredOverrideEnabled = enabled;
+    g_serviceRegisteredOverride = registered;
+}
+
+void DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(bool enabled, bool running)
+{
+    g_processRunningOverrideEnabled = enabled;
+    g_processRunningOverride = running;
 }
 #endif

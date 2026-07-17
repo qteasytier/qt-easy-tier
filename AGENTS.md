@@ -15,8 +15,8 @@ ctest --test-dir build --output-on-failure
 - 单测可聚焦运行：`ctest --test-dir build -R tst_network_conf --output-on-failure` 或 `./build/Output/tst_network_conf`。
 - 仓库未发现 CI workflow、formatter、linter、pre-commit 或 task runner 配置；完成代码改动时以 CMake 构建和 CTest 为主要验证。
 - 根 `CMakeLists.txt` 会在存在 `importedcontent/CMakeLists.txt` 时自动 `add_subdirectory(importedcontent)`；这是 Figma/Qt 导入内容的可选入口。
-- 默认构建需要 `git` 和网络：CMake 会通过 `cmake/QtEasyTierDaemon.cmake` 与 `cmake/scripts/*.cmake` 从 GitHub 克隆并编译 `qtet-daemon`，再把产物复制到 `Output/`。如需禁用后端构建，配置时传入 `-DBUILD_WITH_DAEMON=OFF`；如需从 Gitee 克隆后端，传入 `-DCLONE_DAEMON_FROM_GITEE=ON`；如果无网络且仍开启该选项，需手动把 `qtet-daemon` 放到输出目录。
-- Windows 当前只适配 MinGW64，不面向 MSVC 做兼容；Windows 下 `qtet-daemon` 尚未适配，CMake 会跳过后端构建和收集，当前只构建前端。
+- 默认构建需要 `git` 和网络：CMake 配置阶段会通过 `cmake/QtEasyTierDaemon.cmake` 与 `cmake/scripts/*.cmake` 从 GitHub 克隆并编译 `qtet-daemon`，再把产物复制到 `Output/`；`cmake --build` 不再触发后端构建/复制。如需禁用后端构建，配置时传入 `-DBUILD_WITH_DAEMON=OFF`；如需从 Gitee 克隆后端，传入 `-DCLONE_DAEMON_FROM_GITEE=ON`；如果无网络且仍开启该选项，需手动把 `qtet-daemon` 放到输出目录。
+- Windows 当前只适配 MinGW64，不面向 MSVC 做兼容；Windows 下会构建并收集 `qtet-daemon.exe` 到 `Output/`。因 `qtet-daemon` 不是标准 Windows 服务程序，构建收集时还会复制 `ThirdParty/WinSW/DaemonInstaller.xml` 到 `Output/DaemonInstaller.xml`，并从 `https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe` 下载为 `Output/DaemonInstaller.exe`。运行时注册/启动后端服务分别使用 `DaemonInstaller.exe install` 与 `DaemonInstaller.exe start`，两步都需要 UAC 提权。
 
 ## CMake 与新增文件
 
