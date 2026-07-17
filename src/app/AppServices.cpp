@@ -194,20 +194,36 @@ void AppServices::ensureDaemonServiceOnce()
     }
 
     if (action == DaemonRegisterHelper::RequiredAction::DaemonBinaryMissing) {
+#if defined(Q_OS_WIN)
+        const QString missingText = QStringLiteral("未找到可执行的后端程序或服务安装器：\n%1\n%2\n\n应用无法连接后端，即将退出。")
+                                        .arg(DaemonRegisterHelper::daemonBinaryPath(),
+                                             DaemonRegisterHelper::serviceInstallerPath());
+#else
+        const QString missingText = QStringLiteral("未找到可执行的后端程序 qtet-daemon：\n%1\n\n应用无法连接后端，即将退出。")
+                                        .arg(DaemonRegisterHelper::daemonBinaryPath());
+#endif
         QMessageBox::critical(nullptr,
                               QStringLiteral("后端程序缺失"),
-                              QStringLiteral("未找到可执行的后端程序 qtet-daemon：\n%1\n\n应用无法连接后端，即将退出。")
-                                  .arg(DaemonRegisterHelper::daemonBinaryPath()));
+                              missingText);
         QCoreApplication::quit();
         return;
     }
 
     QString text;
     if (action == DaemonRegisterHelper::RequiredAction::RegisterService) {
+#if defined(Q_OS_WIN)
+        text = QStringLiteral("后端服务尚未注册。\n\nQtEasyTier 需要将当前程序目录下的 qtet-daemon.exe 注册为 Windows 服务：\n%1\n\n点击“是”后将通过 UAC 请求管理员权限，依次执行 DaemonInstaller.exe install 和 DaemonInstaller.exe start。\n点击“否”将退出程序。")
+                   .arg(DaemonRegisterHelper::daemonBinaryPath());
+#else
         text = QStringLiteral("后端服务尚未注册。\n\nQtEasyTier 需要将当前程序目录下的 qtet-daemon 注册为系统服务：\n%1\n\n点击“是”后将通过 pkexec 请求管理员权限并注册、启动 qtet-daemon.service。\n点击“否”将退出程序。")
                    .arg(DaemonRegisterHelper::daemonBinaryPath());
+#endif
     } else {
+#if defined(Q_OS_WIN)
+        text = QStringLiteral("后端服务尚未运行。\n\n检测到 qtet-daemon Windows 服务已注册，但 qtet-daemon 进程未运行。\n\n点击“是”后将通过 UAC 请求管理员权限并执行 DaemonInstaller.exe start。\n点击“否”将退出程序。");
+#else
         text = QStringLiteral("后端服务尚未运行。\n\n检测到 qtet-daemon.service 已注册，但 qtet-daemon 进程未运行。\n\n点击“是”后将通过 pkexec 请求管理员权限并启动 qtet-daemon.service。\n点击“否”将退出程序。");
+#endif
     }
 
     const auto answer = QMessageBox::question(nullptr,
@@ -223,9 +239,14 @@ void AppServices::ensureDaemonServiceOnce()
     const auto result = DaemonRegisterHelper::ensureDaemonService();
     if (result == DaemonRegisterHelper::EnsureResult::RegisterFailed ||
         result == DaemonRegisterHelper::EnsureResult::StartFailed) {
+#if defined(Q_OS_WIN)
+        const QString failureText = QStringLiteral("无法注册或启动 qtet-daemon Windows 服务，应用即将退出。");
+#else
+        const QString failureText = QStringLiteral("无法注册或启动 qtet-daemon.service，应用即将退出。");
+#endif
         QMessageBox::critical(nullptr,
                               QStringLiteral("后端服务启动失败"),
-                              QStringLiteral("无法注册或启动 qtet-daemon.service，应用即将退出。"));
+                              failureText);
         QCoreApplication::quit();
     }
 }
