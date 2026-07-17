@@ -16,6 +16,8 @@ set(CMAKE_AUTORCC ON)
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
 option(CLONE_DAEMON_FROM_GITEE "Clone qtet-daemon from Gitee instead of GitHub" OFF)
 
+include(cmake/QtEasyTierDaemon.cmake)
+
 find_package(Qt6 6.8 REQUIRED COMPONENTS
     Core
     Sql
@@ -68,52 +70,8 @@ set_target_properties(appQtEasyTier PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-if(BUILD_WITH_DAEMON)
-    find_program(BASH_EXECUTABLE bash REQUIRED)
-    find_program(GIT_EXECUTABLE git)
-
-    set(QTET_DAEMON_CLONE_ARGS)
-    if(CLONE_DAEMON_FROM_GITEE)
-        list(APPEND QTET_DAEMON_CLONE_ARGS "--gitee")
-    endif()
-
-    set(QTET_DAEMON_SRC_DIR "${CMAKE_BINARY_DIR}/qtet-daemon")
-    set(QTET_DAEMON_OUTPUT_DIR "${QTET_DAEMON_SRC_DIR}/build/Output")
-
-    if(WIN32)
-        set(QTET_DAEMON_BIN_NAME "qtet-daemon.exe")
-        set(QTET_DAEMON_RENAMED_BIN "qtet-daemon.exe")
-    else()
-        set(QTET_DAEMON_BIN_NAME "qtet-daemon")
-        set(QTET_DAEMON_RENAMED_BIN "qtet-daemon")
-    endif()
-
-    if(GIT_EXECUTABLE)
-        add_custom_target(qtet_daemon ALL
-            COMMAND "${CMAKE_COMMAND}" -E env
-                    "CLONE_DIR=qtet-daemon"
-                    "BUILD_TYPE=$<IF:$<CONFIG:Debug>,Debug,Release>"
-                    "${BASH_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build_daemon.sh" ${QTET_DAEMON_CLONE_ARGS}
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-            COMMENT "Building qtet-daemon runtime"
-            VERBATIM
-        )
-
-        add_dependencies(appQtEasyTier qtet_daemon)
-
-        add_custom_command(TARGET appQtEasyTier POST_BUILD
-            COMMAND "${BASH_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/collect-daemon.sh"
-                    "${QTET_DAEMON_OUTPUT_DIR}"
-                    "${QTET_OUTPUT_DIR}"
-                    "${QTET_DAEMON_BIN_NAME}"
-                    "${QTET_DAEMON_RENAMED_BIN}"
-            COMMENT "Collecting qtet-daemon runtime into output directory"
-            VERBATIM
-        )
-    else()
-        message(WARNING "git not found, skipping qtet-daemon build. Please place qtet-daemon runtime in the output directory manually.")
-    endif()
-endif()
+qtet_configure_daemon()
+qtet_attach_daemon_to_app(appQtEasyTier)
 
 target_link_libraries(appQtEasyTier PRIVATE
     Qt6::Core
