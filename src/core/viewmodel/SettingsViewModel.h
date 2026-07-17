@@ -16,6 +16,7 @@
 #include <QFutureWatcher>
 #include <QJsonObject>
 #include <QObject>
+#include <QString>
 
 class DaemonApi;
 
@@ -50,6 +51,8 @@ class SettingsViewModel : public QObject {
 
     Q_PROPERTY(int logLevel READ logLevel WRITE setLogLevel NOTIFY logLevelChanged FINAL)
     Q_PROPERTY(int maxLogEntries READ maxLogEntries WRITE setMaxLogEntries NOTIFY maxLogEntriesChanged FINAL)
+    Q_PROPERTY(QString frontendVersion READ frontendVersion CONSTANT FINAL)
+    Q_PROPERTY(QString easyTierVersion READ easyTierVersion CONSTANT FINAL)
 
 public:
     explicit SettingsViewModel(DaemonApi *daemonApi = nullptr, QObject *parent = nullptr);
@@ -119,6 +122,8 @@ public:
     void setLogLevel(int value);
     int maxLogEntries() const;
     void setMaxLogEntries(int value);
+    QString frontendVersion() const;
+    QString easyTierVersion() const;
 
 signals:
     void autoStartChanged();

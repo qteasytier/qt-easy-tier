@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(QtEasyTier VERSION 3.0.0 LANGUAGES CXX)
+project(QtEasyTier VERSION 3.0.1 LANGUAGES CXX)
+set(EASYTIER_FFI_VER 2.6.4)
+
+# 向 C++ 侧暴露版本号
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application/AppVersion.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/AppVersion.h
+    @ONLY
+)
 
 set(QTET_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Output")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}")
@@ -43,7 +51,7 @@ endif()
 
 function(add_qtet_library name)
     qt_add_library(${name} STATIC ${ARGN})
-    target_include_directories(${name} PUBLIC ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
+    target_include_directories(${name} PUBLIC ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
 endfunction()
 
 add_subdirectory(src/core/log)
@@ -62,7 +70,7 @@ qt_add_executable(appQtEasyTier
     assets/resources.qrc
 )
 
-target_include_directories(appQtEasyTier PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
+target_include_directories(appQtEasyTier PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
 
 set_target_properties(appQtEasyTier PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}

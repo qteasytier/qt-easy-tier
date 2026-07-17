@@ -193,7 +193,7 @@ Rectangle {
                     Layout.topMargin: 4
 
                     Label {
-                        text: qsTr("QtEasyTier 3.0.0 (Desktop)")
+                        text: qsTr("QtEasyTier %1 (Desktop)").arg(SettingsViewModel.frontendVersion)
                         Layout.fillWidth: true
                     }
 
@@ -204,7 +204,7 @@ Rectangle {
                 }
 
                 Label {
-                    text: qsTr("基于 EasyTier")
+                    text: qsTr("基于 EasyTier %1").arg(SettingsViewModel.easyTierVersion)
                     font: FontHelper.smallFont
                     color: dimTextColor
                 }

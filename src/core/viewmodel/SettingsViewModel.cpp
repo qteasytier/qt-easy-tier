@@ -3,6 +3,7 @@
  * @brief SettingsViewModel 实现
  */
 #include "SettingsViewModel.h"
+#include "AppVersion.h"
 #include "core/service/DaemonApi.h"
 #include "core/util/LogHelper.h"
 
@@ -204,6 +205,16 @@ void SettingsViewModel::setMaxLogEntries(int value)
     m_maxLogEntries = value;
     emit maxLogEntriesChanged();
     save();
+}
+
+QString SettingsViewModel::frontendVersion() const
+{
+    return QStringLiteral(QTET_FRONTEND_VERSION);
+}
+
+QString SettingsViewModel::easyTierVersion() const
+{
+    return QStringLiteral(QTET_EASYTIER_VERSION);
 }
 
 SettingsStore::Settings SettingsViewModel::settings() const
