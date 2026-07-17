@@ -54,9 +54,11 @@ src/
 - CMake 3.16 或更新版本
 - 支持 C++20 的 C++ 编译器
 - Qt 6.8 或更新版本，包含 `Core`、`Sql`、`Network`、`Test`、`Quick`、`Widgets`、`Concurrent`、`Svg`、`QuickDialogs2`
-- `git` 和 `bash`，用于默认构建 `qtet-daemon`
+- `git`，用于默认构建 `qtet-daemon`
 
 默认构建会从 GitHub 克隆并编译 `qtet-daemon`，因此需要可用网络。如果只想构建前端或进行离线验证，可以关闭后端构建。
+
+Windows 当前仅适配 MinGW64 构建，不面向 MSVC / Visual Studio 生成器做兼容。Windows 下 `qtet-daemon` 尚未适配，CMake 会跳过后端构建和收集，当前只构建前端。
 
 ## 构建与运行
 
@@ -77,6 +79,15 @@ cmake --build build -j
 
 关闭 `BUILD_WITH_DAEMON` 后，CMake 不会构建和收集 `qtet-daemon`。这种模式适合离线开发、前端验证和单元测试。
 
+### Windows 前端构建
+
+Windows 当前只支持 MinGW64 工具链，推荐使用 Qt MinGW64 套件配合 Ninja 或 MinGW Makefiles。Windows 下暂不构建、不打包 `qtet-daemon`。
+
+```powershell
+cmake -B build-win -S . -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
+cmake --build build-win
+```
+
 ### 从 Gitee 克隆后端
 
 ```bash
@@ -84,7 +95,7 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM_GITEE=ON
 cmake --build build -j
 ```
 
-开启 `CLONE_DAEMON_FROM_GITEE` 后，CMake 会给 `scripts/build_daemon.sh` 传入 `--gitee`，从 Gitee 克隆后端源码。
+开启 `CLONE_DAEMON_FROM_GITEE` 后，CMake 会从 Gitee 克隆后端源码。
 
 ## 测试
 
