@@ -1,0 +1,143 @@
+name: build-pr
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-deb:
+    name: Linux build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            qt_arch: linux_gcc_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            qt_arch: linux_gcc_arm64
+
+    env:
+      BUILD_DIR: build
+      QT_VERSION: 6.8.3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build git bash dpkg-dev \
+            libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
+            libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
+            libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
+            libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
+            libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+            libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+            libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+            libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libglu1-mesa-dev libpng-dev
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: ${{ matrix.qt_arch }}
+
+      - name: Show Qt version
+        run: |
+          qmake -query QT_VERSION
+          qmake -query QT_INSTALL_PREFIX
+
+      - name: Configure
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR"
+
+      - name: Build
+        run: |
+          cmake --build "$BUILD_DIR" --parallel "$(nproc)"
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-pr-${{ github.event.pull_request.number }}-${{ matrix.arch }}
+          path: build/Output
+          if-no-files-found: error
+
+  windows-zip:
+    name: Windows build amd64
+    runs-on: windows-2022
+
+    env:
+      BUILD_DIR: build
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-declarative
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-tools
+
+      - name: Show Qt version
+        shell: msys2 {0}
+        run: |
+          qmake6 -query QT_VERSION
+          qmake6 -query QT_INSTALL_PREFIX
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cmake --build "$BUILD_DIR" --parallel "$(nproc)"
+
+      - name: Run tests
+        shell: msys2 {0}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-pr-${{ github.event.pull_request.number }}-windows-amd64
+          path: build/Output
+          if-no-files-found: error

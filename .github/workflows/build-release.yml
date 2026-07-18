@@ -1,0 +1,414 @@
+name: build-release
+
+on:
+  create:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  linux-deb:
+    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'v')
+    name: Linux build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            qt_arch: linux_gcc_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            qt_arch: linux_gcc_arm64
+
+    env:
+      BUILD_DIR: build
+      QT_VERSION: 6.8.3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract project version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/.*VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+          if [ -z "$VERSION" ]; then
+            echo "Failed to extract version from CMakeLists.txt"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build git bash dpkg-dev \
+            libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
+            libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
+            libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
+            libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
+            libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+            libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+            libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+            libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libglu1-mesa-dev libpng-dev
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: ${{ matrix.qt_arch }}
+
+      - name: Show Qt version
+        run: |
+          qmake -query QT_VERSION
+          qmake -query QT_INSTALL_PREFIX
+
+      - name: Configure
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR"
+
+      - name: Build
+        run: |
+          cmake --build "$BUILD_DIR" --parallel "$(nproc)"
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      - name: Build deb package
+        working-directory: ${{ github.workspace }}/build/Output
+        run: |
+          bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
+            -v "${{ steps.version.outputs.version }}" \
+            -a "${{ matrix.arch }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-v${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}
+          path: |
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.deb
+          if-no-files-found: error
+
+  windows-zip:
+    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'v')
+    name: Windows build amd64
+    runs-on: windows-2022
+
+    env:
+      BUILD_DIR: build
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract project version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/.*VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+          if [ -z "$VERSION" ]; then
+            echo "Failed to extract version from CMakeLists.txt"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-declarative
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-tools
+
+      - name: Show Qt version
+        shell: msys2 {0}
+        run: |
+          qmake6 -query QT_VERSION
+          qmake6 -query QT_INSTALL_PREFIX
+          which windeployqt
+          test -f /ucrt64/share/qt6/bin/qmlimportscanner.exe
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cmake --build "$BUILD_DIR" --parallel "$(nproc)"
+
+      - name: Run tests
+        shell: msys2 {0}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      - name: Prepare runtime files
+        shell: msys2 {0}
+        run: |
+          find "$BUILD_DIR/Output" -maxdepth 1 -type f \( -name '*.a' -o -name '*.lib' -o -name 'tst*' \) -delete
+          export PATH="/ucrt64/share/qt6/bin:$PATH"
+          cd "$BUILD_DIR/Output"
+          windeployqt.exe --release --force \
+            --qmldir ../../src/qml \
+            --qml-deploy-dir ./share/qt6/qml \
+            ./appQtEasyTier.exe
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $sourceRoot = "${{ github.workspace }}"
+          $buildOutput = Join-Path $sourceRoot "build\Output"
+          $packageOutput = Join-Path $sourceRoot "build\Package"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+          if (-not (Test-Path $iscc)) {
+            throw "ISCC.exe not found at $iscc"
+          }
+          New-Item -ItemType Directory -Path $packageOutput -Force | Out-Null
+
+          & $iscc `
+            "/DMyAppVersion=$version" `
+            "/DBuildOutputDir=$buildOutput" `
+            "/DPackageOutputDir=$packageOutput" `
+            "/DSourceRootDir=$sourceRoot" `
+            "assets\package\windows\package.iss"
+
+      - name: Create zip package
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $zipPath = "build/Output/qteasytier_v${version}_windows_amd64.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path "build/Output/*" -DestinationPath $zipPath -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-v${{ steps.version.outputs.version }}-windows-amd64
+          path: |
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_windows_amd64.zip
+          if-no-files-found: error
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-v${{ steps.version.outputs.version }}-windows-amd64-installer
+          path: |
+            build/Package/qteasytier_v${{ steps.version.outputs.version }}_windows_amd64.exe
+          if-no-files-found: error
+
+  confirm-release:
+    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'v')
+    name: Confirm release notes
+    runs-on: ubuntu-24.04
+    needs:
+      - linux-deb
+      - windows-zip
+    timeout-minutes: 360
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      issue_number: ${{ steps.create-issue.outputs.issue_number }}
+      issue_url: ${{ steps.create-issue.outputs.issue_url }}
+      release_notes: ${{ steps.wait-for-response.outputs.release_notes }}
+      cancelled: ${{ steps.wait-for-response.outputs.cancelled }}
+
+    steps:
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF_NAME" ]; then
+            echo "Branch name must start with v"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create confirmation issue
+        id: create-issue
+        uses: actions/github-script@v7
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        with:
+          script: |
+            const version = process.env.RELEASE_VERSION;
+            const { owner, repo } = context.repo;
+            const body = [
+              `请在此 issue 下直接评论完整版本更新日志。`,
+              `如果你回复 \`no\`、\`stop\`、\`cancel\` 或 \`abort\` 开头的内容，则取消本次发布。`,
+              `否则，评论正文将作为 release notes 使用，并自动追加注意事项。`,
+              '',
+              `Release version: ${version}`,
+            ].join('\n');
+
+            const issue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `Release confirmation for v${version}`,
+              body,
+            });
+
+            core.setOutput('issue_number', String(issue.data.number));
+            core.setOutput('issue_url', issue.data.html_url);
+
+      - name: Wait for confirmation comment
+        id: wait-for-response
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ steps.create-issue.outputs.issue_number }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        with:
+          script: |
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const version = process.env.RELEASE_VERSION;
+            const { owner, repo } = context.repo;
+            const cancelPattern = /^(?:no|stop|cancel|abort|取消|停止|不要)(?:\b|\s|[!,.。；;：:])?/i;
+            const notice = `## 注意事项
+
+1. 平台支持
+  - Windows: Windows 10/11 ( Windows10 要求 1809 以上的版本 )
+  - GNU/Linux: 常规使用 systemd 的 Debian 系发行版，要求 Qt Framework 6.8+ ，推荐 Debian 13/Ubuntu 26.04 及以上。（对于软件源中 Qt 版本低于 6.8 或者非 Debian 系发行版，您可以在安装好合适的 Qt 运行时后通过源码自行编译）
+  
+2. Daemon 服务说明
+  QtEasyTier 项目使用前后端分离的架构，后端需注册到系统服务运行，对于 Windows 的绿色包（.zip），程序会引导您注册系统服务，但在删除前你需要手动在程序目录下执行以下命令来停止和删除服务
+  ```
+  .\\DaemonInstaller.exe stop
+  .\\DaemonInstaller.exe uninstall
+  ```
+`;
+
+            for (;;) {
+              const comments = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              });
+
+              const latestComment = comments.data
+                .filter((comment) => comment.user && comment.user.login !== 'github-actions[bot]')
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+              if (latestComment) {
+                const response = latestComment.body.trim();
+                if (cancelPattern.test(response)) {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    body: `已收到取消指令，发布 v${version} 已终止。`,
+                  });
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    state: 'closed',
+                  });
+                  core.setOutput('cancelled', 'true');
+                  core.setOutput('release_notes', '');
+                  return;
+                }
+
+                const releaseNotes = `${response.replace(/\s+$/, '')}\n\n${notice}`;
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body: `已收到发布说明，开始准备发布 v${version}。`,
+                });
+                core.setOutput('cancelled', 'false');
+                core.setOutput('release_notes', releaseNotes);
+                return;
+              }
+
+              core.info('Waiting for confirmation comment...');
+              await new Promise((resolve) => setTimeout(resolve, 60_000));
+            }
+
+  publish-release:
+    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'v') && needs.confirm-release.outputs.cancelled != 'true'
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs:
+      - confirm-release
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qteasytier-v${{ needs.confirm-release.outputs.version }}-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.confirm-release.outputs.version }}
+          name: QtEasyTier v${{ needs.confirm-release.outputs.version }} (Desktop)
+          body: ${{ needs.confirm-release.outputs.release_notes }}
+          files: |
+            release-assets/qteasytier_v${{ needs.confirm-release.outputs.version }}_linux_amd64.deb
+            release-assets/qteasytier_v${{ needs.confirm-release.outputs.version }}_linux_arm64.deb
+            release-assets/qteasytier_v${{ needs.confirm-release.outputs.version }}_windows_amd64.zip
+            release-assets/qteasytier_v${{ needs.confirm-release.outputs.version }}_windows_amd64.exe
+
+      - name: Close confirmation issue
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ needs.confirm-release.outputs.issue_number }}
+          RELEASE_VERSION: ${{ needs.confirm-release.outputs.version }}
+        with:
+          script: |
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const version = process.env.RELEASE_VERSION;
+            const { owner, repo } = context.repo;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: `Release v${version} 已发布完成。`,
+            });
+
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              state: 'closed',
+            });
