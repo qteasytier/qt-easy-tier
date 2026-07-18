@@ -48,8 +48,8 @@ WizardStyle=modern
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+Name: "chinesesimplified"; MessagesFile: "{#SourceRootDir}\assets\package\windows\ChineseSimplified.isl"
+Name: "chinesetraditional"; MessagesFile: "{#SourceRootDir}\assets\package\windows\ChineseTraditional.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
