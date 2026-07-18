@@ -65,9 +65,24 @@ add_subdirectory(src/core/vpn_manager)
 add_subdirectory(src/core/viewmodel)
 add_subdirectory(src/app)
 
+if(WIN32)
+    set(QTET_WINDOWS_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/favicon/qtet.ico")
+    set(QTET_WINDOWS_RC "${CMAKE_CURRENT_BINARY_DIR}/appQtEasyTier.rc")
+
+    if(NOT EXISTS "${QTET_WINDOWS_ICON}")
+        message(FATAL_ERROR "Windows icon file not found: ${QTET_WINDOWS_ICON}")
+    endif()
+
+    file(WRITE "${QTET_WINDOWS_RC}"
+        "IDI_ICON1 ICON \"${QTET_WINDOWS_ICON}\"\n"
+    )
+    set_source_files_properties("${QTET_WINDOWS_RC}" PROPERTIES GENERATED TRUE)
+endif()
+
 qt_add_executable(appQtEasyTier
     src/main.cpp
     assets/resources.qrc
+    ${QTET_WINDOWS_RC}
 )
 
 target_include_directories(appQtEasyTier PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
