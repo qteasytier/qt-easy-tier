@@ -80,6 +80,8 @@ jobs:
           cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
       - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           ctest --test-dir "$BUILD_DIR" --output-on-failure
 
