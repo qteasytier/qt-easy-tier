@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VERSION=""
+ARCH="amd64"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -13,6 +14,14 @@ while [[ $# -gt 0 ]]; do
             VERSION="$2"
             shift 2
             ;;
+        -a|--arch)
+            if [[ $# -lt 2 ]]; then
+                echo "错误: $1 需要一个参数"
+                exit 1
+            fi
+            ARCH="$2"
+            shift 2
+            ;;
         *)
             echo "未知参数: $1"
             exit 1
@@ -21,21 +30,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$VERSION" ]]; then
-    echo "用法: $(basename "$0") -v <版本号>"
-    echo "示例: $(basename "$0") -v 3.0.0"
+    echo "用法: $(basename "$0") -v <版本号> [-a <架构>]"
+    echo "示例: $(basename "$0") -v 3.0.0 -a amd64"
     exit 1
 fi
+
+case "$ARCH" in
+    amd64|arm64)
+        ;;
+    *)
+        echo "错误: 不支持的架构: $ARCH"
+        echo "支持的架构: amd64, arm64"
+        exit 1
+        ;;
+esac
 
 OUTPUT_DIR="$(pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ASSETS_DIR="$(cd "$SCRIPT_DIR/../../" && pwd)"
 
 PACKAGE_NAME="qteasytier"
-BUILD_DIR="$OUTPUT_DIR/${PACKAGE_NAME}_amd64"
-DEB_NAME="${PACKAGE_NAME}_v${VERSION}_linux_amd64.deb"
+BUILD_DIR="$OUTPUT_DIR/${PACKAGE_NAME}_${ARCH}"
+DEB_NAME="${PACKAGE_NAME}_v${VERSION}_linux_${ARCH}.deb"
 
 echo "[INFO] 输出目录: $OUTPUT_DIR"
 echo "[INFO] 版本号: $VERSION"
+echo "[INFO] 架构: $ARCH"
 echo "[INFO] 包名: $DEB_NAME"
 
 rm -rf "$BUILD_DIR"
@@ -61,7 +81,10 @@ echo "[INFO] 复制图标..."
 cp -a "$ASSETS_DIR/favicon/qtet.png" "$BUILD_DIR/opt/qteasytier/"
 
 echo "[INFO] 复制控制文件..."
-sed "s/^Version: .*/Version: ${VERSION}/" "$SCRIPT_DIR/DEBIAN/control" > "$BUILD_DIR/DEBIAN/control"
+sed \
+    -e "s/^Version: .*/Version: ${VERSION}/" \
+    -e "s/^Architecture: .*/Architecture: ${ARCH}/" \
+    "$SCRIPT_DIR/DEBIAN/control" > "$BUILD_DIR/DEBIAN/control"
 cp -a "$SCRIPT_DIR/DEBIAN/postinst" "$BUILD_DIR/DEBIAN/postinst"
 cp -a "$SCRIPT_DIR/DEBIAN/prerm" "$BUILD_DIR/DEBIAN/prerm"
 

@@ -7,8 +7,19 @@ on:
 
 jobs:
   linux-deb:
-    name: Linux build
-    runs-on: ubuntu-24.04
+    name: Linux build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            qt_arch: linux_gcc_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            qt_arch: linux_gcc_arm64
 
     env:
       BUILD_DIR: build
@@ -50,7 +61,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           target: desktop
-          arch: linux_gcc_64
+          arch: ${{ matrix.qt_arch }}
 
       - name: Show Qt version
         run: |
@@ -68,16 +79,21 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
+      - name: Run tests
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
       - name: Build deb package
         working-directory: ${{ github.workspace }}/build/Output
         run: |
           bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
-            -v "${{ steps.version.outputs.version }}"
+            -v "${{ steps.version.outputs.version }}" \
+            -a "${{ matrix.arch }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: qteasytier-v${{ steps.version.outputs.version }}-linux-amd64
+          name: qteasytier-v${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}
           path: |
-            build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_amd64.deb
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.deb
           if-no-files-found: error
