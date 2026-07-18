@@ -99,3 +99,98 @@ jobs:
           path: |
             build/Output/qteasytier_v${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.deb
           if-no-files-found: error
+
+  windows-zip:
+    name: Windows build amd64
+    runs-on: windows-2022
+
+    env:
+      BUILD_DIR: build
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract project version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/.*VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+          if [ -z "$VERSION" ]; then
+            echo "Failed to extract version from CMakeLists.txt"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-declarative
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-tools
+
+      - name: Show Qt version
+        shell: msys2 {0}
+        run: |
+          qmake6 -query QT_VERSION
+          qmake6 -query QT_INSTALL_PREFIX
+          which windeployqt
+          test -f /ucrt64/share/qt6/bin/qmlimportscanner.exe
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B "$BUILD_DIR" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cmake --build "$BUILD_DIR" --parallel "$(nproc)"
+
+      - name: Run tests
+        shell: msys2 {0}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      - name: Prepare runtime files
+        shell: msys2 {0}
+        run: |
+          find "$BUILD_DIR/Output" -maxdepth 1 -type f \( -name '*.a' -o -name '*.lib' -o -name 'tst*' \) -delete
+          export PATH="/ucrt64/share/qt6/bin:$PATH"
+          cd "$BUILD_DIR/Output"
+          windeployqt.exe --release --force \
+            --qmldir ../../src/qml \
+            --qml-deploy-dir ./share/qt6/qml \
+            ./appQtEasyTier.exe
+
+      - name: Create zip package
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $zipPath = "build/Output/qteasytier_v${version}_windows_amd64.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path "build/Output/*" -DestinationPath $zipPath -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qteasytier-v${{ steps.version.outputs.version }}-windows-amd64
+          path: |
+            build/Output/qteasytier_v${{ steps.version.outputs.version }}_windows_amd64.zip
+          if-no-files-found: error
