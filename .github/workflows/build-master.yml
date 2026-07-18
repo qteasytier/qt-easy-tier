@@ -176,6 +176,12 @@ jobs:
             --qmldir ../../src/qml \
             --qml-deploy-dir ./share/qt6/qml \
             ./appQtEasyTier.exe
+          cp /ucrt64/bin/libgcc_s_seh-1.dll .
+          cp /ucrt64/bin/libstdc++-6.dll .
+          cp /ucrt64/bin/libwinpthread-1.dll .
+          test -f ./libgcc_s_seh-1.dll
+          test -f ./libstdc++-6.dll
+          test -f ./libwinpthread-1.dll
 
       - name: Install Inno Setup
         shell: pwsh
