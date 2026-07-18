@@ -248,11 +248,10 @@ Rectangle {
                     }
 
                     // 启动/停止按钮，图标根据运行状态切换
-                    ToolButton {
-                        icon.source: isRunning ? "qrc:/icons/stop.svg" : "qrc:/icons/play.svg"
-                        icon.width: 32
-                        icon.height: 32
-                        padding: 0
+                    IconToolButton {
+                        iconSource: isRunning ? "qrc:/icons/stop.svg" : "qrc:/icons/play.svg"
+                        iconSize: 24
+                        buttonSize: 36
                         flat: true
                         Layout.alignment: Qt.AlignVCenter
                         onClicked: {

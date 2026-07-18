@@ -116,6 +116,7 @@ set(QTET_QML_FILES
     src/qml/components/SidebarItem.qml
     src/qml/components/PageContainer.qml
     src/qml/components/Card.qml
+    src/qml/components/IconToolButton.qml
     src/qml/components/EditableList.qml
     src/qml/components/EditableListItem.qml
     src/qml/components/QtETabWidget.qml

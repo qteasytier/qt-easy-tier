@@ -12,6 +12,7 @@ Dialog {
     title: qsTr("从收藏导入节点")
     standardButtons: Dialog.Ok | Dialog.Cancel
     modal: true
+    parent: Overlay.overlay
     anchors.centerIn: parent
 
     width: Math.min(480, parent ? parent.width - 48 : 360)
@@ -26,14 +27,13 @@ Dialog {
     // 确认时收集所有勾选项
     onAccepted: root.nodesSelected(ImportNodesViewModel.selectedNodes())
 
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
+    contentItem: Item {
+        implicitWidth: 432
+        implicitHeight: 300
 
         ListView {
             id: listView
-            Layout.fillWidth: true
-            Layout.fillHeight: ImportNodesViewModel.count > 0
+            anchors.fill: parent
             visible: ImportNodesViewModel.count > 0
             clip: true
             model: ImportNodesViewModel
@@ -104,8 +104,7 @@ Dialog {
 
         // 空列表占位提示
         Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: ImportNodesViewModel.count === 0
+            anchors.fill: parent
             visible: ImportNodesViewModel.count === 0
 
             Label {

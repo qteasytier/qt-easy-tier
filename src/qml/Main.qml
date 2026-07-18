@@ -4,7 +4,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtEasyTier
-import QtQuick.Controls.Universal // Windows下使用
 
 // 主窗口：整个应用的 QML 入口
 // 负责窗口属性、侧边栏、页面容器和底部状态栏的基本布局组合
@@ -21,10 +20,6 @@ Window {
     title: qsTr("QtEasyTier")
 
     color: palette.window
-
-    // Windows 下使用
-    Universal.theme: Universal.System
-    Universal.accent: palette.highlight
 
     Theme { id: theme }
 

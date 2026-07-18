@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 
 // Windows下使用稍微没那么难看的 Universal 风格
 #ifdef Q_OS_WIN
-    QQuickStyle::setStyle(QStringLiteral("Universal"));
+    QQuickStyle::setStyle(QStringLiteral("FluentWinUI3"));
 #endif
 
     QApplication app(argc, argv);

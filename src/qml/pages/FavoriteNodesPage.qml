@@ -108,14 +108,9 @@ Rectangle {
                     }
 
                     // 编辑按钮：弹出编辑对话框
-                    ToolButton {
-                        icon.source: "qrc:/icons/edit.svg"
-                        icon.color: "transparent"
-                        icon.width: 16
-                        icon.height: 16
+                    IconToolButton {
+                        iconSource: "qrc:/icons/edit.svg"
                         flat: true
-                        implicitWidth: 28
-                        implicitHeight: 28
                         onClicked: {
                             editNameField.text = nodeName
                             editUriField.text = nodeUri
@@ -127,14 +122,9 @@ Rectangle {
                     }
 
                     // 删除按钮：弹出确认对话框
-                    ToolButton {
-                        icon.source: "qrc:/icons/delete.svg"
-                        icon.color: "transparent"
-                        icon.width: 16
-                        icon.height: 16
+                    IconToolButton {
+                        iconSource: "qrc:/icons/delete.svg"
                         flat: true
-                        implicitWidth: 28
-                        implicitHeight: 28
                         onClicked: {
                             deleteConfirmDialog.nodeName = nodeName
                             deleteConfirmDialog.nodeId = nodeId

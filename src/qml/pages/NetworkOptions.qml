@@ -194,19 +194,11 @@ ColumnLayout {
                                 echoMode: root.networkSecretVisible ? TextInput.Normal : TextInput.Password
                             }
 
-                            ToolButton {
+                            IconToolButton {
                                 id: secretToggle
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                icon.source: root.networkSecretVisible ? "qrc:/icons/eye-slash.svg" : "qrc:/icons/eye.svg"
-                                icon.color: palette.highlight
-                                icon.width: 14
-                                icon.height: 14
-                                padding: 0
-                                flat: true
-                                hoverEnabled: true
-                                implicitWidth: 28
-                                implicitHeight: 28
+                                iconSource: root.networkSecretVisible ? "qrc:/icons/eye-slash.svg" : "qrc:/icons/eye.svg"
                                 onClicked: root.networkSecretVisible = !root.networkSecretVisible
                             }
                         }

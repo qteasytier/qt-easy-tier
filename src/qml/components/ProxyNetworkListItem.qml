@@ -81,15 +81,9 @@ ColumnLayout {
                     }
                 }
 
-                ToolButton {
-                    icon.source: "qrc:/icons/delete.svg"
-                    icon.color: "transparent"
-                    icon.width: 14
-                    icon.height: 14
-                    padding: 0
+                IconToolButton {
+                    iconSource: "qrc:/icons/delete.svg"
                     flat: true
-                    implicitWidth: 28
-                    implicitHeight: 28
                     onClicked: {
                         listModel.remove(index)
                         root.changed()
