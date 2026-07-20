@@ -35,8 +35,50 @@ Rectangle {
 
     // 已连接状态：显示完整功能面板
     Item {
+        id: connectedContent
+
         visible: BackendStatusViewModel.connected
         anchors.fill: parent
+
+        function contentComponent() {
+            if (NetworkPageViewModel.currentInstanceName === "")
+                return emptyContentComponent
+            if (NetworkPageViewModel.showEditor)
+                return networkOptionsComponent
+            if (NetworkPageViewModel.showRuntimeStatus)
+                return networkRuntimeStatusComponent
+            return emptyContentComponent
+        }
+
+        Component {
+            id: emptyContentComponent
+
+            Item {
+                anchors.fill: parent
+
+                Label {
+                    anchors.centerIn: parent
+                    text: qsTr("请先选中或新建配置项")
+                    color: palette.placeholderText
+                }
+            }
+        }
+
+        Component {
+            id: networkOptionsComponent
+
+            NetworkOptions {
+                anchors.fill: parent
+            }
+        }
+
+        Component {
+            id: networkRuntimeStatusComponent
+
+            NetworkRuningStatus {
+                anchors.fill: parent
+            }
+        }
 
         RowLayout {
             anchors.fill: parent
@@ -66,37 +108,11 @@ Rectangle {
             }
 
             // 右侧内容区：根据状态切换显示
-            ColumnLayout {
+            Loader {
+                id: contentLoader
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 0
-
-                // 未选中配置：提示选择或新建
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    visible: NetworkPageViewModel.currentInstanceName === ""
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: qsTr("请先选中或新建配置项")
-                        color: palette.placeholderText
-                    }
-                }
-
-                // 已选中配置 + 未运行：显示配置编辑界面
-                NetworkOptions {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    visible: NetworkPageViewModel.currentInstanceName !== "" && NetworkPageViewModel.showEditor
-                }
-
-                // 已选中配置 + 运行中：显示运行状态界面
-                NetworkRuningStatus {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    visible: NetworkPageViewModel.showRuntimeStatus
-                }
+                sourceComponent: connectedContent.contentComponent()
             }
         }
 
