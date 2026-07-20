@@ -5,13 +5,39 @@
 #include "SettingsViewModel.h"
 #include "AppVersion.h"
 #include "core/service/DaemonApi.h"
+#include "core/util/UpdateCheckService.h"
 #include "core/util/LogHelper.h"
 
 SettingsViewModel::SettingsViewModel(DaemonApi *daemonApi, QObject *parent)
+    : SettingsViewModel(daemonApi, nullptr, parent)
+{
+}
+
+SettingsViewModel::SettingsViewModel(DaemonApi *daemonApi, UpdateCheckService *updateCheckService, QObject *parent)
     : QObject(parent)
     , m_daemonApi(daemonApi)
+    , m_updateCheckService(updateCheckService)
 {
     load();
+
+    if (m_updateCheckService) {
+        connect(m_updateCheckService, &UpdateCheckService::updateCheckFailed,
+                this, [this](const QString &message) {
+                    setUpdateCheckBusy(false);
+                    LogHelper::logWarning(message, "Settings");
+                });
+        connect(m_updateCheckService, &UpdateCheckService::noUpdateAvailable,
+                this, [this](const QString &message) {
+                    setUpdateCheckBusy(false);
+                    LogHelper::logInfo(message, "Settings");
+                });
+        connect(m_updateCheckService, &UpdateCheckService::updateAvailable,
+                this, [this](const UpdateCheckService::UpdateInfo &) {
+                    setUpdateCheckBusy(false);
+                });
+        connect(m_updateCheckService, &UpdateCheckService::checkFinished,
+                this, [this]() { setUpdateCheckBusy(false); });
+    }
 }
 
 bool SettingsViewModel::autoStart() const
@@ -27,6 +53,26 @@ bool SettingsViewModel::autoReconnect() const
 bool SettingsViewModel::autoReconnectBusy() const
 {
     return m_autoReconnectBusy;
+}
+
+bool SettingsViewModel::autoCheckUpdates() const
+{
+    return m_autoCheckUpdates;
+}
+
+void SettingsViewModel::setAutoCheckUpdates(bool value)
+{
+    if (m_autoCheckUpdates == value)
+        return;
+
+    m_autoCheckUpdates = value;
+    emit autoCheckUpdatesChanged();
+    save();
+}
+
+bool SettingsViewModel::updateCheckBusy() const
+{
+    return m_updateCheckBusy;
 }
 
 bool SettingsViewModel::hideServerNodes() const
@@ -64,6 +110,7 @@ void SettingsViewModel::load()
     applySettings(m_store.load(settings()));
 
     emit autoStartChanged();
+    emit autoCheckUpdatesChanged();
     emit hideServerNodesChanged();
     emit showExitPromptChanged();
     emit logLevelChanged();
@@ -81,6 +128,14 @@ void SettingsViewModel::setBusy(bool busy)
         return;
     m_autoReconnectBusy = busy;
     emit autoReconnectBusyChanged();
+}
+
+void SettingsViewModel::setUpdateCheckBusy(bool busy)
+{
+    if (m_updateCheckBusy == busy)
+        return;
+    m_updateCheckBusy = busy;
+    emit updateCheckBusyChanged();
 }
 
 void SettingsViewModel::refreshAutoReconnect()
@@ -145,6 +200,33 @@ void SettingsViewModel::setAutoReconnectEnabled(bool enabled)
     });
 
     watcher->setFuture(m_daemonApi->setAutoReconnect(enabled));
+}
+
+void SettingsViewModel::checkForUpdates()
+{
+    if (!m_updateCheckService) {
+        LogHelper::logWarning(QStringLiteral("UpdateCheckService 不可用，无法检查更新"), "Settings");
+        return;
+    }
+
+    if (m_updateCheckBusy)
+        return;
+
+    setUpdateCheckBusy(true);
+    m_updateCheckService->checkLatestRelease(frontendVersion(), true);
+}
+
+void SettingsViewModel::checkForUpdatesOnStartup()
+{
+    if (!m_autoCheckUpdates)
+        return;
+    if (!m_updateCheckService)
+        return;
+    if (m_updateCheckBusy)
+        return;
+
+    setUpdateCheckBusy(true);
+    m_updateCheckService->checkLatestRelease(frontendVersion(), false);
 }
 
 bool SettingsViewModel::setAutoStart(bool enabled)
@@ -221,6 +303,7 @@ SettingsStore::Settings SettingsViewModel::settings() const
 {
     SettingsStore::Settings settings;
     settings.autoStart = m_autoStart;
+    settings.autoCheckUpdates = m_autoCheckUpdates;
     settings.showExitPrompt = m_showExitPrompt;
     settings.hideServerNodes = m_hideServerNodes;
     settings.logLevel = m_logLevel;
@@ -232,6 +315,7 @@ void SettingsViewModel::applySettings(const SettingsStore::Settings &settings)
 {
     const SettingsStore::Settings normalizedSettings = SettingsStore::normalized(settings);
     m_autoStart = normalizedSettings.autoStart;
+    m_autoCheckUpdates = normalizedSettings.autoCheckUpdates;
     m_showExitPrompt = normalizedSettings.showExitPrompt;
     m_hideServerNodes = normalizedSettings.hideServerNodes;
     m_logLevel = normalizedSettings.logLevel;

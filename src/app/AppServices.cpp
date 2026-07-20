@@ -21,6 +21,7 @@
 #include "core/system_tray/SystemTrayManager.h"
 #include "core/util/DaemonRegisterHelper.h"
 #include "core/util/FontHelper.h"
+#include "core/util/UpdateCheckService.h"
 #include "core/viewmodel/AppState.h"
 #include "core/viewmodel/ConfigEditorViewModel.h"
 #include "core/viewmodel/ConfigListModel.h"
@@ -56,7 +57,8 @@ AppServices::AppServices(const QSqlDatabase &database,
 
     // ===== 应用基础服务：状态、设置、字体、公共服务器 =====
     m_appState = new AppState(parentObject);
-    m_settingsViewModel = new SettingsViewModel(m_daemonApi, parentObject);
+    m_updateCheckService = new UpdateCheckService(parentObject);
+    m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, parentObject);
     m_publicServerProvider = new PublicServerProvider(parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
@@ -97,6 +99,9 @@ AppServices::AppServices(const QSqlDatabase &database,
         wireLogging();
         wireRuntime();
     }
+
+    if (daemonConnectionMode == ConnectToDaemon)
+        m_settingsViewModel->checkForUpdatesOnStartup();
 }
 
 AppState *AppServices::appState() const { return m_appState; }

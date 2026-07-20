@@ -19,6 +19,7 @@
 #include <QString>
 
 class DaemonApi;
+class UpdateCheckService;
 
 /**
  * @class SettingsViewModel
@@ -43,6 +44,12 @@ class SettingsViewModel : public QObject {
     /// 自动回连请求是否进行中，QML 用于禁用开关
     Q_PROPERTY(bool autoReconnectBusy READ autoReconnectBusy NOTIFY autoReconnectBusyChanged FINAL)
 
+    /// 启动后自动检查更新开关
+    Q_PROPERTY(bool autoCheckUpdates READ autoCheckUpdates WRITE setAutoCheckUpdates NOTIFY autoCheckUpdatesChanged FINAL)
+
+    /// 更新检查请求是否进行中，QML 用于禁用按钮
+    Q_PROPERTY(bool updateCheckBusy READ updateCheckBusy NOTIFY updateCheckBusyChanged FINAL)
+
     /// 退出前端程序前是否显示提示弹窗（true=显示，false=不再提示）
     Q_PROPERTY(bool showExitPrompt READ showExitPrompt WRITE setShowExitPrompt NOTIFY showExitPromptChanged FINAL)
 
@@ -55,12 +62,19 @@ class SettingsViewModel : public QObject {
     Q_PROPERTY(QString easyTierVersion READ easyTierVersion CONSTANT FINAL)
 
 public:
-    explicit SettingsViewModel(DaemonApi *daemonApi = nullptr, QObject *parent = nullptr);
+    explicit SettingsViewModel(DaemonApi *daemonApi, QObject *parent);
+    explicit SettingsViewModel(DaemonApi *daemonApi = nullptr,
+                               UpdateCheckService *updateCheckService = nullptr,
+                               QObject *parent = nullptr);
 
     bool autoStart() const;
 
     bool autoReconnect() const;
     bool autoReconnectBusy() const;
+
+    bool autoCheckUpdates() const;
+    void setAutoCheckUpdates(bool value);
+    bool updateCheckBusy() const;
 
     bool hideServerNodes() const;
     void setHideServerNodes(bool value);
@@ -116,6 +130,9 @@ public:
      */
     Q_INVOKABLE bool setAutoStart(bool enabled);
 
+    Q_INVOKABLE void checkForUpdates();
+    void checkForUpdatesOnStartup();
+
     Q_INVOKABLE bool isAutoStartEnabled() const;
 
     int logLevel() const;
@@ -130,6 +147,8 @@ signals:
     void autoReconnectChanged();
     void autoReconnectBusyChanged();
     void autoReconnectOperationFailed(const QString &message);
+    void autoCheckUpdatesChanged();
+    void updateCheckBusyChanged();
     void hideServerNodesChanged();
     void showExitPromptChanged();
     void logLevelChanged();
@@ -139,13 +158,17 @@ private:
     SettingsStore::Settings settings() const;
     void applySettings(const SettingsStore::Settings &settings);
     void setBusy(bool busy);
+    void setUpdateCheckBusy(bool busy);
 
     DaemonApi *m_daemonApi = nullptr;
+    UpdateCheckService *m_updateCheckService = nullptr;
     AutoStartService m_autoStartService;
     SettingsStore m_store;
     bool m_autoStart = false;
     bool m_autoReconnect = false;
     bool m_autoReconnectBusy = false;
+    bool m_autoCheckUpdates = true;
+    bool m_updateCheckBusy = false;
     bool m_hideServerNodes = false;
     bool m_showExitPrompt = true;
     int m_logLevel = 1;

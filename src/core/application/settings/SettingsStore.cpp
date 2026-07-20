@@ -35,6 +35,7 @@ SettingsStore::Settings SettingsStore::load(const Settings &defaults) const
     const QJsonObject obj = doc.object();
     Settings settings = defaults;
     settings.autoStart = obj.value(QLatin1String("autoStart")).toBool(settings.autoStart);
+    settings.autoCheckUpdates = obj.value(QLatin1String("autoCheckUpdates")).toBool(settings.autoCheckUpdates);
     settings.showExitPrompt = obj.value(QLatin1String("showExitPrompt")).toBool(settings.showExitPrompt);
     settings.hideServerNodes = obj.value(QLatin1String("hideServerNodes")).toBool(settings.hideServerNodes);
     settings.logLevel = obj.value(QLatin1String("logLevel")).toInt(settings.logLevel);
@@ -49,6 +50,7 @@ bool SettingsStore::save(const Settings &settings) const
     const Settings normalizedSettings = normalized(settings);
     QJsonObject obj;
     obj[QStringLiteral("autoStart")] = normalizedSettings.autoStart;
+    obj[QStringLiteral("autoCheckUpdates")] = normalizedSettings.autoCheckUpdates;
     obj[QStringLiteral("showExitPrompt")] = normalizedSettings.showExitPrompt;
     obj[QStringLiteral("hideServerNodes")] = normalizedSettings.hideServerNodes;
     obj[QStringLiteral("logLevel")] = normalizedSettings.logLevel;

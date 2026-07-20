@@ -121,9 +121,10 @@ Rectangle {
                     Layout.bottomMargin: 8
                 }
 
-                // 自动检查更新开关（功能未实现）
                 Switch {
                     text: qsTr("自动检查更新")
+                    checked: SettingsViewModel.autoCheckUpdates
+                    onToggled: SettingsViewModel.autoCheckUpdates = checked
                     Layout.fillWidth: true
                 }
 
@@ -197,9 +198,10 @@ Rectangle {
                         Layout.fillWidth: true
                     }
 
-                    // 检查更新按钮（功能未实现）
                     Button {
-                        text: qsTr("检查更新")
+                        text: SettingsViewModel.updateCheckBusy ? qsTr("检查中...") : qsTr("检查更新")
+                        enabled: !SettingsViewModel.updateCheckBusy
+                        onClicked: SettingsViewModel.checkForUpdates()
                     }
                 }
 

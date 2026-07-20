@@ -45,6 +45,7 @@ class RepositoryLogSink;
 class SettingsViewModel;
 class StatusMonitor;
 class SystemTrayManager;
+class UpdateCheckService;
 class VpnManager;
 
 /** @brief 应用服务装配容器，负责所有核心服务对象的创建、连线与生命周期管理 */
@@ -151,6 +152,7 @@ private:
     ConfigEditorViewModel *m_configEditorViewModel = nullptr;
     NetworkPageViewModel *m_networkPageViewModel = nullptr;
     FontHelper *m_fontHelper = nullptr;
+    UpdateCheckService *m_updateCheckService = nullptr;
     SystemTrayManager *m_systemTrayManager = nullptr;
     bool m_daemonServiceEnsureAttempted = false;
     ExitPromptHandler m_exitPromptHandler;

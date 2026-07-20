@@ -9,6 +9,7 @@ public:
     /** @brief 可持久化的设置项 */
     struct Settings {
         bool autoStart = false;       // 开机自启动
+        bool autoCheckUpdates = true; // 启动后自动检查更新
         bool showExitPrompt = true;   // 退出前端程序前显示提示
         bool hideServerNodes = false; // 运行状态页隐藏公共服务器节点
         int logLevel = 1;             // 日志级别 (0-3)
