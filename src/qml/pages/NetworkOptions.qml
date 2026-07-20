@@ -218,6 +218,7 @@ ColumnLayout {
                         }
                         TextField {
                             Layout.fillWidth: true
+                            enabled: !ConfigEditorViewModel.dhcp
                             text: ConfigEditorViewModel.ipv4
                             onTextEdited: ConfigEditorViewModel.ipv4 = text
                         }

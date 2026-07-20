@@ -1,12 +1,9 @@
-/* @brief 页面容器组件：管理多个页面的生命周期与切换动画，通过统一下沉实现淡入淡出 + 纵向滑入滑出 */
+/* @brief 页面容器组件：通过懒加载管理页面生命周期，并在切换时仅保留当前页实例 */
 import QtQuick
-import QtQuick.Layouts
 import QtEasyTier
 
-// 页面容器：管理多个页面的生命周期与切换动画
-// 页面位置统一采用下沉方向：当前页归位，非当前页都停在下方等待，切换时形成统一的向下收束感
-// 当前页面轻微放大归位，配合进入页的低强度回弹，让切换更灵动但不抢注意力
-/* @brief 页面容器根节点，持有四个页面并通过 currentIndex 切换 */
+// 页面容器：通过单个 Loader 控制当前页的创建与销毁
+// 切换到别的页时立即释放旧页实例，当前页进入时保留轻量的位移与缩放动画
 Item {
     id: root
 
@@ -15,118 +12,106 @@ Item {
     readonly property int slideOffset: 36
     readonly property real inactiveScale: 0.985
 
-    function pageOpacity(pageIndex) {
-        return currentIndex === pageIndex ? 1 : 0
+    function pageComponent(pageIndex) {
+        switch (pageIndex) {
+        case 0:
+            return networkPageComponent
+        case 1:
+            return favoriteNodesPageComponent
+        case 2:
+            return logPageComponent
+        case 3:
+            return settingsPageComponent
+        default:
+            return null
+        }
     }
 
-    function pageY(pageIndex) {
-        if (currentIndex === pageIndex)
-            return 0
-        return slideOffset
+    Component {
+        id: networkPageComponent
+        NetworkPage {
+            anchors.fill: parent
+        }
     }
 
-    function pageScale(pageIndex) {
-        return currentIndex === pageIndex ? 1 : inactiveScale
+    Component {
+        id: favoriteNodesPageComponent
+        FavoriteNodesPage {
+            anchors.fill: parent
+        }
     }
 
-    NetworkPage {
-        id: networkPage
+    Component {
+        id: logPageComponent
+        LogPage {
+            anchors.fill: parent
+        }
+    }
 
+    Component {
+        id: settingsPageComponent
+        SettingsPage {
+            anchors.fill: parent
+        }
+    }
+
+    Loader {
+        id: pageLoader
         anchors.fill: parent
-        opacity: root.pageOpacity(0)
-        scale: root.pageScale(0)
+        sourceComponent: root.pageComponent(root.currentIndex)
+        opacity: 0
+        scale: root.inactiveScale
         transformOrigin: Item.Center
         transform: Translate {
-            y: root.pageY(0)
-
-            Behavior on y {
-                enabled: root.currentIndex === 0 || networkPage.opacity > 0.01
-                NumberAnimation {
-                    duration: root.currentIndex === 0 ? 270 : 190
-                    easing.type: root.currentIndex === 0 ? Easing.OutBack : Easing.InCubic
-                    easing.overshoot: root.currentIndex === 0 ? 0.55 : 0
-                }
-            }
+            id: pageOffset
+            y: root.slideOffset
         }
-        // 通过 opacity 控制可见性，避免不可见页面接收事件
-        visible: opacity > 0.01
 
-        Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
-        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+        onSourceComponentChanged: {
+            opacity = 0
+            scale = root.inactiveScale
+            pageOffset.y = root.slideOffset
+        }
+
+        onLoaded: enterAnimation.restart()
     }
 
-    FavoriteNodesPage {
-        id: favoriteNodesPage
+    SequentialAnimation {
+        id: enterAnimation
 
-        anchors.fill: parent
-        opacity: root.pageOpacity(1)
-        scale: root.pageScale(1)
-        transformOrigin: Item.Center
-        transform: Translate {
-            y: root.pageY(1)
-
-            Behavior on y {
-                enabled: root.currentIndex === 1 || favoriteNodesPage.opacity > 0.01
-                NumberAnimation {
-                    duration: root.currentIndex === 1 ? 270 : 190
-                    easing.type: root.currentIndex === 1 ? Easing.OutBack : Easing.InCubic
-                    easing.overshoot: root.currentIndex === 1 ? 0.55 : 0
-                }
+        ScriptAction {
+            script: {
+                pageLoader.opacity = 0
+                pageLoader.scale = root.inactiveScale
+                pageOffset.y = root.slideOffset
             }
         }
-        visible: opacity > 0.01
 
-        Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
-        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-    }
+        ParallelAnimation {
+            NumberAnimation {
+                target: pageLoader
+                property: "opacity"
+                to: 1
+                duration: 160
+                easing.type: Easing.OutQuad
+            }
 
-    LogPage {
-        id: logPage
+            NumberAnimation {
+                target: pageLoader
+                property: "scale"
+                to: 1
+                duration: 260
+                easing.type: Easing.OutCubic
+            }
 
-        anchors.fill: parent
-        opacity: root.pageOpacity(2)
-        scale: root.pageScale(2)
-        transformOrigin: Item.Center
-        transform: Translate {
-            y: root.pageY(2)
-
-            Behavior on y {
-                enabled: root.currentIndex === 2 || logPage.opacity > 0.01
-                NumberAnimation {
-                    duration: root.currentIndex === 2 ? 270 : 190
-                    easing.type: root.currentIndex === 2 ? Easing.OutBack : Easing.InCubic
-                    easing.overshoot: root.currentIndex === 2 ? 0.55 : 0
-                }
+            NumberAnimation {
+                target: pageOffset
+                property: "y"
+                to: 0
+                duration: 270
+                easing.type: Easing.OutBack
+                easing.overshoot: 0.55
             }
         }
-        visible: opacity > 0.01
-
-        Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
-        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-    }
-
-    SettingsPage {
-        id: settingsPage
-
-        anchors.fill: parent
-        opacity: root.pageOpacity(3)
-        scale: root.pageScale(3)
-        transformOrigin: Item.Center
-        transform: Translate {
-            y: root.pageY(3)
-
-            Behavior on y {
-                enabled: root.currentIndex === 3 || settingsPage.opacity > 0.01
-                NumberAnimation {
-                    duration: root.currentIndex === 3 ? 270 : 190
-                    easing.type: root.currentIndex === 3 ? Easing.OutBack : Easing.InCubic
-                    easing.overshoot: root.currentIndex === 3 ? 0.55 : 0
-                }
-            }
-        }
-        visible: opacity > 0.01
-
-        Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
-        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
     }
 }
