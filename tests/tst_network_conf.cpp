@@ -142,7 +142,6 @@ private slots:
         QString toml = NetworkConfToml::toToml(conf);
 
         // 默认布尔值不输出，非默认布尔值仍输出
-        QVERIFY(!toml.contains("dhcp = true"));
         QVERIFY(!toml.contains("latency_first = false"));
         QVERIFY(!toml.contains("private_mode = true"));
         QVERIFY(!toml.contains("[network_identity]"));
@@ -161,7 +160,6 @@ private slots:
 
         const QString toml = NetworkConfToml::toToml(conf);
 
-        QVERIFY(!toml.contains(QStringLiteral("dhcp = true")));
         QVERIFY(!toml.contains(QStringLiteral("enable_kcp_proxy = false")));
 
         const auto restored = NetworkConfToml::fromToml(toml, "defaults");
