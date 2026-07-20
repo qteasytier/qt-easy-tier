@@ -206,12 +206,29 @@ jobs:
             --qmldir ../../src/qml \
             --qml-deploy-dir ./share/qt6/qml \
             ./appQtEasyTier.exe
-          cp /ucrt64/bin/libgcc_s_seh-1.dll .
-          cp /ucrt64/bin/libstdc++-6.dll .
-          cp /ucrt64/bin/libwinpthread-1.dll .
+
+          iter=0
+          changed=1
+          while [ "$changed" -eq 1 ] && [ "$iter" -lt 10 ]; do
+            changed=0
+            iter=$((iter + 1))
+            while IFS= read -r -d '' file; do
+              while IFS= read -r dll; do
+                if [ -f "/ucrt64/bin/$dll" ] && [ ! -f "./$dll" ]; then
+                  cp "/ucrt64/bin/$dll" .
+                  changed=1
+                fi
+              done < <(objdump -p "$file" 2>/dev/null | awk '/DLL Name:/ {print $3}')
+            done < <(find . -type f \( -name '*.exe' -o -name '*.dll' \) -print0)
+          done
+
           test -f ./libgcc_s_seh-1.dll
           test -f ./libstdc++-6.dll
           test -f ./libwinpthread-1.dll
+          test -f ./libbrotlidec.dll
+          test -f ./zlib1.dll
+          test -f ./libzstd.dll
+          test -f ./libfreetype-6.dll
 
       - name: Install Inno Setup
         shell: pwsh
