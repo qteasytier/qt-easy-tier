@@ -74,7 +74,7 @@ private slots:
         conf.hostname = QStringLiteral("node-b");
         conf.networkName = QStringLiteral("test-net");
         conf.networkSecret = QStringLiteral("secret123");
-        conf.dhcp = true;
+        conf.dhcp = false;
         conf.ipv4 = QStringLiteral("10.0.0.1");
         conf.latencyFirst = true;
         conf.servers = {{QStringLiteral("tcp://peer1:11010"), QString()}};
@@ -106,13 +106,27 @@ private slots:
         QCOMPARE(restored.instanceName(), QString("restored-id"));
         QCOMPARE(restored.hostname, QStringLiteral("node-b"));
         QCOMPARE(restored.networkName, QStringLiteral("test-net"));
-        QCOMPARE(restored.dhcp, true);
+        QCOMPARE(restored.dhcp, false);
+        QCOMPARE(restored.ipv4, QStringLiteral("10.0.0.1"));
         QCOMPARE(restored.encryptionAlgorithm, QStringLiteral("aes-gcm"));
         QCOMPARE(restored.servers.size(), 1);
         QCOMPARE(restored.servers.at(0).uri, QStringLiteral("tcp://peer1:11010"));
         QCOMPARE(restored.latencyFirst, true);
         QCOMPARE(restored.enableForeignNetworkWhitelist, true);
         QCOMPARE(restored.foreignNetworkWhitelist, QStringLiteral("10.0.0.0/8"));
+    }
+
+    /// 测试目标: DHCP 开启时即使配置中残留 ipv4，导出的 TOML 也不能包含 ipv4 字段
+    void tomlOmitsIpv4WhenDhcpEnabled()
+    {
+        NetworkConf conf("dhcp-ipv4");
+        conf.hostname = QStringLiteral("node");
+        conf.dhcp = true;
+        conf.ipv4 = QStringLiteral("10.0.0.1");
+
+        const QString toml = NetworkConfToml::toToml(conf);
+
+        QVERIFY(!toml.contains(QStringLiteral("ipv4 =")));
     }
 
     /// 测试目标: 验证 TOML 输出省略与默认值一致的布尔字段

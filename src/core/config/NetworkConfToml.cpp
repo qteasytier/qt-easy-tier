@@ -66,10 +66,11 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
         lines << QStringLiteral("instance_name = %1").arg(esc(conf.instanceName()));
     if (!conf.hostname.isEmpty())
         lines << QStringLiteral("hostname = %1").arg(esc(conf.hostname));
-    if (conf.dhcp != defaults.dhcp)
-        lines << QStringLiteral("dhcp = %1").arg(conf.dhcp ? QStringLiteral("true") : QStringLiteral("false"));
 
-    if (!conf.ipv4.isEmpty())
+    // DHCP 字段要始终输出
+    lines << QStringLiteral("dhcp = %1").arg(conf.dhcp ? QStringLiteral("true") : QStringLiteral("false"));
+
+    if (!conf.dhcp && !conf.ipv4.isEmpty())
         lines << QStringLiteral("ipv4 = %1").arg(esc(conf.ipv4));
 
     // --- 辅助输出 Lambda ---
