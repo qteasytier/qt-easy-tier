@@ -4,8 +4,10 @@ Qt 6.8+ / C++20 / QML desktop app. C++ owns business logic, persistence, daemon 
 
 ## Build And Verify
 
+**You should not build daemon by default.**
+
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ./build/Output/appQtEasyTier
@@ -57,3 +59,14 @@ ctest --test-dir build --output-on-failure
 
 - `.gitignore` excludes `/build*/`, `/.qtcreator/`, `/.idea/`, `/.opencode/`, `/.worktrees/`, `/example/`, `/docs/`, and runtime `configs*` database files; do not treat these as source.
 - `README.md` and `CONTRIBUTING.md` are broader prose docs. If they conflict with CMake or source, trust executable config and update this file only with verified gotchas.
+
+## Output Language Requirements
+
+- You should talk with me in **Chinese**.
+- You should write the Doxygen comments in **Chinese** in this repo's code clearly.
+
+## Coding Requirements
+
+- Before you edit this repo, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+- You should use the skills `superpowers` to analyze the repo's code before you make any changes if the skills are available.
+- You should not usually use the Test-Driven Development (TDD) approach, for example, when the feature is simple and the test is trivial.
