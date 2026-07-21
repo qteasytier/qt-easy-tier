@@ -10,7 +10,7 @@
  *
  * ## 创建的服务对象分类
  * - 基础设施层：DaemonClient、DaemonApi、StatusMonitor、FontHelper
- * - 数据层：NetworkConfigRepository、LogRepository、PublicServerProvider
+ * - 数据层：NetworkConfigRepository、LogRepository、收藏节点模型
  * - ViewModel 层：各种 ViewModel 和 Model（供 QML 绑定）
  * - VPN 管理层：VpnManager（启停控制器）
  * - 配置管理层：ConfigCommandService、ConfigImportExportService
@@ -39,7 +39,6 @@ class LogRepository;
 class LogViewModel;
 class NetworkConfigRepository;
 class NetworkPageViewModel;
-class PublicServerProvider;
 class QQmlApplicationEngine;
 class RepositoryLogSink;
 class SettingsViewModel;
@@ -122,6 +121,8 @@ private:
     void wireLogging();
     /// 连线全局通知相关信号与槽（AppState ↔ 系统托盘消息分发器）
     void wireNotifications();
+    /// 连线收藏节点批量操作通知（FavoriteNodeViewModel ↔ 系统托盘消息分发器）
+    void wireFavoriteNodeNotifications();
     /// 连线运行时信号与槽（VpnManager ↔ AppState ↔ ConfigListModel）
     void wireRuntime();
     /// daemon 断开时尝试确保系统服务已注册并启动（每次应用生命周期最多一次）
@@ -142,7 +143,6 @@ private:
     AppState *m_appState = nullptr;
     SettingsViewModel *m_settingsViewModel = nullptr;
     FavoriteNodeViewModel *m_favoriteNodeViewModel = nullptr;
-    PublicServerProvider *m_publicServerProvider = nullptr;
     ImportNodesViewModel *m_importNodesViewModel = nullptr;
     LogViewModel *m_logViewModel = nullptr;
     RepositoryLogSink *m_repositoryLogSink = nullptr;

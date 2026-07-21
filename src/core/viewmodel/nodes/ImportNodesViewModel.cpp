@@ -7,15 +7,17 @@
  */
 #include "ImportNodesViewModel.h"
 
-#include "core/application/nodes/PublicServerProvider.h"
+#include "core/favorite/FavoriteNodeJsonCodec.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 
+#include <utility>
+
 ImportNodesViewModel::ImportNodesViewModel(FavoriteNodeViewModel *favoriteNodes,
-                                           PublicServerProvider *publicServerProvider,
+                                           QUrl publicNodesUrl,
                                            QObject *parent)
     : QAbstractListModel(parent)
     , m_favoriteNodes(favoriteNodes)
-    , m_publicServerProvider(publicServerProvider)
+    , m_publicNodesUrl(std::move(publicNodesUrl))
 {
 }
 
@@ -110,20 +112,14 @@ void ImportNodesViewModel::reload()
         }
     }
 
-    // 数据源 2：公共服务器节点
-    if (m_publicServerProvider) {
-        const QVariantList publicServers = m_publicServerProvider->loadPublicServers();
-        for (const QVariant &value : publicServers) {
-            const QVariantMap server = value.toMap();
-            const QString uri = server.value(QStringLiteral("uri")).toString();
-            if (uri.isEmpty())
-                continue;
-
+    // 数据源 2：公共节点 JSON 文件
+    const FavoriteNodeJsonParseResult publicNodes = FavoriteNodeJsonCodec::loadNodes(m_publicNodesUrl);
+    if (publicNodes.error.isEmpty()) {
+        for (const FavoriteNode &node : publicNodes.nodes) {
             ImportNodeItem item;
-            item.name = QStringLiteral("【公共节点】由%1提供")
-                            .arg(server.value(QStringLiteral("contributor")).toString());
-            item.uri = uri;
-            item.publicKey = server.value(QStringLiteral("publicKey")).toString();
+            item.name = QStringLiteral("【公共节点】由%1提供").arg(node.name);
+            item.uri = node.uri;
+            item.publicKey = node.publicKey;
             item.section = QStringLiteral("公共节点");
             m_items.append(item);
         }

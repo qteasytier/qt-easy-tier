@@ -327,8 +327,9 @@ Repository / DaemonApi / ConfigPayloadBuilder
 
 - 收藏节点列表模型
 - 收藏节点增删改查
+- 收藏节点批量导入导出
 
-公开服务器节点不属于它的职责，公开服务器由 `PublicServerProvider` 提供。
+公开服务器节点使用同一套收藏节点 JSON 格式，由 `FavoriteNodeJsonCodec` 解析。
 
 ### ImportNodesViewModel
 
@@ -344,8 +345,10 @@ ImportNodesDialog.qml
     ↓
 ImportNodesViewModel
     ↓
-FavoriteNodeViewModel / PublicServerProvider
+FavoriteNodeViewModel / FavoriteNodeJsonCodec
 ```
+
+当前实现中公共节点 JSON 解析由 `FavoriteNodeJsonCodec` 提供，字段为 `uri`、`display_name` 和 `publicKey`。
 
 ### BackendStatusViewModel
 
@@ -469,21 +472,22 @@ AutoStartService
 ~/.config/qteasytier/QtEasyTier/settings3.json
 ```
 
-### nodes
+### favorite
 
 路径：
 
 ```text
-src/core/application/nodes/
+src/core/favorite/
 ```
 
 主要类型：
 
 ```text
-PublicServerProvider
+FavoriteNode
+FavoriteNodeJsonCodec
 ```
 
-`PublicServerProvider` 负责读取内置公开服务器列表。默认读取 Qt resource：
+`FavoriteNodeJsonCodec` 负责读取和写出收藏节点 JSON 格式。内置公开服务器列表默认读取 Qt resource：
 
 ```text
 :/publicservers.json
@@ -806,9 +810,9 @@ qtet_appsupport
     ↓
 qtet_viewmodel
     ↓
-qtet_application / qtet_vpn
+qtet_application / qtet_vpn / qtet_repository
     ↓
-qtet_repository / qtet_service / qtet_platform
+qtet_favorite / qtet_service / qtet_platform
     ↓
 qtet_config / qtet_log
 ```
@@ -830,6 +834,7 @@ qtet_config / qtet_log
 | --- | --- |
 | `qtet_config` | 配置数据结构、TOML 序列化、校验、URL 编解码 |
 | `qtet_log` | 日志基础类型、日志分发、日志工具入口 |
+| `qtet_favorite` | 收藏节点数据结构、收藏节点 JSON 导入导出格式 |
 | `qtet_repository` | SQLite repository 和数据库连接 |
 | `qtet_service` | daemon IPC 和 daemon API |
 | `qtet_platform` | 平台相关实现（源码在 `src/core/util/`） |
@@ -862,7 +867,8 @@ tst_daemon_register_helper
 tst_autostart_helper
 tst_settings_store
 tst_autostart_service
-tst_public_server_provider
+tst_favorite_node_json_codec
+tst_favorite_node_viewmodel
 tst_import_nodes_viewmodel
 tst_app_services
 tst_log_repository

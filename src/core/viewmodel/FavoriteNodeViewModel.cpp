@@ -3,7 +3,10 @@
  * @brief FavoriteNodeViewModel 实现
  */
 #include "FavoriteNodeViewModel.h"
+#include "core/favorite/FavoriteNodeJsonCodec.h"
 #include "core/repository/FavoriteNodeRepository.h"
+
+#include <QUrl>
 
 FavoriteNodeViewModel::FavoriteNodeViewModel(QSqlDatabase db, QObject *parent)
     : QAbstractListModel(parent)
@@ -156,6 +159,51 @@ bool FavoriteNodeViewModel::clearAll()
     m_nodes.clear();
     endResetModel();
     emit countChanged();
+    return true;
+}
+
+bool FavoriteNodeViewModel::importNodesFromFile(const QString &fileUrl)
+{
+    const FavoriteNodeJsonParseResult parseResult = FavoriteNodeJsonCodec::loadNodes(QUrl(fileUrl));
+    if (!parseResult.error.isEmpty()) {
+        emit errorOccurred(parseResult.error);
+        return false;
+    }
+
+    int importedCount = 0;
+    int skippedCount = parseResult.skippedCount;
+    for (const FavoriteNode &node : parseResult.nodes) {
+        if (m_repo->existsByUri(node.uri)) {
+            ++skippedCount;
+            continue;
+        }
+
+        if (m_repo->add(node.name, node.uri, node.publicKey).has_value()) {
+            ++importedCount;
+        } else {
+            ++skippedCount;
+        }
+    }
+
+    if (importedCount == 0) {
+        emit errorOccurred(QStringLiteral("没有可导入的节点"));
+        return false;
+    }
+
+    loadNodes();
+    emit importCompleted(importedCount, skippedCount);
+    return true;
+}
+
+bool FavoriteNodeViewModel::exportNodesToFile(const QString &fileUrl)
+{
+    QString error;
+    if (!FavoriteNodeJsonCodec::saveNodes(QUrl(fileUrl), m_nodes, &error)) {
+        emit errorOccurred(error);
+        return false;
+    }
+
+    emit exportCompleted();
     return true;
 }
 

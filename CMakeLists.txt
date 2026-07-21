@@ -56,6 +56,7 @@ endfunction()
 
 add_subdirectory(src/core/log)
 add_subdirectory(src/core/config)
+add_subdirectory(src/core/favorite)
 add_subdirectory(src/core/repository)
 add_subdirectory(src/core/service)
 add_subdirectory(src/core/util)

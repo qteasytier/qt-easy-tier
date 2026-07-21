@@ -58,6 +58,12 @@ public:
     /// 清空全部收藏节点
     Q_INVOKABLE bool clearAll();
 
+    /// 从 JSON 文件批量导入收藏节点
+    Q_INVOKABLE bool importNodesFromFile(const QString &fileUrl);
+
+    /// 将当前收藏节点批量导出为 JSON 文件
+    Q_INVOKABLE bool exportNodesToFile(const QString &fileUrl);
+
     /// 检查 URI 是否已存在（编辑时可排除当前节点自身）
     Q_INVOKABLE bool uriExists(const QString &uri, qint64 excludeId);
 
@@ -67,6 +73,10 @@ public:
 signals:
     /// 操作失败时发射，QML 层展示错误提示
     void errorOccurred(const QString &message);
+    /// 批量导入完成时发射，由应用装配层转发为系统托盘消息
+    void importCompleted(int importedCount, int skippedCount);
+    /// 批量导出完成时发射，由应用装配层转发为系统托盘消息
+    void exportCompleted();
     /// 节点数量变化时发射（增/删/清空后）
     void countChanged();
 

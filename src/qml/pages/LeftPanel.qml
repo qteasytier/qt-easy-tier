@@ -282,7 +282,7 @@ Rectangle {
         // 底部操作按钮区
         RowLayout {
             Layout.fillWidth: true
-            spacing: 10
+            spacing: 6
 
             Button {
                 Layout.fillWidth: true

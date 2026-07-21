@@ -10,10 +10,10 @@
 #include <QAbstractListModel>
 #include <QList>
 #include <QPointer>
+#include <QUrl>
 #include <QVariantList>
 
 class FavoriteNodeViewModel;
-class PublicServerProvider;
 
 /**
  * @brief 导入节点列表 ViewModel，合并收藏节点和公共服务器节点，支持多选批量导入
@@ -37,11 +37,11 @@ public:
     /**
      * @brief 构造导入节点 ViewModel
      * @param favoriteNodes 收藏节点 ViewModel（用于读取已收藏节点列表）
-     * @param publicServerProvider 公共服务器提供者（用于读取公共节点列表）
+     * @param publicNodesUrl 公共节点 JSON 文件 URL
      * @param parent 父 QObject
      */
     explicit ImportNodesViewModel(FavoriteNodeViewModel *favoriteNodes,
-                                  PublicServerProvider *publicServerProvider,
+                                  QUrl publicNodesUrl = QUrl(QStringLiteral("qrc:/publicservers.json")),
                                   QObject *parent = nullptr);
 
     // ---- QAbstractListModel 核心接口 ----
@@ -75,7 +75,7 @@ private:
         QString section;    ///< 分组标签
     };
 
-    QPointer<FavoriteNodeViewModel> m_favoriteNodes;          ///< 收藏节点数据源
-    QPointer<PublicServerProvider> m_publicServerProvider;    ///< 公共服务器数据源
-    QList<ImportNodeItem> m_items;                            ///< 合并后的节点条目缓存
+    QPointer<FavoriteNodeViewModel> m_favoriteNodes; ///< 收藏节点数据源
+    QUrl m_publicNodesUrl;                           ///< 公共节点 JSON 文件 URL
+    QList<ImportNodeItem> m_items;                   ///< 合并后的节点条目缓存
 };

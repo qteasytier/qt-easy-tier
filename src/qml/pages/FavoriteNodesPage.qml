@@ -1,6 +1,7 @@
 /* @brief 节点收藏页面：管理常用节点的增删改查，支持节点名称/URI/公钥的编辑和清空操作 */
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtEasyTier
 
@@ -141,20 +142,41 @@ Rectangle {
             Layout.rightMargin: 0
             spacing: 0
 
-            // 添加节点按钮
-            Button {
-                Layout.fillWidth: true
-                text: qsTr("添加节点")
-                onClicked: {
-                    // 清空编辑字段，进入新增模式
-                    editNameField.text = ""
-                    editUriField.text = ""
-                    editPublicKeyField.text = ""
-                    editNodeId = -1
-                    editMode = false
-                    nodeDialog.open()
+            RowLayout {
+                spacing: 6
+
+                // 添加节点按钮
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("添加节点")
+                    onClicked: {
+                        // 清空编辑字段，进入新增模式
+                        editNameField.text = ""
+                        editUriField.text = ""
+                        editPublicKeyField.text = ""
+                        editNodeId = -1
+                        editMode = false
+                        nodeDialog.open()
+                    }
+                }
+
+                // 批量导入节点：读取与 publicservers.json 相同格式的 JSON 文件
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("导入节点")
+                    onClicked: importNodesFileDialog.open()
+                }
+
+                // 批量导出节点：导出为与 publicservers.json 相同格式的 JSON 文件
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("导出节点")
+                    enabled: FavoriteNodeViewModel.count > 0
+                    onClicked: exportNodesFileDialog.open()
                 }
             }
+
+
 
             // 清空列表按钮：仅在有节点时可用
             Button {
@@ -165,6 +187,30 @@ Rectangle {
                 onClicked: clearConfirmDialog.open()
             }
 
+        }
+    }
+
+    // 批量导入收藏节点文件对话框
+    FileDialog {
+        id: importNodesFileDialog
+        title: qsTr("导入节点")
+        nameFilters: [qsTr("JSON 文件 (*.json)"), qsTr("所有文件 (*)")]
+        fileMode: FileDialog.OpenFile
+        onAccepted: FavoriteNodeViewModel.importNodesFromFile(selectedFile.toString())
+    }
+
+    // 批量导出收藏节点文件对话框
+    FileDialog {
+        id: exportNodesFileDialog
+        title: qsTr("导出节点")
+        nameFilters: [qsTr("JSON 文件 (*.json)"), qsTr("所有文件 (*)")]
+        fileMode: FileDialog.SaveFile
+        currentFile: AppState.homeDirectory + "/favorite_nodes.json"
+        onAccepted: {
+            var url = selectedFile.toString()
+            if (!url.endsWith(".json"))
+                url += ".json"
+            FavoriteNodeViewModel.exportNodesToFile(url)
         }
     }
 

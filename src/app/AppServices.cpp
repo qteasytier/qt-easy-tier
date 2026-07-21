@@ -12,7 +12,6 @@
 #include "core/application/config/ConfigCommandService.h"
 #include "core/application/config/ConfigImportExportService.h"
 #include "core/application/logging/RepositoryLogSink.h"
-#include "core/application/nodes/PublicServerProvider.h"
 #include "core/log/LogDispatcher.h"
 #include "core/repository/LogRepository.h"
 #include "core/repository/NetworkConfigRepository.h"
@@ -39,6 +38,7 @@
 #include <QCheckBox>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
+#include <QUrl>
 
 AppServices::AppServices(const QSqlDatabase &database,
                          QQmlApplicationEngine *engine,
@@ -56,11 +56,10 @@ AppServices::AppServices(const QSqlDatabase &database,
     m_daemonApi = new DaemonApi(m_daemonClient, parentObject);
     m_backendStatusViewModel = new BackendStatusViewModel(m_daemonClient, parentObject);
 
-    // ===== 应用基础服务：状态、设置、字体、公共服务器 =====
+    // ===== 应用基础服务：状态、设置、字体 =====
     m_appState = new AppState(parentObject);
     m_updateCheckService = new UpdateCheckService(parentObject);
     m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, parentObject);
-    m_publicServerProvider = new PublicServerProvider(parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。
@@ -83,7 +82,10 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_configRepository = new NetworkConfigRepository(database, parentObject);
         m_logRepository = new LogRepository(database, parentObject);
         m_favoriteNodeViewModel = new FavoriteNodeViewModel(database, parentObject);
-        m_importNodesViewModel = new ImportNodesViewModel(m_favoriteNodeViewModel, m_publicServerProvider, parentObject);
+        m_importNodesViewModel = new ImportNodesViewModel(m_favoriteNodeViewModel,
+                                                          QUrl(QStringLiteral("qrc:/publicservers.json")),
+                                                          parentObject);
+        wireFavoriteNodeNotifications();
         m_logViewModel = new LogViewModel(m_logRepository, parentObject);
         m_repositoryLogSink = new RepositoryLogSink(m_logRepository, parentObject);
         m_statusMonitor = new StatusMonitor(parentObject);
@@ -158,6 +160,24 @@ void AppServices::wireNotifications()
     QObject::connect(m_appState, &AppState::errorOccurred,
                      this, [](const QString &message) {
                          TrayMessageHelper::showError(QStringLiteral("错误"), message);
+                     });
+}
+
+void AppServices::wireFavoriteNodeNotifications()
+{
+    if (!m_favoriteNodeViewModel)
+        return;
+
+    QObject::connect(m_favoriteNodeViewModel, &FavoriteNodeViewModel::importCompleted,
+                     this, [](int importedCount, int skippedCount) {
+                         TrayMessageHelper::showInfo(
+                             QStringLiteral("节点导入完成"),
+                             QStringLiteral("已导入 %1 个节点，跳过 %2 个节点").arg(importedCount).arg(skippedCount));
+                     });
+    QObject::connect(m_favoriteNodeViewModel, &FavoriteNodeViewModel::exportCompleted,
+                     this, []() {
+                         TrayMessageHelper::showInfo(QStringLiteral("节点导出完成"),
+                                                     QStringLiteral("收藏节点已导出"));
                      });
 }
 

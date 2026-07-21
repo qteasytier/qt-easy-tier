@@ -52,7 +52,7 @@ ctest --test-dir build --output-on-failure
 - `src/main.cpp` fixes `organizationName = qteasytier` and `applicationName = QtEasyTier`; Linux `AppConfigLocation` is typically `~/.config/qteasytier/QtEasyTier/`.
 - Default SQLite database is `qteasytier.db` in `AppConfigLocation`; global settings are `settings3.json` via `SettingsStore`, not SQLite.
 - The app connects to `qtet-daemon.sock` by default. `tst_daemon_client` uses an in-memory `QLocalServer`; it does not require a real daemon.
-- `assets/publicservers.json` is embedded as `:/publicservers.json` and read by `PublicServerProvider`.
+- `assets/publicservers.json` is embedded as `:/publicservers.json` and read through `FavoriteNodeJsonCodec`.
 - When a system tray is available, closing the window keeps the app running; autostart launches hidden if tray is available.
 
 ## Repo Hygiene

@@ -10,7 +10,6 @@
 
 #include <memory>
 
-#include "core/application/nodes/PublicServerProvider.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 #include "core/viewmodel/nodes/ImportNodesViewModel.h"
@@ -45,12 +44,11 @@ private slots:
         QFile file(publicPath);
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.write("["
-                   "{\"uri\":\"tcp://public.example.com:11010\",\"contributor\":\"bob\",\"publicKey\":\"public-key\"}"
+                   "{\"uri\":\"tcp://public.example.com:11010\",\"display_name\":\"bob\",\"publicKey\":\"public-key\"}"
                    "]");
         file.close();
 
-        PublicServerProvider provider(publicPath);
-        ImportNodesViewModel model(m_favorites, &provider);
+        ImportNodesViewModel model(m_favorites, QUrl::fromLocalFile(publicPath));
         QSignalSpy countSpy(&model, &ImportNodesViewModel::countChanged);
 
         model.reload();
@@ -87,8 +85,7 @@ private slots:
         QVERIFY(m_favorites->addNode(QStringLiteral("收藏A"), QStringLiteral("tcp://favorite.example.com:11010"),
                                      QStringLiteral("favorite-key")));
 
-        PublicServerProvider provider(QDir(m_tempDir.path()).filePath(QStringLiteral("missing.json")));
-        ImportNodesViewModel model(m_favorites, &provider);
+        ImportNodesViewModel model(m_favorites, QUrl::fromLocalFile(QDir(m_tempDir.path()).filePath(QStringLiteral("missing.json"))));
         model.reload();
 
         // 初始无选中节点

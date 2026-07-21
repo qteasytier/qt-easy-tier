@@ -6,8 +6,6 @@ add_qtet_library(qtet_application
     config/ConfigOperationResult.h
     logging/RepositoryLogSink.cpp
     logging/RepositoryLogSink.h
-    nodes/PublicServerProvider.cpp
-    nodes/PublicServerProvider.h
     runtime/ConfigRunState.h
     settings/AutoStartService.cpp
     settings/AutoStartService.h
