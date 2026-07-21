@@ -120,6 +120,8 @@ private:
     QObject *serviceParent() const;
     /// 连线日志相关信号与槽（LogDispatcher ↔ RepositoryLogSink ↔ SettingsViewModel）
     void wireLogging();
+    /// 连线全局通知相关信号与槽（AppState ↔ 系统托盘消息分发器）
+    void wireNotifications();
     /// 连线运行时信号与槽（VpnManager ↔ AppState ↔ ConfigListModel）
     void wireRuntime();
     /// daemon 断开时尝试确保系统服务已注册并启动（每次应用生命周期最多一次）

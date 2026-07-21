@@ -2,7 +2,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import QtEasyTier
 
 // 节点收藏页面：管理常用节点的增删改查

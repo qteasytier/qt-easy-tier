@@ -7,11 +7,29 @@
 
 #include "app/AppServices.h"
 #include "app/QmlSingletonRegistrar.h"
+#include "core/system_tray/TrayMessageDispatcher.h"
+#include "core/system_tray/TrayMessageSink.h"
+#include "core/viewmodel/AppState.h"
+
+class RecordingTrayMessageSink final : public TrayMessageSink {
+public:
+    void showTrayMessage(const TrayMessage &message) override
+    {
+        messages.append(message);
+    }
+
+    QList<TrayMessage> messages;
+};
 
 class TestAppServices : public QObject {
     Q_OBJECT
 
 private slots:
+    void cleanup()
+    {
+        TrayMessageDispatcher::instance()->clearSinks();
+    }
+
     /// 测试目标：验证 AppServices 构造后有必需的 singleton 可用
     void constructedServicesExposeRequiredSingletons()
     {
@@ -35,6 +53,21 @@ private slots:
         auto registrar = &registerQmlSingletons;
         // 检查函数指针非空
         QVERIFY(registrar != nullptr);
+    }
+
+    /// 测试目标：全局错误会通过装配层转发为系统托盘错误通知
+    void appStateErrorDispatchesTrayErrorMessage()
+    {
+        RecordingTrayMessageSink sink;
+        TrayMessageDispatcher::instance()->addSink(&sink);
+        AppServices services(QSqlDatabase(), nullptr, AppServices::SkipDaemonConnection);
+
+        services.appState()->showError(QStringLiteral("保存失败"));
+
+        QCOMPARE(sink.messages.size(), 1);
+        QCOMPARE(sink.messages.first().level, TrayMessageLevel::Error);
+        QCOMPARE(sink.messages.first().title, QStringLiteral("错误"));
+        QCOMPARE(sink.messages.first().message, QStringLiteral("保存失败"));
     }
 };
 

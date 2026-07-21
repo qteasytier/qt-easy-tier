@@ -19,6 +19,7 @@
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
 #include "core/system_tray/SystemTrayManager.h"
+#include "core/system_tray/TrayMessageHelper.h"
 #include "core/util/DaemonRegisterHelper.h"
 #include "core/util/FontHelper.h"
 #include "core/util/UpdateCheckService.h"
@@ -64,6 +65,7 @@ AppServices::AppServices(const QSqlDatabase &database,
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。
     m_systemTrayManager->setDaemonConnectionState(m_daemonClient->connectionState());
+    wireNotifications();
 
     // daemon 连接建立后查询自动回连后端状态
     QObject::connect(m_daemonClient, &DaemonClient::connectionStateChanged,
@@ -145,6 +147,17 @@ void AppServices::wireLogging()
     QObject::connect(m_settingsViewModel, &SettingsViewModel::maxLogEntriesChanged,
                      m_repositoryLogSink, [this]() {
                          m_repositoryLogSink->setMaxEntries(m_settingsViewModel->maxLogEntries());
+                     });
+}
+
+void AppServices::wireNotifications()
+{
+    if (!m_appState)
+        return;
+
+    QObject::connect(m_appState, &AppState::errorOccurred,
+                     this, [](const QString &message) {
+                         TrayMessageHelper::showError(QStringLiteral("错误"), message);
                      });
 }
 

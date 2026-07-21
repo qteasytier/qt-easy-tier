@@ -17,7 +17,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import QtEasyTier
 
 /* @brief 左侧面板根容器，包含配置列表和操作按钮 */
@@ -52,7 +51,7 @@ Rectangle {
     /* 弹出删除确认对话框，绑定待删除实例名 */
     function requestDelete(instanceName, labelText) {
         root.pendingDeleteInstance = instanceName
-        deleteDialog.text = qsTr("确定要删除配置「%1」吗？此操作不可撤销。").arg(labelText)
+        deleteDialog.messageText = qsTr("确定要删除配置「%1」吗？此操作不可撤销。").arg(labelText)
         deleteDialog.open()
     }
 
@@ -71,10 +70,23 @@ Rectangle {
     // ============================================
     // 删除确认对话框
     // ============================================
-    MessageDialog {
+    Dialog {
         id: deleteDialog
         title: qsTr("删除配置")
-        buttons: MessageDialog.Yes | MessageDialog.No
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        property string messageText: ""
+
+        Label {
+            text: deleteDialog.messageText
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
+        }
+
         onAccepted: {
             if (root.pendingDeleteInstance !== "") {
                 root.deleteRequested(root.pendingDeleteInstance)
