@@ -28,7 +28,7 @@
 int main(int argc, char *argv[])
 {
 
-// Windows下使用稍微没那么难看的 Universal 风格
+// Windows下使用 FluentWinUI3 样式，其他平台使用默认样式
 #ifdef Q_OS_WIN
     QQuickStyle::setStyle(QStringLiteral("FluentWinUI3"));
 #endif

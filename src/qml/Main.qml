@@ -2,7 +2,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import QtEasyTier
 
 // 主窗口：整个应用的 QML 入口
@@ -100,11 +99,22 @@ Window {
     }
 
     // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动
-    MessageDialog {
+    Dialog {
         id: errorDialog
         title: qsTr("错误")
-        buttons: MessageDialog.Ok
-        text: ""
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok
+        width: Math.min(420, parent ? parent.width - 48 : 360)
+
+        property string text: ""
+
+        Label {
+            text: errorDialog.text
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 360
+        }
     }
 
     Connections {
