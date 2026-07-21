@@ -11,8 +11,10 @@
 
 #include "core/application/config/ConfigCommandService.h"
 #include "core/application/config/ConfigImportExportService.h"
+#include "core/application/favorite/FavoriteNodeImportExportService.h"
 #include "core/application/logging/RepositoryLogSink.h"
 #include "core/log/LogDispatcher.h"
+#include "core/repository/FavoriteNodeRepository.h"
 #include "core/repository/LogRepository.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
@@ -80,8 +82,12 @@ AppServices::AppServices(const QSqlDatabase &database,
     // ===== 数据层与 ViewModel 层（依赖有效数据库连接） =====
     if (database.isValid()) {
         m_configRepository = new NetworkConfigRepository(database, parentObject);
+        m_favoriteNodeRepository = new FavoriteNodeRepository(database, parentObject);
         m_logRepository = new LogRepository(database, parentObject);
-        m_favoriteNodeViewModel = new FavoriteNodeViewModel(database, parentObject);
+        m_favoriteNodeImportExportService = new FavoriteNodeImportExportService(m_favoriteNodeRepository, parentObject);
+        m_favoriteNodeViewModel = new FavoriteNodeViewModel(m_favoriteNodeRepository,
+                                                            m_favoriteNodeImportExportService,
+                                                            parentObject);
         m_importNodesViewModel = new ImportNodesViewModel(m_favoriteNodeViewModel,
                                                           QUrl(QStringLiteral("qrc:/publicservers.json")),
                                                           parentObject);

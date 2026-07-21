@@ -32,6 +32,8 @@ class ConfigImportExportService;
 class ConfigListModel;
 class DaemonApi;
 class DaemonClient;
+class FavoriteNodeImportExportService;
+class FavoriteNodeRepository;
 class FavoriteNodeViewModel;
 class FontHelper;
 class ImportNodesViewModel;
@@ -136,12 +138,14 @@ private:
 
     QQmlApplicationEngine *m_engine = nullptr;
     NetworkConfigRepository *m_configRepository = nullptr;
+    FavoriteNodeRepository *m_favoriteNodeRepository = nullptr;
     LogRepository *m_logRepository = nullptr;
     DaemonClient *m_daemonClient = nullptr;
     DaemonApi *m_daemonApi = nullptr;
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;
     AppState *m_appState = nullptr;
     SettingsViewModel *m_settingsViewModel = nullptr;
+    FavoriteNodeImportExportService *m_favoriteNodeImportExportService = nullptr;
     FavoriteNodeViewModel *m_favoriteNodeViewModel = nullptr;
     ImportNodesViewModel *m_importNodesViewModel = nullptr;
     LogViewModel *m_logViewModel = nullptr;

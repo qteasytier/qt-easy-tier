@@ -10,7 +10,9 @@
 
 #include <memory>
 
+#include "core/application/favorite/FavoriteNodeImportExportService.h"
 #include "core/repository/DatabaseConnection.h"
+#include "core/repository/FavoriteNodeRepository.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 #include "core/viewmodel/nodes/ImportNodesViewModel.h"
 
@@ -23,7 +25,9 @@ private slots:
         QVERIFY(m_tempDir.isValid());
         m_db = std::make_unique<DatabaseConnection>(QDir(m_tempDir.path()).filePath(QStringLiteral("nodes.db")));
         QVERIFY(m_db->open());
-        m_favorites = new FavoriteNodeViewModel(m_db->database(), this);
+        m_repository = new FavoriteNodeRepository(m_db->database(), this);
+        m_service = new FavoriteNodeImportExportService(m_repository, this);
+        m_favorites = new FavoriteNodeViewModel(m_repository, m_service, this);
     }
 
     void init()
@@ -104,6 +108,8 @@ private slots:
 private:
     QTemporaryDir m_tempDir;
     std::unique_ptr<DatabaseConnection> m_db;
+    FavoriteNodeRepository *m_repository = nullptr;
+    FavoriteNodeImportExportService *m_service = nullptr;
     FavoriteNodeViewModel *m_favorites = nullptr;
 };
 

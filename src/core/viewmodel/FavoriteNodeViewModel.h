@@ -11,6 +11,7 @@
 #include <QSqlDatabase>
 #include "core/favorite/FavoriteNode.h"
 
+class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;
 class QQmlEngine;
 class QJSEngine;
@@ -34,7 +35,9 @@ public:
     };
     Q_ENUM(Roles)
 
-    explicit FavoriteNodeViewModel(QSqlDatabase db, QObject *parent = nullptr);
+    explicit FavoriteNodeViewModel(FavoriteNodeRepository *repository,
+                                   FavoriteNodeImportExportService *importExportService,
+                                   QObject *parent = nullptr);
 
     // ---- QAbstractListModel 核心接口 ----
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -61,6 +64,9 @@ public:
     /// 从 JSON 文件批量导入收藏节点
     Q_INVOKABLE bool importNodesFromFile(const QString &fileUrl);
 
+    /// 从 http/https URL 批量导入收藏节点
+    Q_INVOKABLE void importNodesFromUrl(const QString &url);
+
     /// 将当前收藏节点批量导出为 JSON 文件
     Q_INVOKABLE bool exportNodesToFile(const QString &fileUrl);
 
@@ -81,6 +87,9 @@ signals:
     void countChanged();
 
 private:
-    FavoriteNodeRepository *m_repo;    ///< 节点持久化仓库（所有权，以 this 为父对象）
+    void wireImportExportService();
+
+    FavoriteNodeRepository *m_repo = nullptr; ///< 节点持久化仓库，非所有权
+    FavoriteNodeImportExportService *m_importExportService = nullptr; ///< 批量导入导出服务，非所有权
     QList<FavoriteNode> m_nodes;       ///< 内存中的完整节点列表缓存
 };

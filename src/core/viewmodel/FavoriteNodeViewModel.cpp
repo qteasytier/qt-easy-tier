@@ -3,16 +3,19 @@
  * @brief FavoriteNodeViewModel 实现
  */
 #include "FavoriteNodeViewModel.h"
-#include "core/favorite/FavoriteNodeJsonCodec.h"
+#include "core/application/favorite/FavoriteNodeImportExportService.h"
 #include "core/repository/FavoriteNodeRepository.h"
 
 #include <QUrl>
 
-FavoriteNodeViewModel::FavoriteNodeViewModel(QSqlDatabase db, QObject *parent)
+FavoriteNodeViewModel::FavoriteNodeViewModel(FavoriteNodeRepository *repository,
+                                             FavoriteNodeImportExportService *importExportService,
+                                             QObject *parent)
     : QAbstractListModel(parent)
-    // FavoriteNodeRepository 以 this 为父对象，生命周期随 ViewModel 管理
-    , m_repo(new FavoriteNodeRepository(db, this))
+    , m_repo(repository)
+    , m_importExportService(importExportService)
 {
+    wireImportExportService();
     loadNodes();
 }
 
@@ -56,6 +59,9 @@ QHash<int, QByteArray> FavoriteNodeViewModel::roleNames() const
 
 void FavoriteNodeViewModel::loadNodes()
 {
+    if (!m_repo)
+        return;
+
     // 完整的模型重置加载
     beginResetModel();
     m_nodes = m_repo->loadAll();
@@ -65,6 +71,11 @@ void FavoriteNodeViewModel::loadNodes()
 
 bool FavoriteNodeViewModel::addNode(const QString &name, const QString &uri, const QString &publicKey)
 {
+    if (!m_repo) {
+        emit errorOccurred(QStringLiteral("收藏节点仓库不可用"));
+        return false;
+    }
+
     // 步骤 1：输入校验（名称和地址都不能为空）
     if (name.trimmed().isEmpty() || uri.trimmed().isEmpty()) {
         emit errorOccurred(QStringLiteral("节点名称和地址不能为空"));
@@ -94,6 +105,11 @@ bool FavoriteNodeViewModel::addNode(const QString &name, const QString &uri, con
 
 bool FavoriteNodeViewModel::updateNode(qint64 id, const QString &name, const QString &uri, const QString &publicKey)
 {
+    if (!m_repo) {
+        emit errorOccurred(QStringLiteral("收藏节点仓库不可用"));
+        return false;
+    }
+
     // 步骤 1：空值校验
     if (name.trimmed().isEmpty() || uri.trimmed().isEmpty()) {
         emit errorOccurred(QStringLiteral("节点名称和地址不能为空"));
@@ -125,6 +141,11 @@ bool FavoriteNodeViewModel::updateNode(qint64 id, const QString &name, const QSt
 
 bool FavoriteNodeViewModel::removeNode(qint64 id)
 {
+    if (!m_repo) {
+        emit errorOccurred(QStringLiteral("收藏节点仓库不可用"));
+        return false;
+    }
+
     // 在内存列表中查找目标节点
     for (int i = 0; i < m_nodes.size(); ++i) {
         if (m_nodes[i].id == id) {
@@ -148,6 +169,11 @@ bool FavoriteNodeViewModel::removeNode(qint64 id)
 
 bool FavoriteNodeViewModel::clearAll()
 {
+    if (!m_repo) {
+        emit errorOccurred(QStringLiteral("收藏节点仓库不可用"));
+        return false;
+    }
+
     // 步骤 1：清空数据库中的全部记录
     if (!m_repo->clear()) {
         emit errorOccurred(QStringLiteral("清空节点列表失败"));
@@ -164,51 +190,36 @@ bool FavoriteNodeViewModel::clearAll()
 
 bool FavoriteNodeViewModel::importNodesFromFile(const QString &fileUrl)
 {
-    const FavoriteNodeJsonParseResult parseResult = FavoriteNodeJsonCodec::loadNodes(QUrl(fileUrl));
-    if (!parseResult.error.isEmpty()) {
-        emit errorOccurred(parseResult.error);
+    if (!m_importExportService) {
+        emit errorOccurred(QStringLiteral("收藏节点导入导出服务不可用"));
         return false;
     }
+    return m_importExportService->importFromFile(QUrl(fileUrl));
+}
 
-    int importedCount = 0;
-    int skippedCount = parseResult.skippedCount;
-    for (const FavoriteNode &node : parseResult.nodes) {
-        if (m_repo->existsByUri(node.uri)) {
-            ++skippedCount;
-            continue;
-        }
-
-        if (m_repo->add(node.name, node.uri, node.publicKey).has_value()) {
-            ++importedCount;
-        } else {
-            ++skippedCount;
-        }
+void FavoriteNodeViewModel::importNodesFromUrl(const QString &url)
+{
+    if (!m_importExportService) {
+        emit errorOccurred(QStringLiteral("收藏节点导入导出服务不可用"));
+        return;
     }
-
-    if (importedCount == 0) {
-        emit errorOccurred(QStringLiteral("没有可导入的节点"));
-        return false;
-    }
-
-    loadNodes();
-    emit importCompleted(importedCount, skippedCount);
-    return true;
+    m_importExportService->importFromUrl(QUrl(url.trimmed()));
 }
 
 bool FavoriteNodeViewModel::exportNodesToFile(const QString &fileUrl)
 {
-    QString error;
-    if (!FavoriteNodeJsonCodec::saveNodes(QUrl(fileUrl), m_nodes, &error)) {
-        emit errorOccurred(error);
+    if (!m_importExportService) {
+        emit errorOccurred(QStringLiteral("收藏节点导入导出服务不可用"));
         return false;
     }
-
-    emit exportCompleted();
-    return true;
+    return m_importExportService->exportToFile(QUrl(fileUrl), m_nodes);
 }
 
 bool FavoriteNodeViewModel::uriExists(const QString &uri, qint64 excludeId)
 {
+    if (!m_repo)
+        return false;
+
     // 代理到 Repository 层查询 URI 是否已存在
     // excludeId 用于编辑场景：检查时排除当前节点自身
     return m_repo->existsByUri(uri.trimmed(), excludeId);
@@ -217,4 +228,20 @@ bool FavoriteNodeViewModel::uriExists(const QString &uri, qint64 excludeId)
 int FavoriteNodeViewModel::count() const
 {
     return m_nodes.size();
+}
+
+void FavoriteNodeViewModel::wireImportExportService()
+{
+    if (!m_importExportService)
+        return;
+
+    connect(m_importExportService, &FavoriteNodeImportExportService::operationFailed,
+            this, &FavoriteNodeViewModel::errorOccurred);
+    connect(m_importExportService, &FavoriteNodeImportExportService::importCompleted,
+            this, [this](int importedCount, int skippedCount) {
+                loadNodes();
+                emit importCompleted(importedCount, skippedCount);
+            });
+    connect(m_importExportService, &FavoriteNodeImportExportService::exportCompleted,
+            this, &FavoriteNodeViewModel::exportCompleted);
 }

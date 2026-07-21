@@ -164,7 +164,7 @@ Rectangle {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("导入节点")
-                    onClicked: importNodesFileDialog.open()
+                    onClicked: importModeDialog.open()
                 }
 
                 // 批量导出节点：导出为与 publicservers.json 相同格式的 JSON 文件
@@ -187,6 +187,72 @@ Rectangle {
                 onClicked: clearConfirmDialog.open()
             }
 
+        }
+    }
+
+    // 批量导入方式选择对话框
+    Dialog {
+        id: importModeDialog
+        title: qsTr("导入节点")
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        ColumnLayout {
+            width: parent ? parent.width : 320
+            spacing: 8
+
+            Button {
+                Layout.fillWidth: true
+                text: qsTr("从本地文件导入")
+                onClicked: {
+                    importModeDialog.close()
+                    importNodesFileDialog.open()
+                }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                text: qsTr("从 URL 导入")
+                onClicked: {
+                    importModeDialog.close()
+                    importUrlField.text = ""
+                    importUrlDialog.open()
+                }
+            }
+        }
+    }
+
+    // 批量导入 URL 输入对话框
+    Dialog {
+        id: importUrlDialog
+        title: qsTr("从 URL 导入节点")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(420, parent ? parent.width - 48 : 360)
+
+        ColumnLayout {
+            width: parent ? parent.width : 360
+            spacing: 8
+
+            Label {
+                text: qsTr("节点 JSON 地址（http/https）")
+            }
+
+            TextField {
+                id: importUrlField
+                Layout.fillWidth: true
+                placeholderText: qsTr("https://example.com/nodes.json")
+                inputMethodHints: Qt.ImhUrlCharactersOnly
+            }
+        }
+
+        onOpened: importUrlField.forceActiveFocus()
+        onAccepted: {
+            var url = importUrlField.text.trim()
+            if (url)
+                FavoriteNodeViewModel.importNodesFromUrl(url)
         }
     }
 

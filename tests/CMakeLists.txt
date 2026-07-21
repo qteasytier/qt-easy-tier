@@ -47,6 +47,9 @@ target_link_libraries(tst_autostart_service PRIVATE qtet_application)
 add_core_test(tst_favorite_node_json_codec tst_favorite_node_json_codec.cpp)
 target_link_libraries(tst_favorite_node_json_codec PRIVATE qtet_favorite)
 
+add_core_test(tst_favorite_node_import_export_service tst_favorite_node_import_export_service.cpp)
+target_link_libraries(tst_favorite_node_import_export_service PRIVATE qtet_application)
+
 add_core_test(tst_favorite_node_viewmodel tst_favorite_node_viewmodel.cpp)
 target_link_libraries(tst_favorite_node_viewmodel PRIVATE qtet_viewmodel)
 

@@ -1,19 +1,19 @@
 /**
  * @file tst_favorite_node_viewmodel.cpp
- * @brief 收藏节点 ViewModel 批量导入导出单元测试。
+ * @brief 收藏节点 ViewModel 单元测试。
  */
 #include <QDir>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrl>
 
 #include <memory>
 
+#include "core/application/favorite/FavoriteNodeImportExportService.h"
 #include "core/repository/DatabaseConnection.h"
+#include "core/repository/FavoriteNodeRepository.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 
 class TestFavoriteNodeViewModel : public QObject {
@@ -25,7 +25,9 @@ private slots:
         QVERIFY(m_tempDir.isValid());
         m_db = std::make_unique<DatabaseConnection>(QDir(m_tempDir.path()).filePath(QStringLiteral("favorite_nodes.db")));
         QVERIFY(m_db->open());
-        m_model = new FavoriteNodeViewModel(m_db->database(), this);
+        m_repository = new FavoriteNodeRepository(m_db->database(), this);
+        m_service = new FavoriteNodeImportExportService(m_repository, this);
+        m_model = new FavoriteNodeViewModel(m_repository, m_service, this);
     }
 
     void init()
@@ -33,19 +35,14 @@ private slots:
         QVERIFY(m_model->clearAll());
     }
 
-    /// 测试目标：批量导入会跳过重复 URI，并将缺失 display_name 的节点命名为 UNKNOW
-    void importNodesFromFile_importsValidNodesAndSkipsDuplicates()
+    /// 测试目标：service 导入完成后 ViewModel 刷新模型并转发导入完成信号
+    void serviceImportCompleted_refreshesModelAndForwardsSignal()
     {
-        QVERIFY(m_model->addNode(QStringLiteral("已有"), QStringLiteral("tcp://dup.example.com:11010"), QString()));
-
-        const QString path = QDir(m_tempDir.path()).filePath(QStringLiteral("nodes-import.json"));
+        const QString path = QDir(m_tempDir.path()).filePath(QStringLiteral("nodes-viewmodel-import.json"));
         QFile file(path);
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.write("["
-                   "{\"uri\":\"tcp://new.example.com:11010\",\"display_name\":\"新节点\",\"publicKey\":\"key-a\"},"
-                   "{\"uri\":\"tcp://unnamed.example.com:11010\"},"
-                   "{\"uri\":\"tcp://dup.example.com:11010\",\"display_name\":\"重复\"},"
-                   "{\"uri\":\"\",\"display_name\":\"空地址\"}"
+                   "{\"uri\":\"tcp://new.example.com:11010\",\"display_name\":\"新节点\",\"publicKey\":\"key-a\"}"
                    "]");
         file.close();
 
@@ -54,47 +51,51 @@ private slots:
         QVERIFY(m_model->importNodesFromFile(QUrl::fromLocalFile(path).toString()));
 
         QCOMPARE(completedSpy.count(), 1);
-        QCOMPARE(completedSpy.first().at(0).toInt(), 2);
-        QCOMPARE(completedSpy.first().at(1).toInt(), 2);
-        QCOMPARE(m_model->count(), 3);
-
-        bool foundDefaultName = false;
-        for (int row = 0; row < m_model->rowCount(); ++row) {
-            const QModelIndex idx = m_model->index(row, 0);
-            if (m_model->data(idx, FavoriteNodeViewModel::UriRole).toString() == QStringLiteral("tcp://unnamed.example.com:11010")) {
-                foundDefaultName = true;
-                QCOMPARE(m_model->data(idx, FavoriteNodeViewModel::NameRole).toString(), QStringLiteral("UNKNOW"));
-            }
-        }
-        QVERIFY(foundDefaultName);
+        QCOMPARE(completedSpy.first().at(0).toInt(), 1);
+        QCOMPARE(completedSpy.first().at(1).toInt(), 0);
+        QCOMPARE(m_model->count(), 1);
+        QCOMPARE(m_model->data(m_model->index(0, 0), FavoriteNodeViewModel::NameRole).toString(), QStringLiteral("新节点"));
     }
 
-    /// 测试目标：批量导出使用 uri / display_name / publicKey 字段格式
-    void exportNodesToFile_writesPublicServerCompatibleJson()
+    /// 测试目标：service 错误会由 ViewModel 转发为 errorOccurred
+    void serviceOperationFailed_forwardsError()
+    {
+        QSignalSpy errorSpy(m_model, &FavoriteNodeViewModel::errorOccurred);
+
+        QVERIFY(!m_model->importNodesFromFile(QUrl::fromLocalFile(QDir(m_tempDir.path()).filePath(QStringLiteral("missing.json"))).toString()));
+
+        QCOMPARE(errorSpy.count(), 1);
+        QVERIFY(errorSpy.first().first().toString().contains(QStringLiteral("无法打开节点文件")));
+    }
+
+    /// 测试目标：导出完成信号由 service 转发到 ViewModel
+    void exportNodesToFile_forwardsExportCompleted()
     {
         QVERIFY(m_model->addNode(QStringLiteral("导出节点"), QStringLiteral("tcp://export.example.com:11010"), QStringLiteral("key-export")));
-
         const QString path = QDir(m_tempDir.path()).filePath(QStringLiteral("nodes-export.json"));
         QSignalSpy completedSpy(m_model, &FavoriteNodeViewModel::exportCompleted);
 
         QVERIFY(m_model->exportNodesToFile(QUrl::fromLocalFile(path).toString()));
 
         QCOMPARE(completedSpy.count(), 1);
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::ReadOnly));
-        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-        QVERIFY(doc.isArray());
-        QCOMPARE(doc.array().size(), 1);
-        const QJsonObject obj = doc.array().first().toObject();
-        QCOMPARE(obj.value(QStringLiteral("uri")).toString(), QStringLiteral("tcp://export.example.com:11010"));
-        QCOMPARE(obj.value(QStringLiteral("display_name")).toString(), QStringLiteral("导出节点"));
-        QCOMPARE(obj.value(QStringLiteral("publicKey")).toString(), QStringLiteral("key-export"));
-        QVERIFY(!obj.contains(QStringLiteral("contributor")));
+        QVERIFY(QFile::exists(path));
+    }
+
+    /// 测试目标：单条新增、删除仍由 ViewModel 刷新模型
+    void addAndRemoveNode_updatesModel()
+    {
+        QVERIFY(m_model->addNode(QStringLiteral("节点"), QStringLiteral("tcp://node.example.com:11010"), QStringLiteral("key")));
+        QCOMPARE(m_model->count(), 1);
+        const qint64 id = m_model->data(m_model->index(0, 0), FavoriteNodeViewModel::IdRole).toLongLong();
+        QVERIFY(m_model->removeNode(id));
+        QCOMPARE(m_model->count(), 0);
     }
 
 private:
     QTemporaryDir m_tempDir;
     std::unique_ptr<DatabaseConnection> m_db;
+    FavoriteNodeRepository *m_repository = nullptr;
+    FavoriteNodeImportExportService *m_service = nullptr;
     FavoriteNodeViewModel *m_model = nullptr;
 };
 
