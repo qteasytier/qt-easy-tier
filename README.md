@@ -95,15 +95,6 @@ cmake --build build -j
 
 关闭 `BUILD_WITH_DAEMON` 后，CMake 不会构建和收集 `qtet-daemon`。这种模式适合离线开发、前端验证和单元测试。
 
-### Windows 前端构建
-
-Windows 当前只支持 MinGW64 工具链，推荐使用 Qt MinGW64 套件配合 Ninja 或 MinGW Makefiles。Windows 下暂不构建、不打包 `qtet-daemon`。
-
-```powershell
-cmake -B build-win -S . -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
-cmake --build build-win
-```
-
 ### 从 Gitee 克隆后端
 
 ```bash
