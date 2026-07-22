@@ -17,8 +17,10 @@ ctest --test-dir build --output-on-failure
 - For offline/frontend-only work, configure with `-DBUILD_WITH_DAEMON=OFF`; default configure builds and collects `qtet-daemon` immediately via `cmake/QtEasyTierDaemon.cmake` and `cmake/scripts/*.cmake`.
 - Default daemon clone is GitHub; use `-DCLONE_DAEMON_FROM_GITEE=ON` for Gitee. If daemon build is enabled, configure needs `git` and network unless `build/qtet-daemon` is already present.
 - Windows is documented for MinGW64/UCRT, not MSVC. With daemon enabled, configure also copies `ThirdParty/WinSW/DaemonInstaller.xml` to `Output/DaemonInstaller.xml` and downloads WinSW as `Output/DaemonInstaller.exe`.
-- Focused test loop: `cmake --build build --target tst_network_conf` then `ctest --test-dir build -R tst_network_conf --output-on-failure`. Test executables also live in `build/Output/`.
-- No CI workflow, formatter, linter, pre-commit, task runner, or repo-local OpenCode config is present; use CMake build plus CTest as the source of truth.
+- Focused test loop: `cmake --build build --target tst_network_conf` then `ctest --test-dir build -R tst_network_conf --output-on-failure`; test executables also live in `build/Output/`.
+- Use `QT_QPA_PLATFORM=offscreen` for headless CTest runs; GitHub Actions sets it only on the test step.
+- CI workflows under `.github/workflows/` use Qt 6.8.3 + Ninja, default `BUILD_WITH_DAEMON=ON`, and upload/package `build/Output`. `build-release.yml` runs from branches named `vX.Y.Z` and requires that version to match root `project(... VERSION ...)`.
+- No formatter, linter, pre-commit, task runner, lockfile, or repo-local OpenCode config is present; use CMake build plus CTest as the source of truth.
 
 ## CMake And Files
 
@@ -45,7 +47,7 @@ ctest --test-dir build --output-on-failure
 - `AppServices services(db.database(), &engine)` intentionally uses `QQmlApplicationEngine` as parent. Pre-created QML singletons use `QQmlEngine::setObjectOwnership(..., CppOwnership)`; do not replace this with `QApplication` parenting or `setContextProperty`.
 - `Card.qml` uses `contentSpacing`; do not add/rename it to `spacing` because `Frame.spacing` is FINAL in Qt 6.7+.
 - Prefer `palette.*` colors in QML; status colors come from `Theme.qml` (`statusGreen`, `statusOrange`, `statusRed`, `statusBlue`).
-- `PageContainer.qml` relies on `State` + `Transition` with `visible: opacity > 0.01` so hidden pages do not receive events.
+- `PageContainer.qml` uses a single `Loader`; switching pages destroys the old page instance, so page-local state and open dialogs are not preserved across navigation.
 
 ## Runtime Data
 
