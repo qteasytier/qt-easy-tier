@@ -125,7 +125,7 @@ set(QTET_QML_FILES
     src/qml/components/ProxyNetworkListItem.qml
     src/qml/components/ImportNodesDialog.qml
     src/qml/components/Theme.qml
-    src/qml/pages/LeftPanel.qml
+    src/qml/pages/InstanceList.qml
     src/qml/pages/NetworkPage.qml
     src/qml/pages/NetworkOptions.qml
     src/qml/pages/NetworkRuningStatus.qml

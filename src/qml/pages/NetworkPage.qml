@@ -85,7 +85,7 @@ Rectangle {
             spacing: 0
 
             // 左侧面板：配置列表
-            LeftPanel {
+            InstanceList {
                 id: leftPanel
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
