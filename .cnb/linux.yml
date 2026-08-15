@@ -1,0 +1,249 @@
+# =====================================================================
+# QtEasyTier CNB 流水线 —— Linux 构建（amd64 / arm64）
+#
+# 本文件由根目录 .cnb.yml 通过 include 引入，与 .cnb/windows.yml 合并。
+#
+# 平台说明：
+#   - 使用 CNB 官方节点（cnb:arch:amd64 / cnb:arch:arm64:v8），直接使用
+#     ubuntu:24.04 镜像（不预构建自定义镜像）。系统依赖与 Qt 6.8.3 在 setup-env
+#     stage 内安装下载（等价于 GitHub 流水线的 Install system dependencies + Install Qt），
+#     Qt 安装路径通过 exports 导出为 Qt6_DIR 供后续 stage 使用。
+#
+# 注意：CNB 的 YAML 锚点（&/*）不支持跨文件引用，故本文件内所有锚点自包含，
+#       仅供本文件内部使用。
+# =====================================================================
+
+# =====================================================================
+# Linux 公共 Stage（脚本走默认 shell，语法兼容 POSIX sh）
+# =====================================================================
+
+# 从 CMakeLists.txt 提取版本号（master / PR 使用）
+.st-extract-version: &st-extract-version
+  name: extract-version
+  script: |
+    VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/^project\(QtEasyTier VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+    if [ -z "$VERSION" ]; then
+      echo "无法从 CMakeLists.txt 提取版本号" >&2
+      exit 1
+    fi
+    echo "##[set-output VERSION=$VERSION]"
+  exports:
+    VERSION: QTET_VERSION
+
+# v* 分支专用：校验分支名版本与 CMakeLists.txt 一致（对应 GitHub release-info job）
+.st-extract-version-release: &st-extract-version-release
+  name: extract-version
+  script: |
+    VERSION="${CNB_BRANCH#v}"
+    if [ "$VERSION" = "$CNB_BRANCH" ]; then
+      echo "分支 $CNB_BRANCH 不是 v* release 分支" >&2
+      exit 1
+    fi
+    CM_VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/^project\(QtEasyTier VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+    if [ "$CM_VERSION" != "$VERSION" ]; then
+      echo "CMakeLists.txt 中的版本 $CM_VERSION 与分支 $CNB_BRANCH 不一致" >&2
+      exit 1
+    fi
+    echo "##[set-output VERSION=$VERSION]"
+  exports:
+    VERSION: QTET_VERSION
+
+# 安装系统依赖 + 下载 Qt 6.8.3（等价于 GitHub 流水线的 Install system dependencies + Install Qt）
+# 说明：基础镜像 ubuntu:24.04 内不预装任何构建工具，每次构建都由此 stage 准备环境；
+#       Qt 安装目录通过 exports 导出为 Qt6_DIR，供 configure / build / test 使用。
+.st-setup-env: &st-setup-env
+  name: setup-env
+  script: |
+    set -e
+
+    echo "==> [1/3] 安装系统依赖"
+    apt-get update
+    apt-get install -y --no-install-recommends \
+      build-essential cmake ninja-build git bash file dpkg-dev ca-certificates \
+      libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
+      libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
+      libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
+      libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
+      libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
+      libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+      libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+      libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+      libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
+      libglu1-mesa-dev libpng-dev \
+      libglib2.0-0 libglib2.0-dev libicu-dev libdouble-conversion3 \
+      libpcre2-16-0 libmd4c0 libzstd1 \
+      python3 python3-pip \
+      && rm -rf /var/lib/apt/lists/*
+
+    echo "==> [2/3] 下载并安装 Qt ${QT_VERSION}（${QT_ARCH}，宿主 ${QT_HOST}）"
+    # Ubuntu 24.04 的 Python 3.12 受 PEP 668 限制，禁止 pip 全局安装；
+    # 本环境为构建专用，--break-system-packages 可安全绕过
+    pip3 install --no-cache-dir --break-system-packages aqtinstall
+    aqt install-qt ${QT_HOST} desktop ${QT_VERSION} ${QT_ARCH} -O /opt/qt
+    rm -rf /root/.cache
+
+    echo "==> [3/3] 校验并导出 Qt 环境"
+    Qt6_DIR=/opt/qt/${QT_VERSION}/${QT_DIR_NAME}
+    export PATH="$Qt6_DIR/bin:$PATH"
+    qmake -query QT_VERSION
+    qmake -query QT_INSTALL_PREFIX
+    echo "##[set-output Qt6_DIR=$Qt6_DIR]"
+  exports:
+    Qt6_DIR: Qt6_DIR
+
+.st-configure: &st-configure
+  name: configure
+  script: |
+    # Qt6_DIR 兜底：若 setup-env 导出未生效，按构建架构推导 aqt 实际安装目录（无 linux_ 前缀）
+    if [ -z "${Qt6_DIR:-}" ]; then
+      if [ "$QTET_BUILD_ARCH" = "arm64" ]; then
+        Qt6_DIR="/opt/qt/${QT_VERSION:-6.8.3}/gcc_arm64"
+      else
+        Qt6_DIR="/opt/qt/${QT_VERSION:-6.8.3}/gcc_64"
+      fi
+      echo "Qt6_DIR 为空，已按 QTET_BUILD_ARCH=$QTET_BUILD_ARCH 推导为 $Qt6_DIR"
+    fi
+    # 目录校验：失败时打印实际内容，便于快速定位模块目录名
+    if [ ! -d "$Qt6_DIR" ]; then
+      echo "Qt6_DIR 目录不存在: $Qt6_DIR" >&2
+      echo "--- /opt/qt 实际内容 ---"
+      ls -R /opt/qt 2>/dev/null || true
+      exit 1
+    fi
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$Qt6_DIR"
+
+.st-build: &st-build
+  name: build
+  script: cmake --build build --parallel "$(nproc)"
+
+.st-test: &st-test
+  name: test
+  env:
+    QT_QPA_PLATFORM: offscreen
+    # 测试可执行文件动态链接 Qt 库，显式指向 Qt 安装目录（双保险，防 RPATH 失效）
+    LD_LIBRARY_PATH: $Qt6_DIR/lib
+  script: ctest --test-dir build --output-on-failure
+
+# 打 deb 包（build_deb.sh 以当前目录作为输出目录，故先 cd 到 build/Output）
+.st-package-deb: &st-package-deb
+  name: package-deb
+  script: |
+    cd build/Output
+    bash ../../assets/package/linux/build_deb.sh -v "$QTET_VERSION" -a "$QTET_BUILD_ARCH"
+
+# v* 分支专用：发布 Release（tag 已存在时该步骤允许失败，不影响构建结果）
+.st-publish-release: &st-publish-release
+  name: publish-release
+  type: git:release
+  options:
+    tag: $QTET_VERSION
+    description: "QtEasyTier v$QTET_VERSION（桌面版）发布"
+  allowFailure: true
+
+# =====================================================================
+# Pipeline 基础配置（YAML 锚点，供各事件引用）
+# =====================================================================
+
+# Linux amd64：官方节点 + ubuntu:24.04（依赖与 Qt 在 setup-env stage 内安装）
+.lnx-amd64: &lnx-amd64
+  runner:
+    tags: cnb:arch:amd64
+  docker:
+    image: ubuntu:24.04
+  env:
+    QTET_BUILD_ARCH: amd64
+    QT_VERSION: 6.8.3
+    # aqt 下载参数：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名（无 linux_ 前缀）
+    QT_HOST: linux
+    QT_ARCH: linux_gcc_64
+    QT_DIR_NAME: gcc_64
+
+# Linux arm64：官方节点 + ubuntu:24.04（依赖与 Qt 在 setup-env stage 内安装）
+# QT_HOST=linux_arm64：让 aqt 从 Qt 官方 linux_arm64 仓库下载（对应 GitHub 原生 ARM runner）
+.lnx-arm64: &lnx-arm64
+  runner:
+    tags: cnb:arch:arm64:v8
+  docker:
+    image: ubuntu:24.04
+  env:
+    QTET_BUILD_ARCH: arm64
+    QT_VERSION: 6.8.3
+    # aqt 下载参数：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名（无 linux_ 前缀）
+    QT_HOST: linux_arm64
+    QT_ARCH: linux_gcc_arm64
+    QT_DIR_NAME: gcc_arm64
+
+# =====================================================================
+# 事件编排（Linux 部分）
+# =====================================================================
+
+# ---- master 分支 push：构建 + 测试 + 打包（对应 build-master.yml） ----
+master:
+  push:
+    linux-amd64:
+      <<: *lnx-amd64
+      name: Linux amd64 (master)
+      stages:
+        - *st-extract-version
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+        - *st-package-deb
+    linux-arm64:
+      <<: *lnx-arm64
+      name: Linux arm64 (master)
+      stages:
+        - *st-extract-version
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+        - *st-package-deb
+
+# ---- 任意分支 PR：构建 + 测试（对应 build-pr.yml，不打包） ----
+"**":
+  pull_request:
+    linux-amd64:
+      <<: *lnx-amd64
+      name: Linux amd64 (PR check)
+      stages:
+        - *st-extract-version
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+    linux-arm64:
+      <<: *lnx-arm64
+      name: Linux arm64 (PR check)
+      stages:
+        - *st-extract-version
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+
+# ---- vX.Y.Z 分支 push：构建 + 打包 + 发布 Release（对应 build-release.yml） ----
+v*:
+  push:
+    linux-amd64:
+      <<: *lnx-amd64
+      name: Linux amd64 (release)
+      stages:
+        - *st-extract-version-release
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+        - *st-package-deb
+        - *st-publish-release
+    linux-arm64:
+      <<: *lnx-arm64
+      name: Linux arm64 (release)
+      stages:
+        - *st-extract-version-release
+        - *st-setup-env
+        - *st-configure
+        - *st-build
+        - *st-test
+        - *st-package-deb

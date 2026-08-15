@@ -1,0 +1,179 @@
+# =====================================================================
+# QtEasyTier CNB 流水线 —— Windows 构建（amd64）
+#
+# 本文件由根目录 .cnb.yml 通过 include 引入，与 .cnb/linux.yml 合并。
+#
+# 平台说明：
+#   - Windows 使用你自己连接的构建机（runner.namespace: group + runner.tags），
+#     构建机上已装好 MSYS2/CLANG64 + Qt6 工具链（含 Inno Setup），流水线不安装任何
+#     依赖，直接进入源码编译。Windows 无 Docker 构建环境，stage 脚本默认走 PowerShell，
+#     MSYS2 构建通过调用 C:\msys64\usr\bin\bash.exe 完成。
+#   - 若你的构建机标签不是 "windows"，请修改下方 .win 锚点中的 runner.tags。
+#
+# 注意：CNB 的 YAML 锚点（&/*）不支持跨文件引用，故本文件内所有锚点自包含，
+#       仅供本文件内部使用。
+# =====================================================================
+
+# =====================================================================
+# Windows 公共 Stage（脚本默认走 PowerShell 5.x）
+# =====================================================================
+
+# 从 CMakeLists.txt 提取版本号（master / PR 使用）
+.st-win-extract-version: &st-win-extract-version
+  name: extract-version
+  script: |
+    $line = Select-String -Path CMakeLists.txt -Pattern '^project\(QtEasyTier VERSION ' | Select-Object -First 1
+    if (-not $line) { throw '无法从 CMakeLists.txt 提取版本号' }
+    $version = $line.Line -replace '^project\(QtEasyTier VERSION ([0-9]+\.[0-9]+\.[0-9]+).*', '$1'
+    Write-Output "##[set-output VERSION=$version]"
+  exports:
+    VERSION: QTET_VERSION
+
+# v* 分支专用：校验分支名版本与 CMakeLists.txt 一致
+.st-win-extract-version-release: &st-win-extract-version-release
+  name: extract-version
+  script: |
+    $branch = $env:CNB_BRANCH
+    if (-not $branch.StartsWith('v')) { throw "分支 $branch 不是 v* release 分支" }
+    $version = $branch.Substring(1)
+    $pattern = '^project\(QtEasyTier VERSION ' + [regex]::Escape($version) + '\)'
+    $line = Select-String -Path CMakeLists.txt -Pattern $pattern | Select-Object -First 1
+    if (-not $line) { throw "CMakeLists.txt 中的版本与分支 $branch 不一致" }
+    Write-Output "##[set-output VERSION=$version]"
+  exports:
+    VERSION: QTET_VERSION
+
+# MSYS2 构建：configure + build + test（直接使用构建机上已装好的工具链）
+# 通过调用 C:\msys64\usr\bin\bash.exe 执行，等价于 GitHub 流水线的 msys2 shell。
+.st-win-build-full: &st-win-build-full
+  name: build-msys2
+  script: |
+    $bash = @('C:\msys64\usr\bin\bash.exe', 'D:\msys64\usr\bin\bash.exe') | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $bash) { throw '未找到 MSYS2 bash.exe，请确认构建机上已安装 MSYS2/CLANG64 并配置好 Qt6 工具链' }
+
+    $script = @'
+    set -euxo pipefail
+    export MSYSTEM=CLANG64
+    export CHERE_INVOKING=1
+    export PATH="/clang64/bin:/usr/bin:/bin:$PATH"
+    cd "$(cygpath "$CNB_BUILD_WORKSPACE")"
+
+    # 1. Configure（默认会克隆并构建 qtet-daemon，需要网络）
+    #    显式指定 clang 编译器，避免 CMake 探测到 PATH 中其他编译器
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH=/clang64 \
+      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
+    # 2. Build
+    cmake --build build --parallel
+
+    # 3. Test
+    export QT_QPA_PLATFORM=offscreen
+    ctest --test-dir build --output-on-failure
+    '@
+    # 写入临时脚本文件再执行，避免 PowerShell 向 bash.exe 传多行引号参数被破坏
+    $tmp = Join-Path $env:TEMP 'qtet_msys2_build.sh'
+    [System.IO.File]::WriteAllText($tmp, $script.Replace("`r`n", "`n"))
+    & $bash $tmp
+    if ($LASTEXITCODE -ne 0) { throw "MSYS2 构建失败，退出码 $LASTEXITCODE" }
+
+# windeployqt：拷贝 Qt 运行库到 build/Output（对应 GitHub Prepare Runtime 步骤）
+.st-win-runtime: &st-win-runtime
+  name: prepare-runtime
+  script: |
+    $bash = @('C:\msys64\usr\bin\bash.exe', 'D:\msys64\usr\bin\bash.exe') | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $bash) { throw '未找到 MSYS2 bash.exe，请确认构建机上已安装 MSYS2/CLANG64 并配置好 Qt6 工具链' }
+
+    $script = @'
+    set -euxo pipefail
+    export MSYSTEM=CLANG64
+    export CHERE_INVOKING=1
+    export PATH="/clang64/bin:/usr/bin:/clang64/share/qt6/bin:$PATH"
+    cd "$(cygpath "$CNB_BUILD_WORKSPACE")"
+
+    windeployqt --qmldir src/qml build/Output/appQtEasyTier.exe
+    '@
+    $tmp = Join-Path $env:TEMP 'qtet_windeployqt.sh'
+    [System.IO.File]::WriteAllText($tmp, $script.Replace("`r`n", "`n"))
+    & $bash $tmp
+    if ($LASTEXITCODE -ne 0) { throw "windeployqt 失败，退出码 $LASTEXITCODE" }
+
+# 打包 zip（对应 GitHub Create Zip 步骤）
+.st-win-zip: &st-win-zip
+  name: create-zip
+  env:
+    QTET_VERSION: $QTET_VERSION
+  script: |
+    $version = $env:QTET_VERSION
+    $zipPath = "build\Output\qteasytier_v${version}_windows_amd64.zip"
+    if (Test-Path $zipPath) { Remove-Item $zipPath }
+    Compress-Archive -Path 'build\Output\*' -DestinationPath $zipPath -Force
+    Write-Output "已创建 $zipPath"
+
+# Inno Setup 安装包（对应 GitHub Create Installer 步骤，构建机上需装 Inno Setup 6）
+.st-win-installer: &st-win-installer
+  name: build-installer
+  env:
+    QTET_VERSION: $QTET_VERSION
+  script: |
+    $version = $env:QTET_VERSION
+    $root = $env:CNB_BUILD_WORKSPACE
+    $iscc = @("$env:ProgramFiles\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $iscc) { throw '未找到 Inno Setup 6（ISCC.exe），请确认构建机上已安装' }
+
+    $buildOut = Join-Path $root 'build\Output'
+    $iss = Join-Path $root 'assets\package\windows\package.iss'
+    & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$buildOut" "/DSourceRootDir=$root" $iss
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
+
+# =====================================================================
+# Pipeline 基础配置（YAML 锚点，供各事件引用）
+# =====================================================================
+
+# Windows：你自己连接的构建机（namespace: group + 节点标签）
+# 若你的构建机标签不是 "windows"，请在此处改为实际标签（如 [windows, x86_64]）。
+.win: &win
+  runner:
+    namespace: group
+    tags:
+      - windows
+
+# =====================================================================
+# 事件编排（Windows 部分）
+# =====================================================================
+
+# ---- master 分支 push：构建 + 测试 + 打包（对应 build-master.yml） ----
+master:
+  push:
+    windows:
+      <<: *win
+      name: Windows amd64 (master)
+      stages:
+        - *st-win-extract-version
+        - *st-win-build-full
+        - *st-win-runtime
+        - *st-win-zip
+        - *st-win-installer
+
+# ---- 任意分支 PR：构建 + 测试（对应 build-pr.yml，不打包） ----
+"**":
+  pull_request:
+    windows:
+      <<: *win
+      name: Windows amd64 (PR check)
+      stages:
+        - *st-win-extract-version
+        - *st-win-build-full
+
+# ---- vX.Y.Z 分支 push：构建 + 打包 + 发布 Release（对应 build-release.yml） ----
+v*:
+  push:
+    windows:
+      <<: *win
+      name: Windows amd64 (release)
+      stages:
+        - *st-win-extract-version-release
+        - *st-win-build-full
+        - *st-win-runtime
+        - *st-win-zip
+        - *st-win-installer
