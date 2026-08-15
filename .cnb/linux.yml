@@ -110,7 +110,8 @@
       ls -R /opt/qt 2>/dev/null || true
       exit 1
     fi
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$Qt6_DIR"
+    # 后端从 CNB 克隆（qtet-daemon 仓库托管于 cnb.cool）
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$Qt6_DIR" -DCLONE_DAEMON_FROM=CNB
 
 .st-build: &st-build
   name: build

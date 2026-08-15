@@ -15,7 +15,7 @@ ctest --test-dir build --output-on-failure
 
 - All binaries and libraries go under `${CMAKE_BINARY_DIR}/Output`, not the build root.
 - For offline/frontend-only work, configure with `-DBUILD_WITH_DAEMON=OFF`; default configure builds and collects `qtet-daemon` immediately via `cmake/QtEasyTierDaemon.cmake` and `cmake/scripts/*.cmake`.
-- Default daemon clone is GitHub; use `-DCLONE_DAEMON_FROM_GITEE=ON` for Gitee. If daemon build is enabled, configure needs `git` and network unless `build/qtet-daemon` is already present.
+- Default daemon clone is GitHub (`CLONE_DAEMON_FROM=GITHUB`); set `-DCLONE_DAEMON_FROM=GITEE` or `-DCLONE_DAEMON_FROM=CNB` to clone from Gitee or cnb.cool instead. If daemon build is enabled, configure needs `git` and network unless `build/qtet-daemon` is already present.
 - Windows is documented for MinGW64/UCRT, not MSVC. With daemon enabled, configure also copies `ThirdParty/WinSW/DaemonInstaller.xml` to `Output/DaemonInstaller.xml` and downloads WinSW as `Output/DaemonInstaller.exe`.
 - Focused test loop: `cmake --build build --target tst_network_conf` then `ctest --test-dir build -R tst_network_conf --output-on-failure`; test executables also live in `build/Output/`.
 - Use `QT_QPA_PLATFORM=offscreen` for headless CTest runs; GitHub Actions sets it only on the test step.

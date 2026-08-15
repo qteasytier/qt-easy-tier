@@ -58,11 +58,12 @@
     export PATH="/clang64/bin:/usr/bin:/bin:$PATH"
     cd "$(cygpath "$CNB_BUILD_WORKSPACE")"
 
-    # 1. Configure（默认会克隆并构建 qtet-daemon，需要网络）
+    # 1. Configure（默认会克隆并构建 qtet-daemon，需要网络；后端从 CNB 克隆）
     #    显式指定 clang 编译器，避免 CMake 探测到 PATH 中其他编译器
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_PREFIX_PATH=/clang64 \
-      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+      -DCLONE_DAEMON_FROM=CNB
 
     # 2. Build
     cmake --build build --parallel

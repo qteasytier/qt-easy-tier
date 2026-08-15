@@ -22,7 +22,9 @@ set(CMAKE_AUTORCC ON)
 
 # 构建后端可选参数
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
-option(CLONE_DAEMON_FROM_GITEE "Clone qtet-daemon from Gitee instead of GitHub" OFF)
+# qtet-daemon 克隆来源：GITEE / GITHUB / CNB，默认 GITHUB
+set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHUB or CNB")
+set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
 
 include(cmake/QtEasyTierDaemon.cmake)
 

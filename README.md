@@ -95,14 +95,16 @@ cmake --build build -j
 
 关闭 `BUILD_WITH_DAEMON` 后，CMake 不会构建和收集 `qtet-daemon`。这种模式适合离线开发、前端验证和单元测试。
 
-### 从 Gitee 克隆后端
+### 指定后端克隆来源
+
+默认从 GitHub 克隆后端源码，可通过 `CLONE_DAEMON_FROM` 选择来源（`GITEE` / `GITHUB` / `CNB`）：
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM_GITEE=ON
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM=GITEE
 cmake --build build -j
 ```
 
-开启 `CLONE_DAEMON_FROM_GITEE` 后，CMake 会从 Gitee 克隆后端源码。
+设置 `-DCLONE_DAEMON_FROM=GITEE` 后，CMake 会从 Gitee 克隆后端源码；设为 `CNB` 则从 cnb.cool 克隆。
 
 ## 测试
 

@@ -18,10 +18,10 @@ ctest --test-dir build --output-on-failure
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF
 ```
 
-默认从 GitHub 克隆后端源码；如需改用 Gitee，可开启：
+默认从 GitHub 克隆后端源码；如需改用其他来源，可通过 `CLONE_DAEMON_FROM` 指定（`GITEE` / `GITHUB` / `CNB`）：
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM_GITEE=ON
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM=GITEE
 ```
 
 Windows 当前仅适配 MinGW64 构建，不面向 MSVC / Visual Studio 生成器做兼容。Windows 下 `qtet-daemon` 尚未适配，CMake 会跳过后端构建和收集，当前只构建前端：
@@ -825,7 +825,7 @@ qtet_config / qtet_log
 - 下层不要反向依赖上层。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
 - 新 C++ 源文件应加入所属模块 target，而不是随意加入应用 target。
-- 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；传入 `-DCLONE_DAEMON_FROM_GITEE=ON` 时从 Gitee 克隆后端源码。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
+- 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；`-DCLONE_DAEMON_FROM=GITEE`（或 `CNB`）时从对应来源克隆后端源码，默认 `GITHUB`。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
 - Windows 当前只构建前端：即使 `BUILD_WITH_DAEMON=ON`，CMake 也会跳过 `qtet-daemon` 构建和收集。Windows 开发仅按 MinGW64 工具链适配，不为 MSVC 添加专用配置或兼容代码。
 
 各 target 大致职责：
