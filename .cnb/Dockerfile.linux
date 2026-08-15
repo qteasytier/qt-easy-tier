@@ -1,0 +1,48 @@
+# QtEasyTier Linux 构建环境镜像（CNB 流水线专用）
+#
+# 参考 .github/workflows/build-master.yml 中 linux job 的依赖与 Qt 安装方式：
+#   - 系统依赖：apt 安装的 X11/XCB 相关开发库
+#   - Qt：使用 aqtinstall 下载官方 Qt 6.8.3（linux desktop）
+#
+# 用法：在 .cnb.yml 中通过 docker.build 引用本文件，
+#       通过 buildArgs 注入 QT_ARCH 区分 amd64 / arm64：
+#   - amd64: QT_ARCH=linux_gcc_64
+#   - arm64: QT_ARCH=linux_gcc_arm64
+#
+# 镜像构建完成后会被 CNB 自动缓存，仅当 Dockerfile 内容变化时才会重建。
+
+ARG QT_VERSION=6.8.3
+FROM ubuntu:24.04
+
+ARG QT_VERSION
+ARG QT_ARCH=linux_gcc_64
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV QT_VERSION=${QT_VERSION}
+ENV QT_ARCH=${QT_ARCH}
+
+# 系统依赖（与 GitHub 流水线 linux job 保持一致）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ninja-build git bash file dpkg-dev ca-certificates \
+    libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
+    libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
+    libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
+    libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
+    libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
+    libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+    libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+    libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+    libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
+    libglu1-mesa-dev libpng-dev \
+    python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 aqtinstall 并下载 Qt 6.8.3（Linux Desktop，架构由 QT_ARCH 决定）
+RUN pip3 install --no-cache-dir aqtinstall \
+    && aqt install-qt linux desktop ${QT_VERSION} ${QT_ARCH} -O /opt/qt \
+    && rm -rf /root/.cache
+
+# 暴露 Qt 环境变量，供流水线 stage 脚本直接使用
+ENV Qt6_DIR=/opt/qt/${QT_VERSION}/${QT_ARCH}
+ENV PATH=${Qt6_DIR}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${Qt6_DIR}/lib:${LD_LIBRARY_PATH}
