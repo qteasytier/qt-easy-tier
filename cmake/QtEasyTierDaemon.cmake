@@ -69,7 +69,7 @@ function(qtet_configure_daemon)
                 -DQTET_OUTPUT_DIR=${QTET_OUTPUT_DIR}
                 -DQTET_DAEMON_BIN_NAME=${QTET_DAEMON_BIN_NAME}
                 -DQTET_WINSW_CONFIG_PATH=${CMAKE_SOURCE_DIR}/ThirdParty/WinSW/DaemonInstaller.xml
-                -DQTET_WINSW_DOWNLOAD_URL=https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe
+                -DQTET_WINSW_DOWNLOAD_URL=https://cnb.cool/myqfeng/qteasytier/easytier-ffi-bin/-/releases/download/easytier-ffi-v2.6.4/WinSW-x64.exe
                 -P "${CMAKE_SOURCE_DIR}/cmake/scripts/CollectDaemon.cmake"
         RESULT_VARIABLE qtet_daemon_collect_result
     )
