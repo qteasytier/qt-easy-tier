@@ -110,7 +110,7 @@
     Compress-Archive -Path 'build\Output\*' -DestinationPath $zipPath -Force
     Write-Output "已创建 $zipPath"
 
-# Inno Setup 安装包（对应 GitHub Create Installer 步骤，构建机上需装 Inno Setup 6）
+# Inno Setup 安装包（对应 GitHub Create Installer 步骤，构建机上需装 Inno Setup 7）
 .st-win-installer: &st-win-installer
   name: build-installer
   env:
@@ -118,8 +118,8 @@
   script: |
     $version = $env:QTET_VERSION
     $root = $env:CNB_BUILD_WORKSPACE
-    $iscc = @("$env:ProgramFiles\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if (-not $iscc) { throw '未找到 Inno Setup 6（ISCC.exe），请确认构建机上已安装' }
+    $iscc = @("$env:ProgramFiles\Inno Setup 7\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $iscc) { throw '未找到 Inno Setup 7（ISCC.exe），请确认构建机上已安装' }
 
     $buildOut = Join-Path $root 'build\Output'
     $iss = Join-Path $root 'assets\package\windows\package.iss'
