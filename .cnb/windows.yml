@@ -133,26 +133,95 @@
     & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$packageOut" "/DSourceRootDir=$root" $iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
 
-# 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
-# 当前提交，构建页面即可"附件签出"下载 .zip 与安装包 .exe。
+# 上传 commit 附件（master / PR）：
+# Windows 自托管 runner 无 Docker，无法运行 cnbcool/attachments 插件（会报
+# "Runner does not enable Docker."）。改为通过 CNB OpenAPI 三步式上传：
+#   1. POST /{repo}/-/git/commit-assets/{sha1}/asset-upload-url 获取 upload_url + verify_url
+#   2. PUT 文件二进制到 upload_url
+#   3. POST verify_url（完整 URL）确认上传
+# 全程纯 HTTP，凭 $CNB_TOKEN 认证，不依赖 Docker。
 .st-win-upload-attachments: &st-win-upload-attachments
   name: upload-attachments
-  image: cnbcool/attachments:latest
-  settings:
-    attachments:
-      - "./build/Package/qteasytier_v*windows_amd64.zip"
-      - "./build/Package/qteasytier_v*windows_amd64.exe"
+  env:
+    QTET_VERSION: $QTET_VERSION
+  script: |
+    $ErrorActionPreference = 'Stop'
+    $repo = $env:CNB_REPO_SLUG
+    $sha1 = $env:CNB_COMMIT
+    $token = $env:CNB_TOKEN
+    $version = $env:QTET_VERSION
+    $api = "https://api.cnb.cool"
+    $headers = @{ Authorization = "Bearer $token"; Accept = "application/vnd.cnb.api+json" }
 
-# 上传 release 附件（v* release）：指定 tag 挂到对应 release，要求该 tag 已存在且已
-# 创建 release。Windows 侧当前无 publish-release，release 未就绪时允许失败，不阻塞构建。
+    $files = @(
+      "build\Package\qteasytier_v${version}_windows_amd64.zip",
+      "build\Package\qteasytier_v${version}_windows_amd64.exe"
+    )
+
+    foreach ($f in $files) {
+      if (-not (Test-Path $f)) { throw "产物不存在: $f" }
+      $name = Split-Path $f -Leaf
+      $size = (Get-Item $f).Length
+      Write-Output "上传 commit 附件: $name ($size bytes)"
+
+      # 1. 获取上传地址
+      $resp = Invoke-RestMethod -Uri "$api/$repo/-/git/commit-assets/$sha1/asset-upload-url" -Method Post `
+        -Headers $headers -ContentType "application/json" `
+        -Body (@{ asset_name = $name; size = $size } | ConvertTo-Json)
+
+      # 2. PUT 文件到预签名地址
+      $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $f))
+      Invoke-WebRequest -Uri $resp.upload_url -Method Put -Body $bytes -UseBasicParsing | Out-Null
+
+      # 3. POST verify_url 完成确认（verify_url 已含完整路径与编码）
+      Invoke-RestMethod -Uri $resp.verify_url -Method Post -Headers $headers | Out-Null
+      Write-Output "上传成功: $name"
+    }
+
+# 上传 release 附件（v* release）：
+# 与 commit 附件同理，改用 release 接口；先按 tag 取 release_id，再三步式上传。
+# Windows 侧无 publish-release，release 未就绪时允许失败，不阻塞构建。
 .st-win-upload-release-attachments: &st-win-upload-release-attachments
   name: upload-release-attachments
-  image: cnbcool/attachments:latest
-  settings:
-    tag: $QTET_VERSION
-    attachments:
-      - "./build/Package/qteasytier_v*windows_amd64.zip"
-      - "./build/Package/qteasytier_v*windows_amd64.exe"
+  env:
+    QTET_VERSION: $QTET_VERSION
+  script: |
+    $ErrorActionPreference = 'Stop'
+    $repo = $env:CNB_REPO_SLUG
+    $token = $env:CNB_TOKEN
+    $version = $env:QTET_VERSION
+    $api = "https://api.cnb.cool"
+    $headers = @{ Authorization = "Bearer $token"; Accept = "application/vnd.cnb.api+json" }
+
+    # 0. 按 tag 取 release_id
+    $rel = Invoke-RestMethod -Uri "$api/$repo/-/releases/tags/$version" -Method Get -Headers $headers
+    $releaseId = $rel.id
+    if (-not $releaseId) { throw "未找到 tag=$version 对应的 release" }
+
+    $files = @(
+      "build\Package\qteasytier_v${version}_windows_amd64.zip",
+      "build\Package\qteasytier_v${version}_windows_amd64.exe"
+    )
+
+    foreach ($f in $files) {
+      if (-not (Test-Path $f)) { throw "产物不存在: $f" }
+      $name = Split-Path $f -Leaf
+      $size = (Get-Item $f).Length
+      Write-Output "上传 release 附件: $name ($size bytes)"
+
+      # 1. 获取上传地址
+      $resp = Invoke-RestMethod -Uri "$api/$repo/-/releases/$releaseId/asset-upload-url" -Method Post `
+        -Headers $headers -ContentType "application/json" `
+        -Body (@{ asset_name = $name; size = $size } | ConvertTo-Json)
+
+      # 2. PUT 文件到预签名地址
+      $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $f))
+      Invoke-WebRequest -Uri $resp.upload_url -Method Put -Body $bytes -UseBasicParsing | Out-Null
+
+      # 3. POST verify_url 完成确认
+      Invoke-RestMethod -Uri $resp.verify_url -Method Post -Headers $headers | Out-Null
+      Write-Output "上传成功: $name"
+    }
   allowFailure: true
 
 # =====================================================================
