@@ -140,6 +140,26 @@
     description: "QtEasyTier v$QTET_VERSION（桌面版）发布"
   allowFailure: true
 
+# 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
+# 当前提交，构建页面即可"附件签出"下载 .deb 安装包。
+.st-upload-attachments: &st-upload-attachments
+  name: upload-attachments
+  image: cnbcool/attachments:latest
+  settings:
+    attachments:
+      - "./build/Output/qteasytier_v*.deb"
+
+# 上传 release 附件（v* release）：指定 tag 挂到对应 release，要求该 tag 已存在且已
+# 创建 release（由前置 publish-release 负责）。release 未就绪时允许失败，不阻塞构建。
+.st-upload-release-attachments: &st-upload-release-attachments
+  name: upload-release-attachments
+  image: cnbcool/attachments:latest
+  settings:
+    tag: $QTET_VERSION
+    attachments:
+      - "./build/Output/qteasytier_v*.deb"
+  allowFailure: true
+
 # =====================================================================
 # Pipeline 基础配置（YAML 锚点，供各事件引用）
 # =====================================================================
@@ -190,6 +210,7 @@ master:
         - *st-build
         - *st-test
         - *st-package-deb
+        - *st-upload-attachments
     linux-arm64:
       <<: *lnx-arm64
       name: Linux arm64 (master)
@@ -200,8 +221,9 @@ master:
         - *st-build
         - *st-test
         - *st-package-deb
+        - *st-upload-attachments
 
-# ---- 任意分支 PR：构建 + 测试（对应 build-pr.yml，不打包） ----
+# ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件（对应 build-pr.yml） ----
 "**":
   pull_request:
     linux-amd64:
@@ -213,6 +235,8 @@ master:
         - *st-configure
         - *st-build
         - *st-test
+        - *st-package-deb
+        - *st-upload-attachments
     linux-arm64:
       <<: *lnx-arm64
       name: Linux arm64 (PR check)
@@ -222,6 +246,8 @@ master:
         - *st-configure
         - *st-build
         - *st-test
+        - *st-package-deb
+        - *st-upload-attachments
 
 # ---- vX.Y.Z 分支 push：构建 + 打包 + 发布 Release（对应 build-release.yml） ----
 v*:
@@ -237,6 +263,7 @@ v*:
         - *st-test
         - *st-package-deb
         - *st-publish-release
+        - *st-upload-release-attachments
     linux-arm64:
       <<: *lnx-arm64
       name: Linux arm64 (release)
@@ -247,3 +274,5 @@ v*:
         - *st-build
         - *st-test
         - *st-package-deb
+        - *st-publish-release
+        - *st-upload-release-attachments

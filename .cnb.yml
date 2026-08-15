@@ -14,7 +14,9 @@
 #   - CNB 的 YAML 锚点（&/*）不支持跨文件引用，各平台文件内部锚点自包含。
 #   - include 合并规则：对象递归合并（同名键覆盖）、数组追加；同名事件下的不同
 #     pipeline（如 master.push 下的 linux-amd64 / linux-arm64 / windows）会并存。
-#   - 产物说明：CNB 会在构建页面自动保留工作目录中的产物（build/Output），无需显式上传。
+#   - 产物说明：CNB 不会自动保留工作目录产物，需在各平台流水线中通过
+#     cnbcool/attachments 插件显式上传附件，构建页面才会出现"附件签出"：
+#     master push / PR 上传 commit 附件，v* release 上传 release 附件。
 # =====================================================================
 
 include:

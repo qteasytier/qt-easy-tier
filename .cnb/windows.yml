@@ -126,6 +126,28 @@
     & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$buildOut" "/DSourceRootDir=$root" $iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
 
+# 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
+# 当前提交，构建页面即可"附件签出"下载 .zip 与安装包 .exe。
+.st-win-upload-attachments: &st-win-upload-attachments
+  name: upload-attachments
+  image: cnbcool/attachments:latest
+  settings:
+    attachments:
+      - "./build/Output/qteasytier_v*windows_amd64.zip"
+      - "./build/Output/qteasytier_v*windows_amd64.exe"
+
+# 上传 release 附件（v* release）：指定 tag 挂到对应 release，要求该 tag 已存在且已
+# 创建 release。Windows 侧当前无 publish-release，release 未就绪时允许失败，不阻塞构建。
+.st-win-upload-release-attachments: &st-win-upload-release-attachments
+  name: upload-release-attachments
+  image: cnbcool/attachments:latest
+  settings:
+    tag: $QTET_VERSION
+    attachments:
+      - "./build/Output/qteasytier_v*windows_amd64.zip"
+      - "./build/Output/qteasytier_v*windows_amd64.exe"
+  allowFailure: true
+
 # =====================================================================
 # Pipeline 基础配置（YAML 锚点，供各事件引用）
 # =====================================================================
@@ -142,7 +164,7 @@
 # 事件编排（Windows 部分）
 # =====================================================================
 
-# ---- master 分支 push：构建 + 测试 + 打包（对应 build-master.yml） ----
+# ---- master 分支 push：构建 + 测试 + 打包 + 上传附件（对应 build-master.yml） ----
 master:
   push:
     windows:
@@ -154,8 +176,9 @@ master:
         - *st-win-runtime
         - *st-win-zip
         - *st-win-installer
+        - *st-win-upload-attachments
 
-# ---- 任意分支 PR：构建 + 测试（对应 build-pr.yml，不打包） ----
+# ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件（对应 build-pr.yml） ----
 "**":
   pull_request:
     windows:
@@ -164,8 +187,12 @@ master:
       stages:
         - *st-win-extract-version
         - *st-win-build-full
+        - *st-win-runtime
+        - *st-win-zip
+        - *st-win-installer
+        - *st-win-upload-attachments
 
-# ---- vX.Y.Z 分支 push：构建 + 打包 + 发布 Release（对应 build-release.yml） ----
+# ---- vX.Y.Z 分支 push：构建 + 打包 + 上传 release 附件（对应 build-release.yml） ----
 v*:
   push:
     windows:
@@ -177,3 +204,4 @@ v*:
         - *st-win-runtime
         - *st-win-zip
         - *st-win-installer
+        - *st-win-upload-release-attachments
