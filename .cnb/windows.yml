@@ -99,19 +99,23 @@
     & $bash $tmp
     if ($LASTEXITCODE -ne 0) { throw "windeployqt 失败，退出码 $LASTEXITCODE" }
 
-# 打包 zip（对应 GitHub Create Zip 步骤）
+# 打包 zip（对应 GitHub Create Zip 步骤）：zip 与安装包统一输出到 build/Package
 .st-win-zip: &st-win-zip
   name: create-zip
   env:
     QTET_VERSION: $QTET_VERSION
   script: |
     $version = $env:QTET_VERSION
-    $zipPath = "build\Output\qteasytier_v${version}_windows_amd64.zip"
+    $zipPath = "build\Package\qteasytier_v${version}_windows_amd64.zip"
+    New-Item -ItemType Directory -Path 'build\Package' -Force | Out-Null
     if (Test-Path $zipPath) { Remove-Item $zipPath }
-    Compress-Archive -Path 'build\Output\*' -DestinationPath $zipPath -Force
+    # 只打包运行时文件（build/Output），不包含 zip/安装包自身
+    $items = Get-ChildItem -Path 'build\Output\*' -File | Where-Object { $_.Extension -ne '.zip' }
+    Compress-Archive -Path $items.FullName -DestinationPath $zipPath -Force
     Write-Output "已创建 $zipPath"
 
 # Inno Setup 安装包（对应 GitHub Create Installer 步骤，构建机上需装 Inno Setup 7）
+# 输出到独立的 build/Package 目录，避免与运行时文件（build/Output）混在一起，也与 zip 包解耦
 .st-win-installer: &st-win-installer
   name: build-installer
   env:
@@ -123,8 +127,10 @@
     if (-not $iscc) { throw '未找到 Inno Setup 7（ISCC.exe），请确认构建机上已安装' }
 
     $buildOut = Join-Path $root 'build\Output'
+    $packageOut = Join-Path $root 'build\Package'
+    New-Item -ItemType Directory -Path $packageOut -Force | Out-Null
     $iss = Join-Path $root 'assets\package\windows\package.iss'
-    & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$buildOut" "/DSourceRootDir=$root" $iss
+    & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$packageOut" "/DSourceRootDir=$root" $iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
 
 # 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
@@ -134,8 +140,8 @@
   image: cnbcool/attachments:latest
   settings:
     attachments:
-      - "./build/Output/qteasytier_v*windows_amd64.zip"
-      - "./build/Output/qteasytier_v*windows_amd64.exe"
+      - "./build/Package/qteasytier_v*windows_amd64.zip"
+      - "./build/Package/qteasytier_v*windows_amd64.exe"
 
 # 上传 release 附件（v* release）：指定 tag 挂到对应 release，要求该 tag 已存在且已
 # 创建 release。Windows 侧当前无 publish-release，release 未就绪时允许失败，不阻塞构建。
@@ -145,8 +151,8 @@
   settings:
     tag: $QTET_VERSION
     attachments:
-      - "./build/Output/qteasytier_v*windows_amd64.zip"
-      - "./build/Output/qteasytier_v*windows_amd64.exe"
+      - "./build/Package/qteasytier_v*windows_amd64.zip"
+      - "./build/Package/qteasytier_v*windows_amd64.exe"
   allowFailure: true
 
 # =====================================================================
