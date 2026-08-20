@@ -1,0 +1,58 @@
+# =====================================================================
+# CNB <-> GitHub 双向镜像同步（全部分支 + 标签）
+#
+# 本文件由根目录 .cnb.yml 通过 include 引入，与 linux.yml / windows.yml 合并。
+#
+# 同步方向与范围：
+#   1. CNB -> GitHub：任意分支收到 push 后，把 CNB 的「全部分支 + 标签」
+#      镜像推送到 GitHub 仓库。
+#   2. GitHub -> CNB：通过 .cnb/web_trigger.yml 的「同步 GitHub 仓库」按钮
+#      手动触发，把 GitHub 的「全部分支 + 标签」同步回本仓库。
+# =====================================================================
+
+# CNB -> GitHub：全部分支 + 标签镜像推送
+.st-sync-push: &st-sync-push
+  name: 同步代码到 GitHub
+  image: tencentcom/git-sync
+  settings:
+    target_url: https://github.com/qteasytier/qt-easy-tier.git
+    auth_type: https
+    username: ${GIT_USERNAME}
+    password: ${GIT_ACCESS_TOKEN}
+    sync_mode: push
+    # 不指定 branch：插件执行 git push target --all，推送全部分支
+    push_tags: true
+    # 强制推送：本仓库为唯一真源，GitHub 仅作镜像；当 GitHub 侧历史
+    # 分叉（non-fast-forward）时以 CNB 的分支状态覆盖 GitHub，避免同步卡死。
+    force: true
+
+# GitHub -> CNB：全部分支 + 标签同步
+.st-sync-pull: &st-sync-pull
+  name: 从 GitHub 同步代码
+  image: tencentcom/git-sync
+  settings:
+    target_url: https://github.com/qteasytier/qt-easy-tier.git
+    auth_type: https
+    username: ${GIT_USERNAME}
+    password: ${GIT_ACCESS_TOKEN}
+    sync_mode: pull
+    # 不指定 branch：插件遍历 GitHub 全部分支，逐个同步回本仓库
+    push_tags: true
+
+"**":
+  # ---- 任意分支 push：把 CNB 全部分支 + 标签镜像推送到 GitHub ----
+  push:
+    sync-to-github:
+      imports:
+        - https://cnb.cool/myqfeng/keys/-/blob/main/github.yml
+      stages:
+        - *st-sync-push
+
+  # ---- 任意分支：按钮触发（event 定义于 .cnb/web_trigger.yml），
+  #      从 GitHub 拉取全部分支 + 标签到本仓库 ----
+  web_trigger_sync:
+    sync-from-github:
+      imports:
+        - https://cnb.cool/myqfeng/keys/-/blob/main/github.yml
+      stages:
+        - *st-sync-pull

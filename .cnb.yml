@@ -1,24 +1,4 @@
-# =====================================================================
-# QtEasyTier CNB 流水线（.cnb.yml）
-#
-# 本文件仅通过 include 引用各平台的独立构建配置，平台构建逻辑拆分在：
-#   - .cnb/linux.yml    -> Linux amd64 / arm64 构建（官方节点 + ubuntu:24.04）
-#   - .cnb/windows.yml  -> Windows amd64 构建（自托管构建机 + MSYS2/CLANG64）
-#
-# 参考 GitHub 流水线：
-#   .github/workflows/build-master.yml   -> master 分支 push（Linux amd64/arm64 + Windows amd64）
-#   .github/workflows/build-pr.yml       -> 任意分支 PR（Linux amd64/arm64 + Windows amd64，仅构建+测试）
-#   .github/workflows/build-release.yml  -> vX.Y.Z 分支 push（构建 + 打包 + 发布 Release）
-#
-# 说明：
-#   - CNB 的 YAML 锚点（&/*）不支持跨文件引用，各平台文件内部锚点自包含。
-#   - include 合并规则：对象递归合并（同名键覆盖）、数组追加；同名事件下的不同
-#     pipeline（如 master.push 下的 linux-amd64 / linux-arm64 / windows）会并存。
-#   - 产物说明：CNB 不会自动保留工作目录产物，需在各平台流水线中通过
-#     cnbcool/attachments 插件显式上传附件，构建页面才会出现"附件签出"：
-#     master push / PR 上传 commit 附件，v* release 上传 release 附件。
-# =====================================================================
-
 include:
   - .cnb/linux.yml
   - .cnb/windows.yml
+  - .cnb/sync_github.yml
