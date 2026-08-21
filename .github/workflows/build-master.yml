@@ -192,14 +192,6 @@ jobs:
             done < <(find . -type f \( -name '*.exe' -o -name '*.dll' \) -print0)
           done
 
-          test -f ./libgcc_s_seh-1.dll
-          test -f ./libstdc++-6.dll
-          test -f ./libwinpthread-1.dll
-          test -f ./libbrotlidec.dll
-          test -f ./zlib1.dll
-          test -f ./libzstd.dll
-          test -f ./libfreetype-6.dll
-
       - name: Install Inno Setup
         shell: pwsh
         run: |

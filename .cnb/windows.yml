@@ -27,8 +27,8 @@
   exports:
     VERSION: QTET_VERSION
 
-# MSYS2 构建：configure + build + test（直接使用构建机上已装好的工具链）
-# 通过调用 C:\msys64\usr\bin\bash.exe 执行，等价于 GitHub 流水线的 msys2 shell。
+# MSYS2 构建：configure + build + test
+# 进入 clang64 bash 环境执行（MSYSTEM=CLANG64），完整加载 MSYS2/Qt6 环境变量
 .st-win-build-full: &st-win-build-full
   name: build-msys2
   script: |
@@ -39,14 +39,18 @@
     set -euxo pipefail
     export MSYSTEM=CLANG64
     export CHERE_INVOKING=1
-    export PATH="/clang64/bin:/usr/bin:/bin:$PATH"
+    export PATH="/clang64/bin:/usr/bin:/clang64/share/qt6/bin:$PATH"
     cd "$(cygpath "$CNB_BUILD_WORKSPACE")"
 
+    # 0. Show Qt version（对应 GitHub Show Qt version 步骤）
+    qmake6 -query QT_VERSION
+    qmake6 -query QT_INSTALL_PREFIX
+    which windeployqt
+    test -f /clang64/share/qt6/bin/qmlimportscanner.exe
+
     # 1. Configure（默认会克隆并构建 qtet-daemon，需要网络；后端从 CNB 克隆）
-    #    显式指定 clang 编译器，避免 CMake 探测到 PATH 中其他编译器
+    #    编译器由 CMake 自动探测，无需指定
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_PREFIX_PATH=/clang64 \
-      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
       -DCLONE_DAEMON_FROM=CNB
 
     # 2. Build
@@ -62,7 +66,7 @@
     & $bash $tmp
     if ($LASTEXITCODE -ne 0) { throw "MSYS2 构建失败，退出码 $LASTEXITCODE" }
 
-# windeployqt：拷贝 Qt 运行库到 build/Output（对应 GitHub Prepare Runtime 步骤）
+# 运行时准备：清理静态库 + windeployqt + 迭代补齐缺失 DLL（对应 GitHub Prepare runtime files 步骤）
 .st-win-runtime: &st-win-runtime
   name: prepare-runtime
   script: |
@@ -76,30 +80,52 @@
     export PATH="/clang64/bin:/usr/bin:/clang64/share/qt6/bin:$PATH"
     cd "$(cygpath "$CNB_BUILD_WORKSPACE")"
 
-    windeployqt --qmldir src/qml build/Output/appQtEasyTier.exe
+    # 1. 清理静态库与测试程序
+    find build/Output -maxdepth 1 -type f \( -name '*.a' -o -name '*.lib' -o -name 'tst*' \) -delete
+
+    # 2. windeployqt 部署 Qt 运行库
+    cd build/Output
+    windeployqt.exe --release --force \
+      --qmldir ../../src/qml \
+      --qml-deploy-dir ./share/qt6/qml \
+      ./appQtEasyTier.exe
+
+    # 3. 迭代补齐缺失 DLL（objdump 扫描导入表，最多 10 轮覆盖传递依赖）
+    iter=0
+    changed=1
+    while [ "$changed" -eq 1 ] && [ "$iter" -lt 10 ]; do
+      changed=0
+      iter=$((iter + 1))
+      while IFS= read -r -d '' file; do
+        while IFS= read -r dll; do
+          if [ -f "/clang64/bin/$dll" ] && [ ! -f "./$dll" ]; then
+            cp "/clang64/bin/$dll" .
+            changed=1
+          fi
+        done < <(objdump -p "$file" 2>/dev/null | awk '/DLL Name:/ {print $3}')
+      done < <(find . -type f \( -name '*.exe' -o -name '*.dll' \) -print0)
+    done
     '@
     $tmp = Join-Path $env:TEMP 'qtet_windeployqt.sh'
     [System.IO.File]::WriteAllText($tmp, $script.Replace("`r`n", "`n"))
     & $bash $tmp
     if ($LASTEXITCODE -ne 0) { throw "windeployqt 失败，退出码 $LASTEXITCODE" }
 
-# 打包 zip（对应 GitHub Create Zip 步骤）：zip 与安装包统一输出到 build/Package
+# 打包 zip（对应 GitHub Create zip package 步骤）：zip 输出到 build/Output，与 GitHub 一致
+# 注意：必须先于本步骤完成安装包构建，否则 zip 会被打包进安装包（package.iss 以 build/Output 为源）
 .st-win-zip: &st-win-zip
   name: create-zip
   env:
     QTET_VERSION: $QTET_VERSION
   script: |
     $version = $env:QTET_VERSION
-    $zipPath = "build\Package\qteasytier_v${version}_windows_amd64.zip"
-    New-Item -ItemType Directory -Path 'build\Package' -Force | Out-Null
+    $zipPath = "build\Output\qteasytier_v${version}_windows_amd64.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath }
-    # 只打包运行时文件（build/Output），不包含 zip/安装包自身
-    $items = Get-ChildItem -Path 'build\Output\*' -File | Where-Object { $_.Extension -ne '.zip' }
-    Compress-Archive -Path $items.FullName -DestinationPath $zipPath -Force
+    Compress-Archive -Path "build\Output\*" -DestinationPath $zipPath -Force
     Write-Output "已创建 $zipPath"
 
-# Inno Setup 安装包（对应 GitHub Create Installer 步骤，构建机上需装 Inno Setup 7）
-# 输出到独立的 build/Package 目录，避免与运行时文件（build/Output）混在一起，也与 zip 包解耦
+# Inno Setup 安装包（对应 GitHub Build installer 步骤，ISCC 已加入 PATH，直接调用）
+# 输出到独立的 build/Package 目录，避免与运行时文件（build/Output）混在一起
 .st-win-installer: &st-win-installer
   name: build-installer
   env:
@@ -107,14 +133,12 @@
   script: |
     $version = $env:QTET_VERSION
     $root = $env:CNB_BUILD_WORKSPACE
-    $iscc = @("$env:ProgramFiles\Inno Setup 7\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if (-not $iscc) { throw '未找到 Inno Setup 7（ISCC.exe），请确认构建机上已安装' }
 
     $buildOut = Join-Path $root 'build\Output'
     $packageOut = Join-Path $root 'build\Package'
     New-Item -ItemType Directory -Path $packageOut -Force | Out-Null
     $iss = Join-Path $root 'assets\package\windows\package.iss'
-    & $iscc "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$packageOut" "/DSourceRootDir=$root" $iss
+    & ISCC "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$packageOut" "/DSourceRootDir=$root" $iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
 
 # 上传 commit 附件（master / PR）：
@@ -137,13 +161,13 @@
     $api = "https://api.cnb.cool"
     $headers = @{ Authorization = "Bearer $token"; Accept = "application/vnd.cnb.api+json" }
 
+    # PR 事件无安装包，此处过滤不存在的文件，只上传实际产物
     $files = @(
-      "build\Package\qteasytier_v${version}_windows_amd64.zip",
+      "build\Output\qteasytier_v${version}_windows_amd64.zip",
       "build\Package\qteasytier_v${version}_windows_amd64.exe"
-    )
+    ) | Where-Object { Test-Path $_ }
 
     foreach ($f in $files) {
-      if (-not (Test-Path $f)) { throw "产物不存在: $f" }
       $name = Split-Path $f -Leaf
       $size = (Get-Item $f).Length
       Write-Output "上传 commit 附件: $name ($size bytes)"
@@ -183,12 +207,11 @@
     if (-not $releaseId) { throw "未找到 tag=$version 对应的 release" }
 
     $files = @(
-      "build\Package\qteasytier_v${version}_windows_amd64.zip",
+      "build\Output\qteasytier_v${version}_windows_amd64.zip",
       "build\Package\qteasytier_v${version}_windows_amd64.exe"
-    )
+    ) | Where-Object { Test-Path $_ }
 
     foreach ($f in $files) {
-      if (-not (Test-Path $f)) { throw "产物不存在: $f" }
       $name = Split-Path $f -Leaf
       $size = (Get-Item $f).Length
       Write-Output "上传 release 附件: $name ($size bytes)"
@@ -225,6 +248,7 @@
 # =====================================================================
 
 # ---- master 分支 push：构建 + 测试 + 打包 + 上传附件（对应 build-master.yml） ----
+# 阶段顺序与 GitHub 一致：installer 必须先于 zip，避免 zip 被打进安装包
 master:
   push:
     windows:
@@ -234,11 +258,12 @@ master:
         - *st-win-extract-version
         - *st-win-build-full
         - *st-win-runtime
-        - *st-win-zip
         - *st-win-installer
+        - *st-win-zip
         - *st-win-upload-attachments
 
-# ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件（对应 build-pr.yml） ----
+# ---- 任意分支 PR：仅构建 + 测试 + 上传（对齐 build-pr.yml，不打包安装包） ----
+# CNB 附件上传按文件逐个上传，故先打一个 zip 再作为 commit 附件上传
 "**":
   pull_request:
     windows:
@@ -247,9 +272,7 @@ master:
       stages:
         - *st-win-extract-version
         - *st-win-build-full
-        - *st-win-runtime
         - *st-win-zip
-        - *st-win-installer
         - *st-win-upload-attachments
 
 # ---- vX.Y.Z 分支 push：构建 + 打包 + 上传 release 附件（对应 build-release.yml） ----
@@ -262,6 +285,6 @@ v*:
         - *st-win-extract-version-release
         - *st-win-build-full
         - *st-win-runtime
-        - *st-win-zip
         - *st-win-installer
+        - *st-win-zip
         - *st-win-upload-release-attachments
