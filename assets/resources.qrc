@@ -20,5 +20,6 @@
     <qresource prefix="/">
         <file>publicservers.json</file>
         <file>field_mapping.json</file>
+        <file>qtquickcontrols2.conf</file>
     </qresource>
 </RCC>
