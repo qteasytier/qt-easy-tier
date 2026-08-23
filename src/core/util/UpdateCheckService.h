@@ -1,4 +1,4 @@
-/** @file UpdateCheckService.h @brief 通过 Gitee API 检查 QtEasyTier 新版本并弹出更新提示 */
+/** @file UpdateCheckService.h @brief 通过腾讯 CNB API 检查 QtEasyTier 新版本并弹出更新提示 */
 #pragma once
 
 #include <QObject>
@@ -32,7 +32,9 @@ signals:
     void checkFinished();
 
 private:
-    void handleReply(QNetworkReply *reply, const QString &currentVersion, bool notifyWhenUpToDate);
+    void handleApiReply(QNetworkReply *reply, const QString &currentVersion, bool notifyWhenUpToDate);
+    void finishCheck(const UpdateInfo &info, const QString &currentVersion, bool notifyWhenUpToDate);
+    void failCheck(const QString &message, bool notifyWhenUpToDate);
     void showUpdateDialog(const UpdateInfo &info);
 
     QNetworkAccessManager *m_networkAccessManager = nullptr;
