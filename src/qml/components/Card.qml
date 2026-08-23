@@ -12,6 +12,9 @@ Frame {
     // 内容间距，由外部配置页面传入
     property int contentSpacing: 0
 
+    // 边框颜色，可由外部覆盖（如危险操作卡片使用红色边框）
+    property color borderColor: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
+
     padding: 16
 
     contentItem: ColumnLayout {
@@ -21,7 +24,7 @@ Frame {
     background: Rectangle {
         radius: 8
         color: palette.base
-        border.color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
+        border.color: root.borderColor
         border.width: 1
     }
 }

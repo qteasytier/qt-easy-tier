@@ -1,6 +1,9 @@
 if(NOT DEFINED QTET_DAEMON_REPO_URL OR QTET_DAEMON_REPO_URL STREQUAL "")
     message(FATAL_ERROR "QTET_DAEMON_REPO_URL is required")
 endif()
+if(NOT DEFINED QTET_DAEMON_VER OR QTET_DAEMON_VER STREQUAL "")
+    message(FATAL_ERROR "QTET_DAEMON_VER is required")
+endif()
 if(NOT DEFINED QTET_DAEMON_SRC_DIR OR QTET_DAEMON_SRC_DIR STREQUAL "")
     message(FATAL_ERROR "QTET_DAEMON_SRC_DIR is required")
 endif()
@@ -15,18 +18,33 @@ endif()
 find_program(GIT_EXECUTABLE git REQUIRED)
 
 message(STATUS "qtet-daemon repository: ${QTET_DAEMON_REPO_URL}")
+message(STATUS "qtet-daemon version (tag): ${QTET_DAEMON_VER}")
 message(STATUS "qtet-daemon source directory: ${QTET_DAEMON_SRC_DIR}")
 
 if(NOT EXISTS "${QTET_DAEMON_SRC_DIR}/CMakeLists.txt")
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" clone "${QTET_DAEMON_REPO_URL}" "${QTET_DAEMON_SRC_DIR}"
+        COMMAND "${GIT_EXECUTABLE}" clone --branch "${QTET_DAEMON_VER}" --depth 1 "${QTET_DAEMON_REPO_URL}" "${QTET_DAEMON_SRC_DIR}"
         RESULT_VARIABLE clone_result
     )
     if(NOT clone_result EQUAL 0)
         message(FATAL_ERROR "Failed to clone qtet-daemon")
     endif()
 else()
-    message(STATUS "qtet-daemon source directory already exists, skipping clone")
+    message(STATUS "qtet-daemon source directory already exists, forcing alignment to tag ${QTET_DAEMON_VER}")
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" fetch --tags --force
+        RESULT_VARIABLE fetch_result
+    )
+    if(NOT fetch_result EQUAL 0)
+        message(FATAL_ERROR "Failed to fetch qtet-daemon tags")
+    endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" checkout --detach --force "${QTET_DAEMON_VER}"
+        RESULT_VARIABLE checkout_result
+    )
+    if(NOT checkout_result EQUAL 0)
+        message(FATAL_ERROR "Failed to checkout qtet-daemon tag ${QTET_DAEMON_VER}")
+    endif()
 endif()
 
 set(configure_command

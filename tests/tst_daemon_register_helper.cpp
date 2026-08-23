@@ -24,9 +24,7 @@ private slots:
 #elif defined(Q_OS_WIN)
         QVERIFY(m_tempDir.isValid());
         m_daemonPath = QDir(m_tempDir.path()).filePath(QStringLiteral("qtet-daemon.exe"));
-        m_installerPath = QDir(m_tempDir.path()).filePath(QStringLiteral("DaemonInstaller.exe"));
         DaemonRegisterHelper::setDaemonBinaryPathOverrideForTesting(m_daemonPath);
-        DaemonRegisterHelper::setServiceInstallerPathOverrideForTesting(m_installerPath);
 #else
         QSKIP("DaemonRegisterHelper service tests require Linux or Windows");
 #endif
@@ -40,7 +38,6 @@ private slots:
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(false, false);
 #elif defined(Q_OS_WIN)
         DaemonRegisterHelper::setDaemonBinaryPathOverrideForTesting(QString());
-        DaemonRegisterHelper::setServiceInstallerPathOverrideForTesting(QString());
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(false, false);
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(false, false);
 #endif
@@ -73,22 +70,7 @@ private slots:
         QCOMPARE(DaemonRegisterHelper::ensureDaemonService(), DaemonRegisterHelper::EnsureResult::DaemonBinaryMissing);
 #elif defined(Q_OS_WIN)
         QFile::remove(m_daemonPath);
-        QFile installerFile(m_installerPath);
-        QVERIFY(installerFile.open(QIODevice::WriteOnly));
-        installerFile.close();
         QCOMPARE(DaemonRegisterHelper::ensureDaemonService(), DaemonRegisterHelper::EnsureResult::DaemonBinaryMissing);
-#endif
-    }
-
-    void requiredAction_returnsMissingWhenInstallerMissingOnWindows()
-    {
-#if defined(Q_OS_WIN)
-        QFile daemonFile(m_daemonPath);
-        QVERIFY(daemonFile.open(QIODevice::WriteOnly));
-        daemonFile.close();
-        QFile::remove(m_installerPath);
-
-        QCOMPARE(DaemonRegisterHelper::requiredAction(), DaemonRegisterHelper::RequiredAction::DaemonBinaryMissing);
 #endif
     }
 
@@ -106,9 +88,6 @@ private slots:
         QFile daemonFile(m_daemonPath);
         QVERIFY(daemonFile.open(QIODevice::WriteOnly));
         daemonFile.close();
-        QFile installerFile(m_installerPath);
-        QVERIFY(installerFile.open(QIODevice::WriteOnly));
-        installerFile.close();
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, false);
 
         QCOMPARE(DaemonRegisterHelper::requiredAction(), DaemonRegisterHelper::RequiredAction::RegisterService);
@@ -134,9 +113,6 @@ private slots:
         QFile daemonFile(m_daemonPath);
         QVERIFY(daemonFile.open(QIODevice::WriteOnly));
         daemonFile.close();
-        QFile installerFile(m_installerPath);
-        QVERIFY(installerFile.open(QIODevice::WriteOnly));
-        installerFile.close();
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, true);
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(true, false);
 
@@ -163,9 +139,6 @@ private slots:
         QFile daemonFile(m_daemonPath);
         QVERIFY(daemonFile.open(QIODevice::WriteOnly));
         daemonFile.close();
-        QFile installerFile(m_installerPath);
-        QVERIFY(installerFile.open(QIODevice::WriteOnly));
-        installerFile.close();
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, true);
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(true, true);
 
@@ -177,7 +150,20 @@ private slots:
     {
 #if defined(Q_OS_WIN)
         QCOMPARE(DaemonRegisterHelper::daemonBinaryPath(), m_daemonPath);
-        QCOMPARE(DaemonRegisterHelper::serviceInstallerPath(), m_installerPath);
+#endif
+    }
+
+    void uninstallDaemonService_returnsFalseWhenNotRegistered()
+    {
+#if defined(Q_OS_LINUX)
+        // 服务文件不存在 → 未注册 → 直接返回 false，不触发 pkexec
+        QFile::remove(m_servicePath);
+        QVERIFY(!DaemonRegisterHelper::uninstallDaemonService());
+#elif defined(Q_OS_WIN)
+        // 未注册 → 直接返回 false，不触发提权
+        DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, false);
+        QVERIFY(!DaemonRegisterHelper::uninstallDaemonService());
+        DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(false, false);
 #endif
     }
 
@@ -196,7 +182,6 @@ private:
     QTemporaryDir m_tempDir;
     QString m_servicePath;
     QString m_daemonPath;
-    QString m_installerPath;
 };
 
 QTEST_MAIN(TestDaemonRegisterHelper)

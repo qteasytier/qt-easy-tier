@@ -27,6 +27,8 @@ private slots:
     void saveAndLoadMultipleConfigs();
     /// 测试目标: 验证删除配置时关联字段行也被级联删除
     void configFieldsCascadeDelete();
+    /// 测试目标: 验证 clearAll() 清空全部配置
+    void clearAllRemovesAllConfigs();
     /// 测试目标: 验证默认数据库路径格式正确
     void defaultDatabasePathIsNotEmpty();
 };
@@ -113,6 +115,25 @@ void TestSqliteRepository::defaultDatabasePathIsNotEmpty()
     QVERIFY(!path.isEmpty());
     // 检查默认数据库文件名
     QCOMPARE(QFileInfo(path).fileName(), QStringLiteral("qteasytier.db"));
+}
+
+/// 保存多条配置后调用 clearAll()，断言 loadAll() 为空且字段行被级联清理
+void TestSqliteRepository::clearAllRemovesAllConfigs()
+{
+    auto conn = makeTempDb();
+    QVERIFY(conn.open());
+
+    NetworkConfigRepository repo(conn.database());
+    for (int i = 0; i < 3; ++i) {
+        NetworkConf cfg(QString("clear-net-%1").arg(i));
+        cfg.hostname = QString("host-%1").arg(i);
+        QVERIFY(repo.save(cfg));
+    }
+    QCOMPARE(repo.loadAll().size(), 3);
+
+    QVERIFY(repo.clearAll());
+    QVERIFY(repo.loadAll().isEmpty());
+    QVERIFY(!repo.exists(QStringLiteral("clear-net-0")));
 }
 
 QTEST_MAIN(TestSqliteRepository)

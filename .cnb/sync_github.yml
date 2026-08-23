@@ -97,18 +97,6 @@
           script:
             - cd "${CNB_BUILD_WORKSPACE:-/workspace}" && python3 scripts/mirror_release.py
 
-# 每周一凌晨 3 点（Asia/Shanghai）自动同步 GitHub Release 到 CNB（镜像）
-master:
-  "crontab: 0 3 * * 1":
-    - runner:
-        cpus: 1
-      docker:
-        image: python:3.11
-      stages:
-        - name: 每周同步 GitHub Release 到 CNB
-          script:
-            - cd "${CNB_BUILD_WORKSPACE:-/workspace}" && python3 scripts/mirror_release.py
-
 # ---- v* 分支 push（发布流程）：无需再同步代码（通用 push 已负责），
 #      直接等待 GitHub 发布对应版本 release 后镜像同步到本仓库，
 #      同步完成流水线才结束 ----

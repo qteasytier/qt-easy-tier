@@ -95,6 +95,16 @@ public:
      */
     bool exists(const QString &instanceName) const;
 
+    /**
+     * @brief 清空全部网络配置数据
+     * @return true 表示全部清理成功
+     *
+     * 在事务内依次清空 network_configs（字段行级联删除）、
+     * network_config_fields 与运行时实例缓存表 runtime_instances，
+     * 任一步失败则整体回滚。
+     */
+    bool clearAll();
+
 private:
     QSqlDatabase m_db; ///< 外部传入的数据库连接句柄（值拷贝，隐式共享）
 };

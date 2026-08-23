@@ -2,6 +2,7 @@ add_qtet_library(qtet_viewmodel
     AppState.cpp
     ConfigListModel.cpp
     ConfigEditorViewModel.cpp
+    DangerousOperationViewModel.cpp
     SettingsViewModel.cpp
     FavoriteNodeViewModel.cpp
     LogViewModel.cpp

@@ -29,10 +29,10 @@ public:
 
     static RequiredAction requiredAction();
     static EnsureResult ensureDaemonService();
+    static bool uninstallDaemonService();
     static bool isServiceRegistered();
     static bool isDaemonProcessRunning();
     static QString daemonBinaryPath();
-    static QString serviceInstallerPath();
 
 #if defined(Q_OS_LINUX)
     static void setSystemdServicePathOverrideForTesting(const QString &path);
@@ -43,7 +43,6 @@ public:
 
 #if defined(Q_OS_WIN)
     static void setDaemonBinaryPathOverrideForTesting(const QString &path);
-    static void setServiceInstallerPathOverrideForTesting(const QString &path);
     static void setServiceRegisteredOverrideForTesting(bool enabled, bool registered);
     static void setDaemonProcessRunningOverrideForTesting(bool enabled, bool running);
 #endif

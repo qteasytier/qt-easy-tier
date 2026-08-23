@@ -260,6 +260,51 @@ Rectangle {
                 }
             }
 
+            // ========== 危险操作 ==========
+            Card {
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                borderColor: "#C62828"
+
+                // 进入页面时刷新后端按钮状态
+                Component.onCompleted: DangerousOperationViewModel.refreshDaemonStatus()
+
+                Label {
+                    text: qsTr("危险操作")
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#C62828"
+                    Layout.bottomMargin: 4
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+
+                    // 后端安装/卸载：按钮文本与动作随后端状态切换
+                    Button {
+                        text: DangerousOperationViewModel.daemonInstalled ? qsTr("卸载后端") : qsTr("安装后端")
+                        enabled: DangerousOperationViewModel.daemonOperationEnabled
+                                 && !DangerousOperationViewModel.busy
+                        Layout.fillWidth: true
+                        onClicked: {
+                            if (DangerousOperationViewModel.daemonInstalled)
+                                uninstallDialog.open()
+                            else
+                                installDialog.open()
+                        }
+                    }
+
+                    Button {
+                        text: qsTr("清空配置")
+                        enabled: !DangerousOperationViewModel.busy
+                        Layout.fillWidth: true
+                        onClicked: clearConfirmDialog.open()
+                    }
+                }
+            }
+
             // 版权信息
             Label {
                 text: qsTr("Copyright 2026 明月清风. All rights reserved.")
@@ -276,6 +321,74 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 16
             }
+        }
+    }
+
+    // ========== 危险操作确认对话框 ==========
+
+    // 安装后端确认：安装包括注册并启动系统服务
+    Dialog {
+        id: installDialog
+        title: qsTr("安装后端")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        Label {
+            text: qsTr("将把后端 qtet-daemon 注册为系统服务并启动，需要管理员权限。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
+        }
+
+        onAccepted: DangerousOperationViewModel.performDaemonOperation()
+    }
+
+    // 卸载后端确认：卸载包括停止并移除服务
+    Dialog {
+        id: uninstallDialog
+        title: qsTr("卸载后端")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        Label {
+            text: qsTr("将停止并卸载后端 qtet-daemon 系统服务，需要管理员权限。\n卸载后将无法连接 EasyTier VPN。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
+        }
+
+        onAccepted: DangerousOperationViewModel.performDaemonOperation()
+    }
+
+    // 清空配置确认：先停止所有网络服务，再删除全部数据并退出
+    Dialog {
+        id: clearConfirmDialog
+        title: qsTr("清空配置")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        Label {
+            text: qsTr("卸载配置需要先停止所有运行中的网络配置，然后清空全部数据（网络配置、收藏节点、日志、全局设置）。\n此操作不可恢复，操作完成后需要重启本程序。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
+        }
+
+        onAccepted: DangerousOperationViewModel.clearAllData()
+    }
+
+    // 危险操作结果处理：仅失败时需要提示（成功时应用会自动退出）
+    Connections {
+        target: DangerousOperationViewModel
+        function onOperationFinished(success, message) {
+            if (!success)
+                AppState.showError(message)
         }
     }
 }

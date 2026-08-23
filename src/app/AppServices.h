@@ -32,6 +32,7 @@ class ConfigImportExportService;
 class ConfigListModel;
 class DaemonApi;
 class DaemonClient;
+class DangerousOperationViewModel;
 class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;
 class FavoriteNodeViewModel;
@@ -106,6 +107,8 @@ public:
     ImportNodesViewModel *importNodesViewModel() const;
     /// 获取 VPN 管理器（启停控制、运行状态、心跳同步）
     VpnManager *vpnManager() const;
+    /// 获取危险操作 ViewModel（后端安装/卸载、清空全部数据）
+    DangerousOperationViewModel *dangerousOperationViewModel() const;
     /// 获取 daemon IPC 客户端
     DaemonClient *daemonClient() const;
     /// 获取 daemon API（JSON-RPC 调用封装）
@@ -152,6 +155,7 @@ private:
     RepositoryLogSink *m_repositoryLogSink = nullptr;
     StatusMonitor *m_statusMonitor = nullptr;
     VpnManager *m_vpnManager = nullptr;
+    DangerousOperationViewModel *m_dangerousOperationViewModel = nullptr;
     ConfigCommandService *m_configCommandService = nullptr;
     ConfigImportExportService *m_configImportExportService = nullptr;
     ConfigListModel *m_configListModel = nullptr;

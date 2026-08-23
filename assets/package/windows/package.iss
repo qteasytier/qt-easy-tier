@@ -21,6 +21,8 @@
 #define MyAppPublisher "Myqfeng"
 #define MyAppURL "https://qtet.cn"
 #define MyAppExeName "appQtEasyTier.exe"
+#define DaemonExeName "qtet-daemon.exe"
+; 旧版 WinSW 安装器名称，仅用于旧版本升级时停止/卸载旧服务
 #define DaemonInstallerExe "DaemonInstaller.exe"
 
 [Setup]
@@ -63,37 +65,46 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#DaemonInstallerExe}"; Parameters: "install"; StatusMsg: "Installing QtEasyTier daemon service..."; Flags: runhidden waituntilterminated; Check: DaemonInstallerExists
-Filename: "{app}\{#DaemonInstallerExe}"; Parameters: "start"; StatusMsg: "Starting QtEasyTier daemon service..."; Flags: runhidden waituntilterminated; Check: DaemonInstallerExists
+Filename: "{app}\{#DaemonExeName}"; Parameters: "--install"; StatusMsg: "Installing QtEasyTier daemon service..."; Flags: runhidden waituntilterminated; Check: DaemonExeExists
+Filename: "{app}\{#DaemonExeName}"; Parameters: "--start"; StatusMsg: "Starting QtEasyTier daemon service..."; Flags: runhidden waituntilterminated; Check: DaemonExeExists
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\{#DaemonInstallerExe}"; Parameters: "stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopQtEasyTierDaemon"; Check: DaemonInstallerExists
-Filename: "{app}\{#DaemonInstallerExe}"; Parameters: "uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "UninstallQtEasyTierDaemon"; Check: DaemonInstallerExists
+Filename: "{app}\{#DaemonExeName}"; Parameters: "--stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopQtEasyTierDaemon"; Check: DaemonExeExists
+Filename: "{app}\{#DaemonExeName}"; Parameters: "--uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "UninstallQtEasyTierDaemon"; Check: DaemonExeExists
 
 [Code]
-function DaemonInstallerExists: Boolean;
+function DaemonExeExists: Boolean;
 begin
-  Result := FileExists(ExpandConstant('{app}\{#DaemonInstallerExe}'));
+  Result := FileExists(ExpandConstant('{app}\{#DaemonExeName}'));
 end;
 
-procedure RunDaemonCommandIfExists(const Command: String);
+// 通用执行器：目标可执行文件存在时才执行指定命令。
+// 用于 ssInstall 阶段在文件复制前清理旧服务，以及旧版 WinSW 迁移。
+procedure RunCommandIfExists(const ExeName, Command: String);
 var
   ResultCode: Integer;
-  InstallerPath: String;
+  ExePath: String;
 begin
-  InstallerPath := ExpandConstant('{app}\{#DaemonInstallerExe}');
-  if FileExists(InstallerPath) then
+  ExePath := ExpandConstant('{app}\' + ExeName);
+  if FileExists(ExePath) then
   begin
-    Exec(InstallerPath, Command, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec(ExePath, Command, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
 
+// CurStepChanged(ssInstall) 在文件复制之前触发（Inno Setup 安装流程中先执行本事件，
+// 再执行 InstallDelete/文件复制），因此这里先清理旧服务，释放旧 qtet-daemon.exe
+// 的文件占用，随后才能覆盖复制新二进制：
+//   1. 新版 qtet-daemon 自我注册的服务（qtet-daemon.sock）：升级时先 --stop 再 --uninstall；
+//   2. 旧版 WinSW 服务：仅旧版本升级场景生效（旧 DaemonInstaller.exe 残留时才存在）。
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
-    RunDaemonCommandIfExists('stop');
-    RunDaemonCommandIfExists('uninstall');
+    RunCommandIfExists('{#DaemonExeName}', '--stop');
+    RunCommandIfExists('{#DaemonExeName}', '--uninstall');
+    RunCommandIfExists('{#DaemonInstallerExe}', 'stop');
+    RunCommandIfExists('{#DaemonInstallerExe}', 'uninstall');
   end;
 end;

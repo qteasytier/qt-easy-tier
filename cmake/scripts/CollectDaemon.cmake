@@ -43,39 +43,4 @@ foreach(daemon_output IN LISTS daemon_outputs)
     message(STATUS "Copied ${daemon_output_name}")
 endforeach()
 
-if(WIN32)
-    if(NOT DEFINED QTET_WINSW_CONFIG_PATH OR QTET_WINSW_CONFIG_PATH STREQUAL "")
-        message(FATAL_ERROR "QTET_WINSW_CONFIG_PATH is required on Windows")
-    endif()
-    if(NOT DEFINED QTET_WINSW_DOWNLOAD_URL OR QTET_WINSW_DOWNLOAD_URL STREQUAL "")
-        message(FATAL_ERROR "QTET_WINSW_DOWNLOAD_URL is required on Windows")
-    endif()
-
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${QTET_WINSW_CONFIG_PATH}" "${QTET_OUTPUT_DIR}/DaemonInstaller.xml"
-        RESULT_VARIABLE copy_winsw_config_result
-    )
-    if(NOT copy_winsw_config_result EQUAL 0)
-        message(FATAL_ERROR "Failed to copy WinSW service config")
-    endif()
-    message(STATUS "Copied DaemonInstaller.xml")
-
-    set(winsw_installer "${QTET_OUTPUT_DIR}/DaemonInstaller.exe")
-    if(NOT EXISTS "${winsw_installer}")
-        file(DOWNLOAD "${QTET_WINSW_DOWNLOAD_URL}" "${winsw_installer}"
-            STATUS winsw_download_status
-            SHOW_PROGRESS
-        )
-        list(GET winsw_download_status 0 winsw_download_code)
-        list(GET winsw_download_status 1 winsw_download_message)
-        if(NOT winsw_download_code EQUAL 0)
-            file(REMOVE "${winsw_installer}")
-            message(FATAL_ERROR "Failed to download WinSW: ${winsw_download_message}")
-        endif()
-        message(STATUS "Downloaded DaemonInstaller.exe")
-    else()
-        message(STATUS "DaemonInstaller.exe already exists, skipping download")
-    endif()
-endif()
-
 message(STATUS "qtet-daemon runtime collection completed")

@@ -67,6 +67,9 @@ public:
     /// 请求停止指定配置（仅 Running 状态下有效，进入 Stopping 状态）
     Q_INVOKABLE void stopConfig(const QString &instanceName);
 
+    /// 请求停止所有正在运行的实例（危险操作前置清理），全部收敛后发射 allStopped
+    Q_INVOKABLE void stopAll();
+
     /// 查询指定配置的当前状态，返回 VpnController::State 枚举的整数值
     Q_INVOKABLE int configState(const QString &instanceName) const;
 
@@ -100,6 +103,9 @@ signals:
     /// 通知 QML：某配置的停止操作失败（daemon 返回错误或超时）
     void stopFailed(const QString &instanceName, const QString &error);
 
+    /// 通知 QML：stopAll() 已收敛完成，success 为 false 表示有实例停止失败或超时
+    void allStopped(bool success);
+
     /// 通知 QML：当前选中实例名已变更
     void activeInstanceNameChanged();
 
@@ -128,9 +134,21 @@ private slots:
     /// 收到 collect_network_infos 响应：将原始 JSON 交给 StatusMonitor 异步解析
     void onGotNetworkInfos(const QJsonObject &result);
 
+    /// stopAll 收敛追踪：某个等待实例状态变化时更新收敛集合
+    void onStopAllStateChanged(const QString &instanceName, VpnController::State state);
+
+    /// stopAll 收敛追踪：某个等待实例停止失败（回到 Running）时按失败收敛
+    void onStopAllStopFailed(const QString &instanceName);
+
+    /// stopAll 安全超时：超过时限仍未收敛时按失败结束
+    void onStopAllTimeout();
+
 private:
     /// 获取或懒创建一个 VpnController 实例
     VpnController *getOrCreate(const QString &instanceName);
+
+    /// 检查 stopAll 是否全部收敛，是则停止超时定时器并发射 allStopped
+    void tryFinishStopAll();
 
     /// 根据 daemon 返回的实例列表，与内部状态机对比纠偏
     /// - daemon 中有但状态不是 Running → 纠正为 Running
@@ -156,6 +174,21 @@ private:
     /// 心跳进行中标志：上一轮心跳未完成时跳过本次，防止并发堆积
     bool m_heartbeatInFlight = false;
 
+    /// 已发停止请求的实例集合（stopAll 使用，避免对 Starting→Running 的实例重复发停止）
+    QSet<QString> m_stopAllStopIssued;
+
+    /// 仍在等待停止收敛的实例集合（stopAll 使用）
+    QSet<QString> m_stopAllPending;
+
+    /// stopAll 是否已有实例停止失败（任一失败则整体按失败结束）
+    bool m_stopAllFailed = false;
+
+    /// stopAll 安全超时定时器（防止 daemon 无响应时流程挂死）
+    QTimer *m_stopAllTimer = nullptr;
+
     /// 心跳间隔（毫秒）
     static constexpr int kHeartbeatIntervalMs = 3000;
+
+    /// stopAll 安全超时（毫秒）
+    static constexpr int kStopAllTimeoutMs = 30000;
 };

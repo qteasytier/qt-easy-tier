@@ -258,6 +258,44 @@ bool NetworkConfigRepository::remove(const QString &instanceName)
 }
 
 /**
+ * @brief 清空全部网络配置数据
+ *
+ * 在事务内依次清空：
+ * 1. network_configs 元数据表（字段行由外键 CASCADE 级联删除）
+ * 2. network_config_fields 字段明细表（显式清空，作为双重保障）
+ * 3. runtime_instances 运行时实例缓存表（无独立写入方，随配置一并清理）
+ *
+ * 任一步失败则整体回滚，保证数据一致性。
+ */
+bool NetworkConfigRepository::clearAll()
+{
+    m_db.transaction();
+
+    QSqlQuery delConfigs(m_db);
+    if (!delConfigs.exec(QStringLiteral("DELETE FROM network_configs"))) {
+        LogHelper::logWarning(QStringLiteral("清空 network_configs 失败: %1").arg(delConfigs.lastError().text()), "NetworkConfig");
+        m_db.rollback();
+        return false;
+    }
+
+    QSqlQuery delFields(m_db);
+    if (!delFields.exec(QStringLiteral("DELETE FROM network_config_fields"))) {
+        LogHelper::logWarning(QStringLiteral("清空 network_config_fields 失败: %1").arg(delFields.lastError().text()), "NetworkConfig");
+        m_db.rollback();
+        return false;
+    }
+
+    QSqlQuery delRuntime(m_db);
+    if (!delRuntime.exec(QStringLiteral("DELETE FROM runtime_instances"))) {
+        LogHelper::logWarning(QStringLiteral("清空 runtime_instances 失败: %1").arg(delRuntime.lastError().text()), "NetworkConfig");
+        m_db.rollback();
+        return false;
+    }
+
+    return m_db.commit();
+}
+
+/**
  * @brief 检查指定配置是否存在
  * @return true 表示 network_configs 表中存在该 instanceName
  *

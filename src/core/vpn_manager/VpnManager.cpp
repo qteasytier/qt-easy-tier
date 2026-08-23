@@ -41,6 +41,12 @@ VpnManager::VpnManager(DaemonClient *client, DaemonApi *daemonApi, NetworkConfig
     m_heartbeatTimer->setInterval(kHeartbeatIntervalMs);
     connect(m_heartbeatTimer, &QTimer::timeout, this, &VpnManager::onHeartbeat);
 
+    // 创建 stopAll 安全超时定时器（仅停止流程运行时生效）
+    m_stopAllTimer = new QTimer(this);
+    m_stopAllTimer->setInterval(kStopAllTimeoutMs);
+    m_stopAllTimer->setSingleShot(true);
+    connect(m_stopAllTimer, &QTimer::timeout, this, &VpnManager::onStopAllTimeout);
+
     // 监听 daemon 连接状态变更
     connect(m_client, &DaemonClient::connectionStateChanged,
             this, &VpnManager::onDaemonConnectionChanged);
@@ -106,6 +112,96 @@ void VpnManager::stopConfig(const QString &instanceName)
         return;
     }
     ctrl->stop();
+}
+
+void VpnManager::stopAll()
+{
+    LogHelper::logInfo("收到停止所有实例请求", "VpnManager");
+
+    // 重置收敛追踪状态
+    m_stopAllPending.clear();
+    m_stopAllStopIssued.clear();
+    m_stopAllFailed = false;
+
+    // 收集所有非 Unstarted 的实例（Starting / Running / Stopping 均需等待收敛）
+    for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it) {
+        if (it.value()->state() != VpnController::State::Unstarted)
+            m_stopAllPending.insert(it.key());
+    }
+
+    // 没有需要停止的实例，直接按成功收敛
+    if (m_stopAllPending.isEmpty()) {
+        LogHelper::logInfo("停止所有实例: 无运行中的实例", "VpnManager");
+        emit allStopped(true);
+        return;
+    }
+
+    // 启动安全超时，防止 daemon 无响应导致流程挂死
+    m_stopAllTimer->start();
+
+    // 对 Running 状态的实例立即发送停止请求
+    // Starting 状态的实例等待其收敛到 Running 后再补发（见 onStopAllStateChanged）
+    for (const QString &name : std::as_const(m_stopAllPending)) {
+        auto *ctrl = m_controllers.value(name, nullptr);
+        if (ctrl && ctrl->state() == VpnController::State::Running) {
+            m_stopAllStopIssued.insert(name);
+            ctrl->stop();
+        }
+    }
+}
+
+void VpnManager::onStopAllStateChanged(const QString &instanceName, VpnController::State state)
+{
+    if (!m_stopAllPending.contains(instanceName))
+        return;
+
+    // 实例已收敛到 Unstarted，视为该实例停止成功
+    if (state == VpnController::State::Unstarted) {
+        m_stopAllPending.remove(instanceName);
+        m_stopAllStopIssued.remove(instanceName);
+        tryFinishStopAll();
+        return;
+    }
+
+    // Starting 收敛到 Running 后补发停止请求
+    if (state == VpnController::State::Running && !m_stopAllStopIssued.contains(instanceName)) {
+        m_stopAllStopIssued.insert(instanceName);
+        m_controllers.value(instanceName)->stop();
+    }
+}
+
+void VpnManager::onStopAllStopFailed(const QString &instanceName)
+{
+    if (!m_stopAllPending.contains(instanceName))
+        return;
+
+    // 停止失败：实例回到 Running 状态，无法继续等待，标记整体失败后收敛
+    LogHelper::logWarning(QStringLiteral("停止所有实例: %1 停止失败").arg(instanceName), "VpnManager");
+    m_stopAllFailed = true;
+    m_stopAllPending.remove(instanceName);
+    m_stopAllStopIssued.remove(instanceName);
+    tryFinishStopAll();
+}
+
+void VpnManager::onStopAllTimeout()
+{
+    LogHelper::logWarning("停止所有实例超时，按失败结束", "VpnManager");
+    m_stopAllPending.clear();
+    m_stopAllStopIssued.clear();
+    m_stopAllFailed = true;
+    tryFinishStopAll();
+}
+
+void VpnManager::tryFinishStopAll()
+{
+    if (!m_stopAllPending.isEmpty())
+        return;
+
+    m_stopAllTimer->stop();
+    const bool success = !m_stopAllFailed;
+    m_stopAllFailed = false;
+    LogHelper::logInfo(QStringLiteral("停止所有实例完成: success=%1").arg(success), "VpnManager");
+    emit allStopped(success);
 }
 
 // ==================== 状态查询 ====================
@@ -343,13 +439,14 @@ VpnController *VpnManager::getOrCreate(const QString &instanceName)
     auto *ctrl = new VpnController(instanceName, m_daemonApi, m_repo, this);
     connect(ctrl, &VpnController::stateChanged, this,
             [this](const QString &name, VpnController::State state) {
-                Q_UNUSED(state)
                 if (auto *controller = m_controllers.value(name, nullptr))
                     emit configStateChanged(name, controller->runState());
+                onStopAllStateChanged(name, state);
             });
     connect(ctrl, &VpnController::stopFailed, this,
             [this](const QString &name, const QString &error) {
                 emit stopFailed(name, error);
+                onStopAllStopFailed(name);
             });
     m_controllers.insert(instanceName, ctrl);
     return ctrl;

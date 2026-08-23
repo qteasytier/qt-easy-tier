@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(QtEasyTier VERSION 3.1.0 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
+set(QTET_DAEMON_VER 1.0.0)
 
 # 向 C++ 侧暴露版本号
 configure_file(

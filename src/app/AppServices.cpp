@@ -27,6 +27,7 @@
 #include "core/viewmodel/AppState.h"
 #include "core/viewmodel/ConfigEditorViewModel.h"
 #include "core/viewmodel/ConfigListModel.h"
+#include "core/viewmodel/DangerousOperationViewModel.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 #include "core/viewmodel/LogViewModel.h"
 #include "core/viewmodel/SettingsViewModel.h"
@@ -96,6 +97,17 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_repositoryLogSink = new RepositoryLogSink(m_logRepository, parentObject);
         m_statusMonitor = new StatusMonitor(parentObject);
         m_vpnManager = new VpnManager(m_daemonClient, m_daemonApi, m_configRepository, m_statusMonitor, parentObject);
+        m_dangerousOperationViewModel = new DangerousOperationViewModel(m_vpnManager,
+                                                                        m_configRepository,
+                                                                        m_favoriteNodeRepository,
+                                                                        m_logRepository,
+                                                                        QString(),
+                                                                        parentObject);
+        // 清空全部数据成功后退出应用（信号方式便于测试）
+        QObject::connect(m_dangerousOperationViewModel, &DangerousOperationViewModel::quitRequested,
+                         this, []() {
+                             QCoreApplication::quit();
+                         });
         m_configCommandService = new ConfigCommandService(m_configRepository, parentObject);
         m_configImportExportService = new ConfigImportExportService(m_configRepository, m_daemonApi, parentObject);
         m_configListModel = new ConfigListModel(m_configRepository, m_daemonApi, m_configCommandService,
@@ -125,6 +137,7 @@ NetworkPageViewModel *AppServices::networkPageViewModel() const { return m_netwo
 BackendStatusViewModel *AppServices::backendStatusViewModel() const { return m_backendStatusViewModel; }
 ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_importNodesViewModel; }
 VpnManager *AppServices::vpnManager() const { return m_vpnManager; }
+DangerousOperationViewModel *AppServices::dangerousOperationViewModel() const { return m_dangerousOperationViewModel; }
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }
 SystemTrayManager *AppServices::systemTrayManager() const { return m_systemTrayManager; }
@@ -238,14 +251,8 @@ void AppServices::ensureDaemonServiceOnce()
     }
 
     if (action == DaemonRegisterHelper::RequiredAction::DaemonBinaryMissing) {
-#if defined(Q_OS_WIN)
-        const QString missingText = QStringLiteral("未找到可执行的后端程序或服务安装器：\n%1\n%2\n\n应用无法连接后端，即将退出。")
-                                        .arg(DaemonRegisterHelper::daemonBinaryPath(),
-                                             DaemonRegisterHelper::serviceInstallerPath());
-#else
         const QString missingText = QStringLiteral("未找到可执行的后端程序 qtet-daemon：\n%1\n\n应用无法连接后端，即将退出。")
                                         .arg(DaemonRegisterHelper::daemonBinaryPath());
-#endif
         QMessageBox::critical(nullptr,
                               QStringLiteral("后端程序缺失"),
                               missingText);
@@ -256,7 +263,7 @@ void AppServices::ensureDaemonServiceOnce()
     QString text;
     if (action == DaemonRegisterHelper::RequiredAction::RegisterService) {
 #if defined(Q_OS_WIN)
-        text = QStringLiteral("后端服务尚未注册。\n\nQtEasyTier 需要将当前程序目录下的 qtet-daemon.exe 注册为 Windows 服务：\n%1\n\n点击“是”后将通过 UAC 请求管理员权限，依次执行 DaemonInstaller.exe install 和 DaemonInstaller.exe start。\n点击“否”将退出程序。")
+        text = QStringLiteral("后端服务尚未注册。\n\nQtEasyTier 需要将当前程序目录下的 qtet-daemon.exe 注册为 Windows 服务：\n%1\n\n点击“是”后将通过 UAC 请求管理员权限，依次执行 qtet-daemon.exe --install 和 qtet-daemon.exe --start。\n点击“否”将退出程序。")
                    .arg(DaemonRegisterHelper::daemonBinaryPath());
 #else
         text = QStringLiteral("后端服务尚未注册。\n\nQtEasyTier 需要将当前程序目录下的 qtet-daemon 注册为系统服务：\n%1\n\n点击“是”后将通过 pkexec 请求管理员权限并注册、启动 qtet-daemon.service。\n点击“否”将退出程序。")
@@ -264,7 +271,7 @@ void AppServices::ensureDaemonServiceOnce()
 #endif
     } else {
 #if defined(Q_OS_WIN)
-        text = QStringLiteral("后端服务尚未运行。\n\n检测到 qtet-daemon Windows 服务已注册，但 qtet-daemon 进程未运行。\n\n点击“是”后将通过 UAC 请求管理员权限并执行 DaemonInstaller.exe start。\n点击“否”将退出程序。");
+        text = QStringLiteral("后端服务尚未运行。\n\n检测到 qtet-daemon Windows 服务已注册，但 qtet-daemon 进程未运行。\n\n点击“是”后将通过 UAC 请求管理员权限并执行 qtet-daemon.exe --start。\n点击“否”将退出程序。");
 #else
         text = QStringLiteral("后端服务尚未运行。\n\n检测到 qtet-daemon.service 已注册，但 qtet-daemon 进程未运行。\n\n点击“是”后将通过 pkexec 请求管理员权限并启动 qtet-daemon.service。\n点击“否”将退出程序。");
 #endif

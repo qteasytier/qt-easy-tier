@@ -12,6 +12,7 @@
 #include "core/viewmodel/AppState.h"
 #include "core/viewmodel/ConfigEditorViewModel.h"
 #include "core/viewmodel/ConfigListModel.h"
+#include "core/viewmodel/DangerousOperationViewModel.h"
 #include "core/viewmodel/FavoriteNodeViewModel.h"
 #include "core/viewmodel/LogViewModel.h"
 #include "core/viewmodel/SettingsViewModel.h"
@@ -71,6 +72,8 @@ void registerQmlSingletons(QQmlApplicationEngine &, AppServices &services)
     registerPrecreatedSingleton("BackendStatusViewModel", services.backendStatusViewModel());
     // VPN 启停管理
     registerPrecreatedSingleton("VpnManager", services.vpnManager());
+    // 危险操作（后端安装/卸载、清空全部数据）
+    registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationViewModel());
     // 中文字体辅助
     registerPrecreatedSingleton("FontHelper", services.fontHelper());
 }
