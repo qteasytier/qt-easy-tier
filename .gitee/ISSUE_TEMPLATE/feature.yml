@@ -1,0 +1,54 @@
+name: 功能建议
+description: 为 QtEasyTier 提出新功能或改进建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提出功能建议，我们将仔细考虑！
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 动机
+      description: 你希望解决的问题或使用场景是什么？
+      placeholder: |
+        例如：我在管理多台设备时，希望…
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 建议方案
+      description: 描述你期望的功能表现，越具体越好：入口在哪里（哪个页面/按钮）、交互方式如何、与现有功能的关系。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 如果还有其他可行的实现方式，请一并说明。
+    validations:
+      required: false
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考实现
+      description: 如有类似软件或项目实现了该功能，可附链接或截图作为参考。
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 其他补充
+      description: 任何其他有助于评估该建议的信息。
+    validations:
+      required: false
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: 意向参与贡献
+      description: 如果你有意参与该功能的开发，请勾选以下选项。
+      options:
+        - label: 我有意向参与具体功能的开发实现并将代码贡献回到上游社区
+          required: false

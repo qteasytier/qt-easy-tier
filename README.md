@@ -1,12 +1,20 @@
 # QtEasyTier
 
-QtEasyTier 是一个基于 Qt 6 / C++ / QML 的 EasyTier 桌面客户端，目标是提供更易用的远程组网配置、运行状态查看和日常管理体验。
-
-项目使用 C++ 承担业务逻辑、持久化、daemon 通信和平台能力封装，QML 负责界面展示与交互绑定。应用前端通过 [qtet-daemon](https://gitee.com/qteasytier/qtet-daemon) 完成实际网络运行能力。
-
-> QtEasyTier 3.0 对项目架构进行了重大重构，如需查看旧版本源码请前往[旧版仓库（已停用）](https://gitee.com/qteasytier/qteasytier_old)
+QtEasyTier 是一个基于 Qt 6 / C++ 的 EasyTier 桌面客户端。它提供了直观的图形界面，帮助用户轻松配置和管理虚拟网络，实现跨网络设备的安全通信。
 
 ![应用截图](/assets/docs/readme.png)
+
+本项目在以下三个平台同步开源，您可以在自己熟悉的平台 fork 本项目
+
+|   平台   | 开源地址                                                                                             |
+|:--------:|:-----------------------------------------------------------------------------------------------------|
+| 腾讯 CNB | [https://cnb.cool/myqfeng/qteasytier/qt-easy-tier](https://cnb.cool/myqfeng/qteasytier/qt-easy-tier) |
+|  Gitee   | [https://gitee.com/qteasytier/qt-easy-tier](https://gitee.com/qteasytier/qt-easy-tier)               |
+|  GitHub  | [https://github.com/qteasytier/qt-easy-tier](https://github.com/qteasytier/qt-easy-tier)             |
+
+**提交 PR 请前往 GitHub 或者腾讯 CNB，Issue 可在三个平台提交**
+
+> QtEasyTier 3.0 对项目架构进行了重大重构，如需查看旧版本源码请前往[旧版仓库（已停用）](https://gitee.com/qteasytier/qteasytier_old)
 
 ## 功能特性
 

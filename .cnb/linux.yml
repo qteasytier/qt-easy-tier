@@ -125,6 +125,15 @@
 # Pipeline 基础配置（YAML 锚点，供各事件引用）
 # =====================================================================
 
+# 提交信息以 docs 开头时跳过构建（仅 master 构建使用）。
+# 用法：在 Stage 上声明 if: *st-if-not-docs，脚本退出码为 0 时才执行；
+#       提交信息首行（CNB_COMMIT_MESSAGE_TITLE）以 docs 开头时退出码为 1，跳过全部任务。
+.st-if-not-docs: &st-if-not-docs |
+  case "$CNB_COMMIT_MESSAGE_TITLE" in
+    docs*) exit 1 ;;
+    *) exit 0 ;;
+  esac
+
 # Linux amd64：官方节点 + ubuntu:24.04（依赖与 Qt 在 setup-env stage 内安装）
 .lnx-amd64: &lnx-amd64
   runner:
@@ -159,30 +168,38 @@
 # =====================================================================
 
 # ---- master 分支 push：构建 + 测试 + 打包 ----
+# 提交信息以 docs 开头时跳过整个构建（仅文档变更，无需产物），
+# 通过 Stage 级 if 条件统一管控，PR 流水线不受影响。
 master:
   push:
     linux-amd64:
       <<: *lnx-amd64
       name: Linux amd64 (master)
       stages:
-        - *st-extract-version
-        - *st-setup-env
-        - *st-configure
-        - *st-build
-        - *st-test
-        - *st-package-deb
-        - *st-upload-attachments
+        - name: QtEasyTier master build (amd64)
+          if: *st-if-not-docs
+          jobs:
+            - *st-extract-version
+            - *st-setup-env
+            - *st-configure
+            - *st-build
+            - *st-test
+            - *st-package-deb
+            - *st-upload-attachments
     linux-arm64:
       <<: *lnx-arm64
       name: Linux arm64 (master)
       stages:
-        - *st-extract-version
-        - *st-setup-env
-        - *st-configure
-        - *st-build
-        - *st-test
-        - *st-package-deb
-        - *st-upload-attachments
+        - name: QtEasyTier master build (arm64)
+          if: *st-if-not-docs
+          jobs:
+            - *st-extract-version
+            - *st-setup-env
+            - *st-configure
+            - *st-build
+            - *st-test
+            - *st-package-deb
+            - *st-upload-attachments
 
 # ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件 ----
 "**":

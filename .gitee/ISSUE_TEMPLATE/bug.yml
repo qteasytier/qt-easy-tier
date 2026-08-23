@@ -1,0 +1,104 @@
+name: Bug 反馈
+description: 提交一个可复现的问题，帮助改进 QtEasyTier
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢对项目的支持与关注。在提出问题之前，请确保你已查看相关开发或使用文档，并尽量使用最新的版本复现问题。
+  - type: checkboxes
+    attributes:
+      label: 这个问题是否已经存在？
+      options:
+        - label: 我已经搜索过现有的 Issue，确认没有重复的问题
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述问题
+      description: 请清晰、简洁地描述遇到的问题。
+      placeholder: |
+        例如：在「网络」页面点击「连接」后应用崩溃…
+    validations:
+      required: true
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: 如何复现
+      description: 请详细告诉我们如何复现你遇到的问题，如涉及代码，可提供一个最小代码示例。
+      placeholder: |
+        1. 打开应用，进入「...」页面
+        2. 点击「...」按钮
+        3. 观察到「...」现象
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 期望行为
+      description: 描述你期望发生的结果。
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: 实际行为
+      description: 描述实际发生的结果，可附截图或错误弹窗文本。
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统及版本
+      description: 你正在哪个操作系统上使用 QtEasyTier？
+      options:
+        - Windows 11
+        - Windows 10
+        - Ubuntu 24.04
+        - Ubuntu 22.04
+        - Debian
+        - Arch Linux
+        - macOS
+        - 其他
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: 版本
+      description: 你当前正在使用我们软件的哪个版本？
+      options:
+        - 3.1.0 (最新)
+        - 3.0.x
+        - 更早版本
+        - 自编译 (dev)
+    validations:
+      required: true
+  - type: textarea
+    id: build-info
+    attributes:
+      label: 构建方式（自编译时填写）
+      description: |
+        例如：Qt 6.8.3、MinGW64(UCRT) / GCC 13。
+        使用安装包时填写 "Release 安装包" 即可。
+      placeholder: "Release 安装包 / Qt 6.8.3 + MinGW64(UCRT)"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 如涉及运行错误，请粘贴应用日志（日志页可查看）或 `qteasytier.log` 中的相关片段。
+      placeholder: |
+        （粘贴日志）
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 其他补充
+      description: 其他有助于定位问题的信息（如网络环境、是否涉及 daemon 服务、之前版本是否正常等）。
+    validations:
+      required: false
