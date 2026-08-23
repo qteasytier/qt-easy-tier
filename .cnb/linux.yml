@@ -28,24 +28,6 @@
   exports:
     VERSION: QTET_VERSION
 
-# v* 分支专用：校验分支名版本与 CMakeLists.txt 一致（对应 GitHub release-info job）
-.st-extract-version-release: &st-extract-version-release
-  name: extract-version
-  script: |
-    VERSION="${CNB_BRANCH#v}"
-    if [ "$VERSION" = "$CNB_BRANCH" ]; then
-      echo "分支 $CNB_BRANCH 不是 v* release 分支" >&2
-      exit 1
-    fi
-    CM_VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/^project\(QtEasyTier VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
-    if [ "$CM_VERSION" != "$VERSION" ]; then
-      echo "CMakeLists.txt 中的版本 $CM_VERSION 与分支 $CNB_BRANCH 不一致" >&2
-      exit 1
-    fi
-    echo "##[set-output VERSION=$VERSION]"
-  exports:
-    VERSION: QTET_VERSION
-
 # 安装系统依赖 + 下载 Qt 6.8.3（等价于 GitHub 流水线的 Install system dependencies + Install Qt）
 # 说明：基础镜像 ubuntu:24.04 内不预装任何构建工具，每次构建都由此 stage 准备环境；
 #       Qt 安装目录通过 exports 导出为 Qt6_DIR，供 configure / build / test 使用。
@@ -130,15 +112,6 @@
     cd build/Output
     bash ../../assets/package/linux/build_deb.sh -v "$QTET_VERSION" -a "$QTET_BUILD_ARCH"
 
-# v* 分支专用：发布 Release（tag 已存在时该步骤允许失败，不影响构建结果）
-.st-publish-release: &st-publish-release
-  name: publish-release
-  type: git:release
-  options:
-    tag: $QTET_VERSION
-    description: "QtEasyTier v$QTET_VERSION（桌面版）发布"
-  allowFailure: true
-
 # 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
 # 当前提交，构建页面即可"附件签出"下载 .deb 安装包。
 .st-upload-attachments: &st-upload-attachments
@@ -147,17 +120,6 @@
   settings:
     attachments:
       - "./build/Output/qteasytier_v*.deb"
-
-# 上传 release 附件（v* release）：指定 tag 挂到对应 release，要求该 tag 已存在且已
-# 创建 release（由前置 publish-release 负责）。release 未就绪时允许失败，不阻塞构建。
-.st-upload-release-attachments: &st-upload-release-attachments
-  name: upload-release-attachments
-  image: cnbcool/attachments:latest
-  settings:
-    tag: $QTET_VERSION
-    attachments:
-      - "./build/Output/qteasytier_v*.deb"
-  allowFailure: true
 
 # =====================================================================
 # Pipeline 基础配置（YAML 锚点，供各事件引用）
@@ -196,7 +158,7 @@
 # 事件编排（Linux 部分）
 # =====================================================================
 
-# ---- master 分支 push：构建 + 测试 + 打包（对应 build-master.yml） ----
+# ---- master 分支 push：构建 + 测试 + 打包 ----
 master:
   push:
     linux-amd64:
@@ -222,7 +184,7 @@ master:
         - *st-package-deb
         - *st-upload-attachments
 
-# ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件（对应 build-pr.yml） ----
+# ---- 任意分支 PR：构建 + 测试 + 打包 + 上传附件 ----
 "**":
   pull_request:
     linux-amd64:
@@ -247,31 +209,3 @@ master:
         - *st-test
         - *st-package-deb
         - *st-upload-attachments
-
-# ---- vX.Y.Z 分支 push：构建 + 打包 + 发布 Release（对应 build-release.yml） ----
-v*:
-  push:
-    linux-amd64:
-      <<: *lnx-amd64
-      name: Linux amd64 (release)
-      stages:
-        - *st-extract-version-release
-        - *st-setup-env
-        - *st-configure
-        - *st-build
-        - *st-test
-        - *st-package-deb
-        - *st-publish-release
-        - *st-upload-release-attachments
-    linux-arm64:
-      <<: *lnx-arm64
-      name: Linux arm64 (release)
-      stages:
-        - *st-extract-version-release
-        - *st-setup-env
-        - *st-configure
-        - *st-build
-        - *st-test
-        - *st-package-deb
-        - *st-publish-release
-        - *st-upload-release-attachments

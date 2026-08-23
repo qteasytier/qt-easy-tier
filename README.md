@@ -4,9 +4,9 @@ QtEasyTier 是一个基于 Qt 6 / C++ / QML 的 EasyTier 桌面客户端，目�
 
 项目使用 C++ 承担业务逻辑、持久化、daemon 通信和平台能力封装，QML 负责界面展示与交互绑定。应用前端通过 [qtet-daemon](https://gitee.com/qteasytier/qtet-daemon) 完成实际网络运行能力。
 
-> QtEasyTier 3.0 对项目架构进行了根本上的重构，与之前版本不再兼容，如需查看之前版本的源码请前往[旧版仓库（已停用）](https://gitee.com/qteasytier/qteasytier_old)
+> QtEasyTier 3.0 对项目架构进行了重大重构，如需查看旧版本源码请前往[旧版仓库（已停用）](https://gitee.com/qteasytier/qteasytier_old)
 
-![应用截图](https://qtet.cn/qtet.png)
+![应用截图](/assets/docs/readme.png)
 
 ## 功能特性
 
@@ -121,21 +121,21 @@ ctest --test-dir build -R tst_network_conf --output-on-failure
 ./build/Output/tst_network_conf
 ```
 
-## 运行时数据
+## 配置文件
 
-Linux 下应用配置目录通常位于：
+程序配置的数据存储在系统标准配置目录下。例如，Linux 下应用配置目录通常位于：
 
 ```text
 ~/.config/qteasytier/QtEasyTier/
 ```
 
-默认 SQLite 数据库：
+程序采用SQLite存储网络配置，默认 SQLite 数据库为：
 
 ```text
 ~/.config/qteasytier/QtEasyTier/qteasytier.db
 ```
 
-全局设置文件由 `SettingsStore` 管理，默认使用 `settings3.json`。
+全局设置文件默认使用 `settings3.json`。
 
 ## 贡献
 
@@ -155,8 +155,8 @@ ctest --test-dir build --output-on-failure
 赞助方式：微信支付 & 支付宝
 
 <p>
-<img src="https://qtet.cn/donate/wechat.png" width="220">
-<img src="https://qtet.cn/donate/alipay.png" width="220">
+<img src="/assets/docs/wechat.png" width="220">
+<img src="/assets/docs/alipay.png" width="220">
 </p>
 
 [点击前往赞助详情页面](https://qtet.cn/other/donate/)

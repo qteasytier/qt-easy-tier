@@ -6,3 +6,6 @@ branch:
       - name: 同步 GitHub 仓库
         description: 从 GitHub(qteasytier/qt-easy-tier) 同步全部分支与标签到本仓库
         event: web_trigger_sync
+      - name: 同步 GitHub Release
+        description: 从 GitHub(qteasytier/qt-easy-tier) 拉取最新 release（含预发布版）并镜像同步到本仓库
+        event: web_trigger_sync_release

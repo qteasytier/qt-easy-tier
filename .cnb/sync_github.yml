@@ -1,13 +1,24 @@
 # =====================================================================
-# CNB <-> GitHub 双向镜像同步（全部分支 + 标签）
+# CNB <-> GitHub 双向镜像同步（全部分支 + 标签 + Release）
 #
 # 本文件由根目录 .cnb.yml 通过 include 引入，与 linux.yml / windows.yml 合并。
 #
 # 同步方向与范围：
 #   1. CNB -> GitHub：任意分支收到 push 后，把 CNB 的「全部分支 + 标签」
-#      镜像推送到 GitHub 仓库。
+#      镜像推送到 GitHub 仓库（代码同步由通用 push 流水线统一负责，v* 分支同样适用）。
 #   2. GitHub -> CNB：通过 .cnb/web_trigger.yml 的「同步 GitHub 仓库」按钮
 #      手动触发，把 GitHub 的「全部分支 + 标签」同步回本仓库。
+#   3. GitHub Release -> CNB：将 GitHub 的 release（含预发布版）及其全部附件
+#      镜像同步到本仓库，方便国内用户直接下载。触发方式：
+#      - 手动：分支详情页「同步 GitHub Release」按钮（web_trigger_sync_release）
+#      - 每周：每周一凌晨 3 点（Asia/Shanghai）自动执行（master 分支 crontab）
+#      - v* 分支 push（发布流程）：代码已由通用 push 流水线同步到 GitHub，
+#        GitHub Actions 构建并发布对应版本 release 后，本流水线每 2 分钟轮询
+#        GitHub（最长等待 2 小时），出现后立即镜像同步到本仓库，同步完成流水线才结束。
+#      流水线逻辑见 scripts/mirror_release.py，幂等可重复触发。
+#
+# 说明：同步类流水线均为轻量任务，不需要性能，显式设置 runner.cpus=1
+#      （CNB 节点默认 8 核，详见 https://docs.cnb.cool/zh/build/build-node.html）。
 # =====================================================================
 
 # CNB -> GitHub：全部分支 + 标签镜像推送
@@ -39,20 +50,72 @@
     # 不指定 branch：插件遍历 GitHub 全部分支，逐个同步回本仓库
     push_tags: true
 
+# v* 分支发布流程：等待 GitHub 发布对应版本 release 并镜像同步到 CNB。
+# 版本号从分支名提取（vX.Y.Z -> X.Y.Z，与 GitHub build-release.yml 的 release tag 一致），
+# 每 2 分钟轮询一次、最长等待 2 小时，出现后执行镜像同步（幂等）。
+.st-wait-and-mirror-release: &st-wait-and-mirror-release
+  name: 等待并同步 GitHub Release
+  image: python:3.11
+  script: |
+    cd "${CNB_BUILD_WORKSPACE:-/workspace}"
+    VERSION="${CNB_BRANCH#v}"
+    if [ "$VERSION" = "$CNB_BRANCH" ]; then
+      echo "分支 $CNB_BRANCH 不是 v* release 分支" >&2
+      exit 1
+    fi
+    python3 scripts/mirror_release.py --wait-tag "$VERSION" --wait-timeout 120 --wait-interval 2
+
+# ---- 任意分支 push：把 CNB 全部分支 + 标签镜像推送到 GitHub（v* 分支同样适用） ----
 "**":
-  # ---- 任意分支 push：把 CNB 全部分支 + 标签镜像推送到 GitHub ----
   push:
     sync-to-github:
+      runner:
+        cpus: 1
       imports:
         - https://cnb.cool/myqfeng/keys/-/blob/main/github.yml
       stages:
         - *st-sync-push
 
-  # ---- 任意分支：按钮触发（event 定义于 .cnb/web_trigger.yml），
-  #      从 GitHub 拉取全部分支 + 标签到本仓库 ----
+  # 从 GitHub 拉取全部分支 + 标签到本仓库（event 定义于 .cnb/web_trigger.yml）
   web_trigger_sync:
     sync-from-github:
+      runner:
+        cpus: 1
       imports:
         - https://cnb.cool/myqfeng/keys/-/blob/main/github.yml
       stages:
         - *st-sync-pull
+
+  # 从 GitHub 拉取最新 release（含预发布版）并镜像同步到本仓库
+  web_trigger_sync_release:
+    - runner:
+        cpus: 1
+      docker:
+        image: python:3.11
+      stages:
+        - name: 同步 GitHub Release 到 CNB
+          script:
+            - cd "${CNB_BUILD_WORKSPACE:-/workspace}" && python3 scripts/mirror_release.py
+
+# 每周一凌晨 3 点（Asia/Shanghai）自动同步 GitHub Release 到 CNB（镜像）
+master:
+  "crontab: 0 3 * * 1":
+    - runner:
+        cpus: 1
+      docker:
+        image: python:3.11
+      stages:
+        - name: 每周同步 GitHub Release 到 CNB
+          script:
+            - cd "${CNB_BUILD_WORKSPACE:-/workspace}" && python3 scripts/mirror_release.py
+
+# ---- v* 分支 push（发布流程）：无需再同步代码（通用 push 已负责），
+#      直接等待 GitHub 发布对应版本 release 后镜像同步到本仓库，
+#      同步完成流水线才结束 ----
+v*:
+  push:
+    wait-and-mirror-release:
+      runner:
+        cpus: 1
+      stages:
+        - *st-wait-and-mirror-release
