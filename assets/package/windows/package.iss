@@ -69,28 +69,52 @@ Filename: "{app}\{#DaemonExeName}"; Parameters: "--install"; StatusMsg: "Install
 Filename: "{app}\{#DaemonExeName}"; Parameters: "--start"; StatusMsg: "Starting QtEasyTier daemon service..."; Flags: runhidden waituntilterminated; Check: DaemonExeExists
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-Filename: "{app}\{#DaemonExeName}"; Parameters: "--stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopQtEasyTierDaemon"; Check: DaemonExeExists
-Filename: "{app}\{#DaemonExeName}"; Parameters: "--uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "UninstallQtEasyTierDaemon"; Check: DaemonExeExists
-
 [Code]
 function DaemonExeExists: Boolean;
 begin
   Result := FileExists(ExpandConstant('{app}\{#DaemonExeName}'));
 end;
 
-// 通用执行器：目标可执行文件存在时才执行指定命令。
-// 用于 ssInstall 阶段在文件复制前清理旧服务，以及旧版 WinSW 迁移。
-procedure RunCommandIfExists(const ExeName, Command: String);
+// 通用执行器：目标可执行文件存在时才执行指定命令，并返回命令是否成功。
+// 用于 ssInstall 阶段在文件复制前清理旧服务，以及卸载阶段在文件删除前清理服务。
+// 注意：Inno Setup 的 [UninstallRun] 在文件删除之后才执行，届时服务若仍在运行，
+// qtet-daemon.exe 会被占用导致卸载失败，因此卸载清理必须通过本函数在
+// CurUninstallStepChanged(usUninstall)（文件删除之前）完成。
+function RunCommandIfExists(const ExeName, Command: String): Boolean;
 var
   ResultCode: Integer;
   ExePath: String;
 begin
+  Result := False;
   ExePath := ExpandConstant('{app}\' + ExeName);
   if FileExists(ExePath) then
   begin
-    Exec(ExePath, Command, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if Exec(ExePath, Command, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    begin
+      Result := (ResultCode = 0);
+    end;
   end;
+end;
+
+// 停止并卸载后端服务（含旧版 WinSW 迁移），确保服务进程退出、服务项移除，
+// 释放 qtet-daemon.exe 的文件占用，否则文件无法删除。
+// 停服务失败不影响卸载尝试；卸载失败时等待 2 秒重试一次（服务停止到
+// 服务项移除之间可能存在时序延迟）。
+procedure StopAndUninstallDaemonServices;
+var
+  Uninstalled: Boolean;
+  ExeExists: Boolean;
+begin
+  RunCommandIfExists('{#DaemonExeName}', '--stop');
+  ExeExists := FileExists(ExpandConstant('{app}\{#DaemonExeName}'));
+  Uninstalled := RunCommandIfExists('{#DaemonExeName}', '--uninstall');
+  if ExeExists and not Uninstalled then
+  begin
+    Sleep(2000);
+    RunCommandIfExists('{#DaemonExeName}', '--uninstall');
+  end;
+  RunCommandIfExists('{#DaemonInstallerExe}', 'stop');
+  RunCommandIfExists('{#DaemonInstallerExe}', 'uninstall');
 end;
 
 // CurStepChanged(ssInstall) 在文件复制之前触发（Inno Setup 安装流程中先执行本事件，
@@ -102,9 +126,17 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
-    RunCommandIfExists('{#DaemonExeName}', '--stop');
-    RunCommandIfExists('{#DaemonExeName}', '--uninstall');
-    RunCommandIfExists('{#DaemonInstallerExe}', 'stop');
-    RunCommandIfExists('{#DaemonInstallerExe}', 'uninstall');
+    StopAndUninstallDaemonServices;
+  end;
+end;
+
+// 卸载阶段：Inno Setup 的 [UninstallRun] 在文件删除之后才执行，届时
+// {app}\qtet-daemon.exe 已被删除且服务仍在运行，会留下残留服务并占用文件，
+// 导致后端程序无法删除。因此必须在 usUninstall（文件删除之前）停止并卸载服务。
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    StopAndUninstallDaemonServices;
   end;
 end;
