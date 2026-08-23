@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QDateTime>
+#include <QUuid>
 #include "core/util/LogHelper.h"
 
 NetworkConfigRepository::NetworkConfigRepository(QSqlDatabase db, QObject *parent)
@@ -310,4 +311,14 @@ bool NetworkConfigRepository::exists(const QString &instanceName) const
     if (!query.exec())
         return false;
     return query.next();
+}
+
+QString NetworkConfigRepository::generateUniqueInstanceName() const
+{
+    // 循环生成 UUID 实例名，确保不与已有配置冲突
+    QString instanceName;
+    do {
+        instanceName = QStringLiteral("QtET-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    } while (exists(instanceName));
+    return instanceName;
 }

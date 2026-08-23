@@ -1,4 +1,7 @@
-/** @file ConfigRunState.h @brief 配置运行状态枚举，定义 Stopped/Starting/Running/Stopping/Error 五种状态及状态判断函数 */
+/** @file ConfigRunState.h
+ * @brief 配置运行状态枚举，定义 Stopped/Starting/Running/Stopping/Error 五种状态及状态判断函数
+ *
+ */
 #pragma once
 
 #include <QMetaType>

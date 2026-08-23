@@ -6,7 +6,7 @@ set(QTET_DAEMON_VER 1.0.0)
 
 # 向 C++ 侧暴露版本号
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application/AppVersion.h.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app/AppVersion.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/AppVersion.h
     @ONLY
 )

@@ -4,7 +4,7 @@ add_qtet_library(qtet_config
     ConfigValidator.cpp
     ConfigUrlCodec.cpp
     ConfigUrlCodec.h
-    ../application/config/ConfigPayloadBuilder.cpp
-    ../application/config/ConfigPayloadBuilder.h
+    ConfigPayloadBuilder.cpp
+    ConfigPayloadBuilder.h
 )
 target_link_libraries(qtet_config PUBLIC Qt6::Core qtet_log)

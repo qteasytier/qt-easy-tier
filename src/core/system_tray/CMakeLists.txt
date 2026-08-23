@@ -8,4 +8,4 @@ add_qtet_library(qtet_system_tray
     SystemTrayManager.cpp
     SystemTrayManager.h
 )
-target_link_libraries(qtet_system_tray PUBLIC Qt6::Core Qt6::Network Qt6::Widgets qtet_service qtet_log)
+target_link_libraries(qtet_system_tray PUBLIC Qt6::Core Qt6::Network Qt6::Widgets qtet_service qtet_config qtet_log)

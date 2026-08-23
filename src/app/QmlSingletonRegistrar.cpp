@@ -8,6 +8,7 @@
 #include "QmlSingletonRegistrar.h"
 
 #include "AppServices.h"
+#include "core/application/runtime/VpnRuntimeService.h"
 #include "core/util/FontHelper.h"
 #include "core/viewmodel/AppState.h"
 #include "core/viewmodel/ConfigEditorViewModel.h"
@@ -19,7 +20,6 @@
 #include "core/viewmodel/nodes/ImportNodesViewModel.h"
 #include "core/viewmodel/runtime/BackendStatusViewModel.h"
 #include "core/viewmodel/runtime/NetworkPageViewModel.h"
-#include "core/vpn_manager/VpnManager.h"
 
 #include <QJSEngine>
 #include <QQmlApplicationEngine>
@@ -70,8 +70,8 @@ void registerQmlSingletons(QQmlApplicationEngine &, AppServices &services)
     registerPrecreatedSingleton("LogViewModel", services.logViewModel());
     // 后端 daemon 连接状态
     registerPrecreatedSingleton("BackendStatusViewModel", services.backendStatusViewModel());
-    // VPN 启停管理
-    registerPrecreatedSingleton("VpnManager", services.vpnManager());
+    // VPN 运行服务（启停控制、运行状态、节点与日志展示模型）
+    registerPrecreatedSingleton("VpnRuntimeService", services.vpnRuntimeService());
     // 危险操作（后端安装/卸载、清空全部数据）
     registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationViewModel());
     // 中文字体辅助

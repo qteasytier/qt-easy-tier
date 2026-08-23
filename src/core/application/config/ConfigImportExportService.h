@@ -31,7 +31,6 @@ private:
     QFuture<ConfigOperationResult> importFromToml(const QString &content, const QString &displayName);
     ConfigTextResult tomlForExport(const QString &instanceName) const;
 
-    QString generateInstanceName() const;
     QFuture<ConfigOperationResult> finishedResult(const ConfigOperationResult &result) const;
 
     NetworkConfigRepository *m_repository = nullptr;

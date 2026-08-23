@@ -21,13 +21,14 @@
 
 #include "core/application/config/ConfigCommandService.h"
 #include "core/application/config/ConfigImportExportService.h"
-#include "core/application/runtime/ConfigRunState.h"
+#include "core/application/runtime/NodeInfoModel.h"
+#include "core/application/runtime/RuntimeLogModel.h"
+#include "core/application/runtime/VpnRuntimeService.h"
+#include "core/config/ConfigRunState.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/viewmodel/ConfigListModel.h"
 #include "core/viewmodel/runtime/NetworkPageViewModel.h"
-#include "core/viewmodel/runtime/NodeInfoModel.h"
-#include "core/viewmodel/runtime/RuntimeLogModel.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
 #include "core/vpn_manager/StatusMonitor.h"
@@ -90,7 +91,8 @@ private slots:
         // 准备测试数据：插入一条配置并模拟运行状态
         insertConfig(QStringLiteral("inst-1"), QStringLiteral("配置1"));
 
-        ConfigListModel model(m_repo.get(), nullptr, this);
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
         QCOMPARE(model.rowCount(), 1);
 
         // 模拟 daemon 报告该配置正在运行
@@ -118,7 +120,8 @@ private slots:
         // 准备测试数据：插入一条配置
         insertConfig(QStringLiteral("inst-2"), QStringLiteral("配置2"));
 
-        ConfigListModel model(m_repo.get(), nullptr, this);
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
         QCOMPARE(model.rowCount(), 1);
 
         QSignalSpy spy(&model, &ConfigListModel::configDeleted);
@@ -352,15 +355,16 @@ private slots:
         QCOMPARE(cached.last().toMap().value(QStringLiteral("message")).toString(), QStringLiteral("event 204"));
     }
 
-    /// 目标：VpnManager 刷新 RuntimeLogModel 时使用 controller 的累计日志缓存，而非本次 daemon 返回窗口
-    void vpnManagerRefreshesRuntimeLogModelFromCachedLogs() {
+    /// 目标：VpnRuntimeService 刷新 RuntimeLogModel 时使用 controller 的累计日志缓存，而非本次 daemon 返回窗口
+    void vpnRuntimeServiceRefreshesRuntimeLogModelFromCachedLogs() {
         insertConfig(QStringLiteral("inst-logs"), QStringLiteral("日志配置"));
 
         DaemonClient client;
         DaemonApi api(&client, this);
         StatusMonitor monitor(this);
         VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
-        manager.setActiveInstanceName(QStringLiteral("inst-logs"));
+        VpnRuntimeService service(&manager, this);
+        service.setActiveInstanceName(QStringLiteral("inst-logs"));
 
         // 准备测试数据：构造不同批次的日志
         QVariantMap first;
@@ -378,17 +382,17 @@ private slots:
         third[QStringLiteral("timestamp")] = QStringLiteral("07-12 12:00:02");
         third[QStringLiteral("message")] = QStringLiteral("third event");
 
-        // 分两次推送，第二次与第一次有重叠
+        // 分两次推送，第二次与第一次有重叠；服务监听 instanceInfoUpdated 刷新展示模型
         manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
         manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
 
         // 检查 RuntimeLogModel 包含全部 3 条日志（不重复）
-        QCOMPARE(manager.runtimeLogModel()->rowCount(), 3);
-        QCOMPARE(manager.runtimeLogModel()->data(manager.runtimeLogModel()->index(0, 0), RuntimeLogModel::MessageRole).toString(),
+        QCOMPARE(service.runtimeLogModel()->rowCount(), 3);
+        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(0, 0), RuntimeLogModel::MessageRole).toString(),
                  QStringLiteral("first event"));
-        QCOMPARE(manager.runtimeLogModel()->data(manager.runtimeLogModel()->index(1, 0), RuntimeLogModel::MessageRole).toString(),
+        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(1, 0), RuntimeLogModel::MessageRole).toString(),
                  QStringLiteral("second event"));
-        QCOMPARE(manager.runtimeLogModel()->data(manager.runtimeLogModel()->index(2, 0), RuntimeLogModel::MessageRole).toString(),
+        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(2, 0), RuntimeLogModel::MessageRole).toString(),
                  QStringLiteral("third event"));
     }
 
@@ -488,7 +492,8 @@ private slots:
         // 准备测试数据
         insertConfig(QStringLiteral("inst-3"), QStringLiteral("配置3"));
 
-        ConfigListModel model(m_repo.get(), nullptr, this);
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
 
         // 模拟 daemon 报告该配置正在启动中
         model.onRunningStateChanged(QStringLiteral("inst-3"),

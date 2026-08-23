@@ -1,7 +1,7 @@
 /** @file ConfigImportExportService.cpp @brief ConfigImportExportService 实现 */
 #include "ConfigImportExportService.h"
 
-#include "core/application/config/ConfigPayloadBuilder.h"
+#include "core/config/ConfigPayloadBuilder.h"
 #include "core/config/ConfigValidator.h"
 #include "core/config/NetworkConfToml.h"
 #include "core/repository/NetworkConfigRepository.h"
@@ -12,7 +12,6 @@
 #include <QFutureInterface>
 #include <QFutureWatcher>
 #include <QUrl>
-#include <QUuid>
 #include <toml.hpp>
 
 ConfigImportExportService::ConfigImportExportService(NetworkConfigRepository *repository,
@@ -75,10 +74,10 @@ ConfigTextResult ConfigImportExportService::exportToUrl(const QString &instanceN
 QFuture<ConfigOperationResult> ConfigImportExportService::importFromToml(const QString &content,
                                                                            const QString &displayName)
 {
-    QString instanceName;
-    do {
-        instanceName = generateInstanceName();
-    } while (m_repository && m_repository->exists(instanceName));
+    // 仓库内部负责生成不与现有配置冲突的唯一实例名
+    if (!m_repository)
+        return finishedResult(ConfigOperationResult::fail(QStringLiteral("配置仓库不可用")));
+    const QString instanceName = m_repository->generateUniqueInstanceName();
 
     try {
         const auto parsed = toml::parse(content.toStdString());
@@ -134,12 +133,10 @@ ConfigTextResult ConfigImportExportService::tomlForExport(const QString &instanc
     if (!loaded.has_value())
         return ConfigTextResult::fail(QStringLiteral("配置不存在: %1").arg(instanceName));
 
+    // 导出刻意不包含 instance_name：导入方（含本服务的 importFromToml）总会分配新的实例名，
+    // 携带旧实例名会误导使用者；运行时载荷（ConfigPayloadBuilder::daemonConfigPayload）
+    // 才需要包含 instance_name 供 daemon 识别实例。
     return ConfigTextResult::ok(NetworkConfToml::toToml(loaded.value()));
-}
-
-QString ConfigImportExportService::generateInstanceName() const
-{
-    return QStringLiteral("QtET-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
 QFuture<ConfigOperationResult> ConfigImportExportService::finishedResult(const ConfigOperationResult &result) const

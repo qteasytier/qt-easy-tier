@@ -32,6 +32,7 @@ class ConfigImportExportService;
 class ConfigListModel;
 class DaemonApi;
 class DaemonClient;
+class DangerousOperationService;
 class DangerousOperationViewModel;
 class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;
@@ -44,11 +45,13 @@ class NetworkConfigRepository;
 class NetworkPageViewModel;
 class QQmlApplicationEngine;
 class RepositoryLogSink;
+class SettingsBackendService;
 class SettingsViewModel;
 class StatusMonitor;
 class SystemTrayManager;
 class UpdateCheckService;
 class VpnManager;
+class VpnRuntimeService;
 
 /** @brief 应用服务装配容器，负责所有核心服务对象的创建、连线与生命周期管理 */
 class AppServices : public QObject {
@@ -105,8 +108,10 @@ public:
     BackendStatusViewModel *backendStatusViewModel() const;
     /// 获取导入节点 ViewModel（从公共服务器导入配置）
     ImportNodesViewModel *importNodesViewModel() const;
-    /// 获取 VPN 管理器（启停控制、运行状态、心跳同步）
+    /// 获取 VPN 管理器（启停控制、运行状态、心跳同步；基础服务层，仅供装配与危险操作编排使用）
     VpnManager *vpnManager() const;
+    /// 获取 VPN 运行服务（应用服务层，UI 层访问 VPN 运行能力的唯一入口）
+    VpnRuntimeService *vpnRuntimeService() const;
     /// 获取危险操作 ViewModel（后端安装/卸载、清空全部数据）
     DangerousOperationViewModel *dangerousOperationViewModel() const;
     /// 获取 daemon IPC 客户端
@@ -147,6 +152,7 @@ private:
     DaemonApi *m_daemonApi = nullptr;
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;
     AppState *m_appState = nullptr;
+    SettingsBackendService *m_settingsBackendService = nullptr;
     SettingsViewModel *m_settingsViewModel = nullptr;
     FavoriteNodeImportExportService *m_favoriteNodeImportExportService = nullptr;
     FavoriteNodeViewModel *m_favoriteNodeViewModel = nullptr;
@@ -155,6 +161,8 @@ private:
     RepositoryLogSink *m_repositoryLogSink = nullptr;
     StatusMonitor *m_statusMonitor = nullptr;
     VpnManager *m_vpnManager = nullptr;
+    VpnRuntimeService *m_vpnRuntimeService = nullptr;
+    DangerousOperationService *m_dangerousOperationService = nullptr;
     DangerousOperationViewModel *m_dangerousOperationViewModel = nullptr;
     ConfigCommandService *m_configCommandService = nullptr;
     ConfigImportExportService *m_configImportExportService = nullptr;

@@ -24,7 +24,7 @@
 #include <QVariantList>
 #include "core/config/NetworkConf.h"
 
-class NetworkConfigRepository;
+class ConfigCommandService;
 
 /**
  * @brief Schema 驱动的配置编辑器 ViewModel，将 NetworkConf 各字段暴露为独立 Q_PROPERTY 供 QML 双向绑定
@@ -164,10 +164,10 @@ class ConfigEditorViewModel : public QObject {
 public:
     /**
      * @brief 构造编辑器 ViewModel
-     * @param repo 配置持久化仓库指针（外部管理生命周期，不转移所有权）
+     * @param commandService 配置命令服务指针（读写、增删改，外部管理生命周期，不转移所有权）
      * @param parent 父 QObject，通常为 QQmlApplicationEngine 以避免 double-free
      */
-    explicit ConfigEditorViewModel(NetworkConfigRepository *repo, QObject *parent = nullptr);
+    explicit ConfigEditorViewModel(ConfigCommandService *commandService, QObject *parent = nullptr);
 
     // 编辑器状态访问器
     QString currentInstanceName() const;
@@ -355,8 +355,8 @@ private:
      */
     void emitCurrentChanged();
 
-    /// 配置持久化仓库（非本类所有，生命周期由外部管理）
-    NetworkConfigRepository *m_repo;
+    /// 配置命令服务（非本类所有，生命周期由外部管理）
+    ConfigCommandService *m_commandService;
 
     /// 当前在编辑器中暂存的网络配置副本
     NetworkConf m_conf;

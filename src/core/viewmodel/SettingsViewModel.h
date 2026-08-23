@@ -3,23 +3,21 @@
  * @brief 全局应用设置 ViewModel
  *
  * 管理开机自启、本地设置和日志配置。
- * autoReconnect 不再本地持久化，改为通过 DaemonApi 读写后端状态。
+ * autoReconnect 不再本地持久化，改为通过 SettingsBackendService 读写后端状态。
  * 本地设置持久化到系统标准配置路径下的 settings3.json，
  * 不走 SQLite（app_settings 表已删除）。
  *
  * 作为 QML 单例注入，所有所有权归属于 QQmlApplicationEngine。
+ * 分层约束：与 daemon / 更新检查的交互全部委托应用服务层
+ * SettingsBackendService，本类不直接接触 DaemonApi / UpdateCheckService。
  */
 #pragma once
 #include "core/application/settings/AutoStartService.h"
+#include "core/application/settings/SettingsBackendService.h"
 #include "core/application/settings/SettingsStore.h"
 
-#include <QFutureWatcher>
-#include <QJsonObject>
 #include <QObject>
 #include <QString>
-
-class DaemonApi;
-class UpdateCheckService;
 
 /**
  * @class SettingsViewModel
@@ -27,7 +25,7 @@ class UpdateCheckService;
  *
  * 职责：
  *   - 管理 autoStart（开机自启）本地开关
- *   - 管理 autoReconnect（自动回连）后端开关（通过 DaemonApi）
+ *   - 管理 autoReconnect（自动回连）后端开关（通过 SettingsBackendService）
  *   - 提供 load() / save() 对 settings3.json 的读写
  *   - setAutoStart() 委托 AutoStartService 管理系统级自启动项
  *   - Q_INVOKABLE 方法直接暴露给 QML 绑定和调用
@@ -62,10 +60,12 @@ class SettingsViewModel : public QObject {
     Q_PROPERTY(QString easyTierVersion READ easyTierVersion CONSTANT FINAL)
 
 public:
-    explicit SettingsViewModel(DaemonApi *daemonApi, QObject *parent);
-    explicit SettingsViewModel(DaemonApi *daemonApi = nullptr,
-                               UpdateCheckService *updateCheckService = nullptr,
-                               QObject *parent = nullptr);
+    /**
+     * @brief 构造设置 ViewModel
+     * @param backend 设置后端服务（应用服务层，非所有权，可为空）
+     * @param parent 父对象
+     */
+    explicit SettingsViewModel(SettingsBackendService *backend = nullptr, QObject *parent = nullptr);
 
     bool autoStart() const;
 
@@ -101,7 +101,8 @@ public:
     /**
      * @brief 从后端查询当前自动回连状态
      *
-     * 发出 get_auto_reconnect 请求，成功后更新 m_autoReconnect 并发射信号。
+     * 委托 SettingsBackendService 发出 get_auto_reconnect 请求，
+     * 成功后通过 autoReconnectChanged 信号通知 QML。
      * 请求期间 autoReconnectBusy 为 true。
      */
     Q_INVOKABLE void refreshAutoReconnect();
@@ -109,7 +110,8 @@ public:
     /**
      * @brief 向后端设置自动回连开关
      *
-     * 发出 set_auto_reconnect 请求，成功后更新 m_autoReconnect 并发射信号。
+     * 委托 SettingsBackendService 发出 set_auto_reconnect 请求，
+     * 成功后通过 autoReconnectChanged 信号通知 QML。
      * 请求期间 autoReconnectBusy 为 true。
      *
      * @param enabled true 为启用，false 为禁用
@@ -157,18 +159,12 @@ signals:
 private:
     SettingsStore::Settings settings() const;
     void applySettings(const SettingsStore::Settings &settings);
-    void setBusy(bool busy);
-    void setUpdateCheckBusy(bool busy);
 
-    DaemonApi *m_daemonApi = nullptr;
-    UpdateCheckService *m_updateCheckService = nullptr;
+    SettingsBackendService *m_backend = nullptr; ///< 设置后端服务（非所有权）
     AutoStartService m_autoStartService;
     SettingsStore m_store;
     bool m_autoStart = false;
-    bool m_autoReconnect = false;
-    bool m_autoReconnectBusy = false;
     bool m_autoCheckUpdates = true;
-    bool m_updateCheckBusy = false;
     bool m_hideServerNodes = false;
     bool m_showExitPrompt = true;
     int m_logLevel = 1;

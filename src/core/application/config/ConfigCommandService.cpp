@@ -4,23 +4,43 @@
 #include "core/config/NetworkConf.h"
 #include "core/repository/NetworkConfigRepository.h"
 
-#include <QUuid>
-
 ConfigCommandService::ConfigCommandService(NetworkConfigRepository *repository, QObject *parent)
     : QObject(parent)
     , m_repository(repository)
 {
 }
 
+std::optional<NetworkConf> ConfigCommandService::load(const QString &instanceName) const
+{
+    // 仓库层负责字段级反序列化，服务层直接透传读取结果
+    return m_repository ? m_repository->load(instanceName) : std::nullopt;
+}
+
+QList<NetworkConf> ConfigCommandService::loadAll() const
+{
+    // 仓库不可用时返回空列表，调用方按空列表处理
+    return m_repository ? m_repository->loadAll() : QList<NetworkConf>{};
+}
+
+bool ConfigCommandService::save(const NetworkConf &conf) const
+{
+    // 透传仓库保存，供配置编辑器等调用方统一落盘
+    return m_repository && m_repository->save(conf);
+}
+
 ConfigOperationResult ConfigCommandService::createNewConfig()
 {
+    // 仓库不可用时直接失败，避免空指针解引用
+    if (!m_repository)
+        return ConfigOperationResult::fail(QStringLiteral("配置仓库不可用"));
+
     // 生成实例名并构建默认配置对象
-    const QString instanceName = generateInstanceName();
+    const QString instanceName = m_repository->generateUniqueInstanceName();
     NetworkConf cfg(instanceName);
     cfg.displayName = generateDisplayName();
 
     // 尝试写入仓库，失败则返回错误
-    if (!m_repository || !m_repository->save(cfg))
+    if (!m_repository->save(cfg))
         return ConfigOperationResult::fail(QStringLiteral("创建配置失败"));
 
     return ConfigOperationResult::ok(instanceName);
@@ -56,16 +76,6 @@ ConfigOperationResult ConfigCommandService::renameConfig(const QString &instance
         return ConfigOperationResult::fail(QStringLiteral("重命名失败: %1").arg(instanceName));
 
     return ConfigOperationResult::ok(instanceName);
-}
-
-QString ConfigCommandService::generateInstanceName() const
-{
-    // 循环生成 UUID 实例名，确保不与已有配置冲突
-    QString instanceName;
-    do {
-        instanceName = QStringLiteral("QtET-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
-    } while (m_repository && m_repository->exists(instanceName));
-    return instanceName;
 }
 
 QString ConfigCommandService::generateDisplayName() const

@@ -37,7 +37,7 @@ Item {
 
                 // 空状态：暂无节点信息
                 Label {
-                    visible: VpnManager.nodeInfoModel.count === 0
+                    visible: VpnRuntimeService.nodeInfoModel.count === 0
                     text: qsTr("暂无节点信息")
                     font.pixelSize: 24
                     color: palette.placeholderText
@@ -50,10 +50,10 @@ Item {
                 // 节点信息列表
                 ListView {
                     id: nodeListView
-                    visible: VpnManager.nodeInfoModel.count > 0
+                    visible: VpnRuntimeService.nodeInfoModel.count > 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: VpnManager.nodeInfoModel
+                    model: VpnRuntimeService.nodeInfoModel
                     spacing: 6
                     clip: true
 
@@ -164,7 +164,7 @@ Item {
 
                 // 空状态：暂无日志
                 Label {
-                    visible: VpnManager.runtimeLogModel.count === 0
+                    visible: VpnRuntimeService.runtimeLogModel.count === 0
                     text: qsTr("暂无日志")
                     font.pixelSize: 24
                     color: palette.placeholderText
@@ -177,14 +177,14 @@ Item {
                 // 日志文本框：使用控件内置滚动条，文本自动避开滚动区域边界
                 ScrollView {
                     id: logScrollView
-                    visible: VpnManager.runtimeLogModel.count > 0
+                    visible: VpnRuntimeService.runtimeLogModel.count > 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
 
                     TextArea {
                         id: runtimeLogTextArea
-                        text: VpnManager.runtimeLogModel.plainText
+                        text: VpnRuntimeService.runtimeLogModel.plainText
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.WrapAnywhere
@@ -217,7 +217,7 @@ Item {
                 fileMode: FileDialog.SaveFile
                 currentFile: AppState.homeDirectory + "/qteasytier.log"
                 onAccepted: {
-                    VpnManager.exportLog(selectedFile.toString())
+                    VpnRuntimeService.exportLog(selectedFile.toString())
                 }
             }
         }

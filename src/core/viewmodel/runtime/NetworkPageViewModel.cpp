@@ -2,26 +2,25 @@
  * @file NetworkPageViewModel.cpp
  * @brief NetworkPageViewModel 实现
  *
- * 通过网络页面协调器，接收配置编辑器的实例变更和 VPN 管理器的状态变更信号，
+ * 通过网络页面协调器，接收配置编辑器的实例变更和 VPN 运行服务的状态变更信号，
  * 自动维护 currentInstanceName、currentInstanceRunning 和页面切换状态。
- * 所有对 VpnManager 的调用通过 QMetaObject::invokeMethod 实现弱耦合。
+ * 所有 VPN 操作均通过应用服务层 VpnRuntimeService 完成。
  */
 #include "NetworkPageViewModel.h"
 
-#include <QMetaObject>
-
+#include "core/application/runtime/VpnRuntimeService.h"
 #include "core/viewmodel/ConfigEditorViewModel.h"
 #include "core/viewmodel/ConfigListModel.h"
 
 NetworkPageViewModel::NetworkPageViewModel(ConfigListModel *configListModel,
                                            ConfigEditorViewModel *configEditorViewModel,
-                                           QObject *vpnManager,
+                                           VpnRuntimeService *vpnRuntimeService,
                                            BackendStatusViewModel *backendStatusViewModel,
                                            QObject *parent)
     : QObject(parent)
     , m_configListModel(configListModel)
     , m_configEditorViewModel(configEditorViewModel)
-    , m_vpnManager(vpnManager)
+    , m_vpnRuntimeService(vpnRuntimeService)
     , m_backendStatusViewModel(backendStatusViewModel)
 {
     // 监听编辑器当前实例名称变化，同步更新本协调器的 currentInstanceName
@@ -34,10 +33,12 @@ NetworkPageViewModel::NetworkPageViewModel(ConfigListModel *configListModel,
                 });
     }
 
-    // 监听 VPN 管理器发出的配置状态变更信号，自动刷新当前实例的运行状态
-    if (m_vpnManager)
-        connect(m_vpnManager, SIGNAL(configStateChanged(QString,ConfigRunState)),
-                this, SLOT(refreshRunning()));
+    // 监听 VPN 运行服务发出的配置状态变更信号，自动刷新当前实例的运行状态
+    if (m_vpnRuntimeService)
+        connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
+                this, [this](const QString &, ConfigRunState) {
+                    refreshRunning();
+                });
 }
 
 QString NetworkPageViewModel::currentInstanceName() const
@@ -64,17 +65,13 @@ bool NetworkPageViewModel::showRuntimeStatus() const
 
 void NetworkPageViewModel::refreshRunning()
 {
-    bool running = false;
-    // 通过 invokeMethod 调用 VpnManager::isRunning 查询当前实例运行状态
-    if (m_vpnManager && !m_currentInstanceName.isEmpty()) {
-        QMetaObject::invokeMethod(m_vpnManager, "isRunning",
-                                  Q_RETURN_ARG(bool, running),
-                                  Q_ARG(QString, m_currentInstanceName));
-    }
+    // 通过应用服务层查询当前实例运行状态
+    const bool running = m_vpnRuntimeService && !m_currentInstanceName.isEmpty()
+        && m_vpnRuntimeService->isRunning(m_currentInstanceName);
     setCurrentInstanceRunning(running);
-    // 若正在运行，将当前实例名同步到 VpnManager 的 activeInstanceName 属性
-    if (running && m_vpnManager)
-        m_vpnManager->setProperty("activeInstanceName", m_currentInstanceName);
+    // 若正在运行，将当前实例名同步到 VPN 运行服务的 activeInstanceName 属性
+    if (running && m_vpnRuntimeService)
+        m_vpnRuntimeService->setActiveInstanceName(m_currentInstanceName);
 }
 
 void NetworkPageViewModel::selectConfig(const QString &instanceName)
@@ -125,18 +122,18 @@ void NetworkPageViewModel::renameConfig(const QString &instanceName, const QStri
 
 void NetworkPageViewModel::startConfig(const QString &instanceName)
 {
-    // 选中配置后调用 VpnManager 启动
+    // 选中配置后调用 VPN 运行服务启动
     selectConfig(instanceName);
-    if (m_vpnManager)
-        QMetaObject::invokeMethod(m_vpnManager, "startConfig", Q_ARG(QString, instanceName));
+    if (m_vpnRuntimeService)
+        m_vpnRuntimeService->startConfig(instanceName);
 }
 
 void NetworkPageViewModel::stopConfig(const QString &instanceName)
 {
-    // 选中配置后调用 VpnManager 停止
+    // 选中配置后调用 VPN 运行服务停止
     selectConfig(instanceName);
-    if (m_vpnManager)
-        QMetaObject::invokeMethod(m_vpnManager, "stopConfig", Q_ARG(QString, instanceName));
+    if (m_vpnRuntimeService)
+        m_vpnRuntimeService->stopConfig(instanceName);
 }
 
 void NetworkPageViewModel::importConfigFile(const QString &filePath)

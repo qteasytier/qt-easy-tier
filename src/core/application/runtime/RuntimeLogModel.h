@@ -3,7 +3,7 @@
  * @brief VPN 运行时日志列表 Model（QAbstractListModel 子类）
  *
  * 展示 VPN 运行过程中产生的实时日志条目，包括时间戳、级别、消息正文。
- * 支持 QML 列表展示和 plainText 纯文本导出。数据由 VpnManager 通过
+ * 支持 QML 列表展示和 plainText 纯文本导出。数据由 VpnRuntimeService 通过
  * setItems/setFromVariantList 注入。
  */
 #pragma once
@@ -58,7 +58,7 @@ public:
 
     /// 直接设置日志列表（从结构体列表）
     void setItems(const QList<RuntimeLogItem> &items);
-    /// 从 QVariantList 反序列化并设置日志列表（由 VpnManager 传入）
+    /// 从 QVariantList 反序列化并设置日志列表（由 VpnRuntimeService 传入）
     void setFromVariantList(const QVariantList &items);
 
 signals:

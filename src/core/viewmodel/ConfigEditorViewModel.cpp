@@ -13,11 +13,11 @@
  *   clear()      → m_conf 重置 → emitCurrentChanged
  */
 #include "ConfigEditorViewModel.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/application/config/ConfigCommandService.h"
 
-ConfigEditorViewModel::ConfigEditorViewModel(NetworkConfigRepository *repo, QObject *parent)
+ConfigEditorViewModel::ConfigEditorViewModel(ConfigCommandService *commandService, QObject *parent)
     : QObject(parent)
-    , m_repo(repo)
+    , m_commandService(commandService)
 {
     // 构造时不从仓库加载任何数据，需由外部调用 loadConfig 或 clear 初始化编辑器状态
 }
@@ -423,7 +423,7 @@ void ConfigEditorViewModel::setLocalPrivateKey(const QString &v) {
  */
 void ConfigEditorViewModel::loadConfig(const QString &instanceName)
 {
-    auto loaded = m_repo->load(instanceName);
+    auto loaded = m_commandService ? m_commandService->load(instanceName) : std::nullopt;
     if (!loaded.has_value()) {
         // 仓库中无此实例：显示错误，重置编辑器为零状态
         m_errorMessages = QStringList{QStringLiteral("配置不存在: %1").arg(instanceName)};
@@ -457,7 +457,7 @@ void ConfigEditorViewModel::loadConfig(const QString &instanceName)
  */
 bool ConfigEditorViewModel::save()
 {
-    if (!m_repo->save(m_conf)) {
+    if (!m_commandService || !m_commandService->save(m_conf)) {
         m_errorMessages = QStringList{QStringLiteral("保存配置失败")};
         emit errorMessagesChanged();
         return false;

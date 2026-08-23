@@ -10,11 +10,7 @@ add_qtet_library(qtet_viewmodel
     nodes/ImportNodesViewModel.h
     runtime/BackendStatusViewModel.cpp
     runtime/BackendStatusViewModel.h
-    runtime/NodeInfoModel.cpp
-    runtime/NodeInfoModel.h
-    runtime/RuntimeLogModel.cpp
-    runtime/RuntimeLogModel.h
     runtime/NetworkPageViewModel.cpp
     runtime/NetworkPageViewModel.h
 )
-target_link_libraries(qtet_viewmodel PUBLIC Qt6::Core Qt6::Sql qtet_application qtet_config qtet_repository qtet_service qtet_platform qtet_vpn qtet_favorite qtet_log)
+target_link_libraries(qtet_viewmodel PUBLIC Qt6::Core Qt6::Sql qtet_application qtet_config qtet_repository qtet_service qtet_favorite qtet_log)

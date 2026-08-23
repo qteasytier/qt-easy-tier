@@ -6,16 +6,10 @@
 
 #include <QByteArray>
 
-QString ConfigPayloadBuilder::toToml(const NetworkConf &conf)
-{
-    // 调用 TOML 序列化工具生成带校验的 TOML 字符串
-    return NetworkConfToml::toToml(conf, true);
-}
-
 QString ConfigPayloadBuilder::toBase64Toml(const NetworkConf &conf)
 {
-    // 先序列化为 TOML，再以 UTF-8 编码做 Base64 编码
-    return QString::fromUtf8(toToml(conf).toUtf8().toBase64());
+    // 先序列化为带 instance_name 的运行时 TOML，再以 UTF-8 编码做 Base64 编码
+    return QString::fromUtf8(NetworkConfToml::toToml(conf, true).toUtf8().toBase64());
 }
 
 QJsonObject ConfigPayloadBuilder::daemonConfigPayload(const NetworkConf &conf)

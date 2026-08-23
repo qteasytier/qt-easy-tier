@@ -13,8 +13,6 @@
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
 #include "core/util/LogHelper.h"
-#include "core/viewmodel/runtime/NodeInfoModel.h"
-#include "core/viewmodel/runtime/RuntimeLogModel.h"
 #include <QFutureWatcher>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -33,9 +31,6 @@ VpnManager::VpnManager(DaemonClient *client, DaemonApi *daemonApi, NetworkConfig
     , m_repo(repo)
     , m_statusMonitor(statusMonitor)
 {
-    m_nodeInfoModel = new NodeInfoModel(this);
-    m_runtimeLogModel = new RuntimeLogModel(this);
-
     // 创建心跳定时器，每 3 秒触发一次
     m_heartbeatTimer = new QTimer(this);
     m_heartbeatTimer->setInterval(kHeartbeatIntervalMs);
@@ -263,11 +258,9 @@ void VpnManager::removeController(const QString &instanceName)
     if (it == m_controllers.end())
         return;
 
-    // 如果当前正选中的实例被删除，清空选中状态并通知 QML
+    // 如果当前正选中的实例被删除，清空选中状态并通知上层刷新展示
     if (it.value()->instanceName() == m_activeInstanceName) {
         m_activeInstanceName.clear();
-        m_nodeInfoModel->setFromVariantList({});
-        m_runtimeLogModel->setFromVariantList({});
         emit activeInstanceNameChanged();
     }
 
@@ -288,27 +281,21 @@ void VpnManager::setActiveInstanceName(const QString &name)
     if (m_activeInstanceName == name)
         return;
     m_activeInstanceName = name;
-    auto it = m_controllers.find(m_activeInstanceName);
-    m_nodeInfoModel->setFromVariantList(it == m_controllers.end() ? QVariantList() : it.value()->nodeInfos());
-    m_runtimeLogModel->setFromVariantList(it == m_controllers.end() ? QVariantList() : it.value()->logEntries());
+    // 只记录选中实例；节点/日志展示数据由上层 VpnRuntimeService 通过
+    // nodeInfosFor/logEntriesFor 查询并填充模型
     emit activeInstanceNameChanged();
 }
 
-NodeInfoModel *VpnManager::nodeInfoModel() const
+QVariantList VpnManager::nodeInfosFor(const QString &instanceName) const
 {
-    return m_nodeInfoModel;
+    auto it = m_controllers.find(instanceName);
+    return it == m_controllers.end() ? QVariantList() : it.value()->nodeInfos();
 }
 
-RuntimeLogModel *VpnManager::runtimeLogModel() const
+QVariantList VpnManager::logEntriesFor(const QString &instanceName) const
 {
-    return m_runtimeLogModel;
-}
-
-void VpnManager::setHideServerNodes(bool value)
-{
-    if (!m_nodeInfoModel)
-        return;
-    m_nodeInfoModel->setHideServerNodes(value);
+    auto it = m_controllers.find(instanceName);
+    return it == m_controllers.end() ? QVariantList() : it.value()->logEntries();
 }
 
 // ==================== StatusMonitor 回调 ====================
@@ -324,11 +311,8 @@ void VpnManager::onInstanceInfoParsed(const QString &instName,
     // 将 StatusMonitor 异步解析的结果缓存到对应 controller
     it.value()->setRunningStatus(nodeInfos, logEntries);
 
-    // 如果当前 QML 正在查看该实例，刷新显示
-    if (instName == m_activeInstanceName) {
-        m_nodeInfoModel->setFromVariantList(nodeInfos);
-        m_runtimeLogModel->setFromVariantList(it.value()->logEntries());
-    }
+    // 通知上层（VpnRuntimeService）刷新该实例的节点与日志展示数据
+    emit instanceInfoUpdated(instName, nodeInfos, it.value()->logEntries());
 }
 
 // ==================== 心跳机制 ====================

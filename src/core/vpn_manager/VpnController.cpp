@@ -8,7 +8,7 @@
  * - 异步等待 IPC 响应，成功则切换状态，失败则回退
  */
 #include "VpnController.h"
-#include "core/application/config/ConfigPayloadBuilder.h"
+#include "core/config/ConfigPayloadBuilder.h"
 #include "core/config/NetworkConfToml.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"

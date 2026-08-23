@@ -96,6 +96,16 @@ public:
     bool exists(const QString &instanceName) const;
 
     /**
+     * @brief 生成唯一的配置实例名
+     *
+     * 格式为 QtET-<UUID>，循环生成直至与仓库中已有实例名不冲突。
+     * 供上层应用服务（ConfigCommandService / ConfigImportExportService）共用，
+     * 避免各服务各自实现实例命名规则。
+     * @return 不与现有配置冲突的唯一实例名
+     */
+    QString generateUniqueInstanceName() const;
+
+    /**
      * @brief 清空全部网络配置数据
      * @return true 表示全部清理成功
      *

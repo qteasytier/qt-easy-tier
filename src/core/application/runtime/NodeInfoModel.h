@@ -3,7 +3,7 @@
  * @brief 在线节点信息列表 Model（QAbstractListModel 子类）
  *
  * 展示 VPN 网络中在线节点的详细信息，包括虚拟 IP、主机名、连接类型（直连/中转）、
- * 延迟数据、传输协议等。数据由外部 VpnManager 通过 setItems/setFromVariantList 注入。
+ * 延迟数据、传输协议等。数据由 VpnRuntimeService 通过 setItems/setFromVariantList 注入。
  */
 #pragma once
 
@@ -67,7 +67,7 @@ public:
 
     /// 直接设置节点列表（从结构体列表）
     void setItems(const QList<NodeInfoItem> &items);
-    /// 从 QVariantList 反序列化并设置节点列表（由 VpnManager 传入）
+    /// 从 QVariantList 反序列化并设置节点列表（由 VpnRuntimeService 传入）
     void setFromVariantList(const QVariantList &items);
 
 signals:

@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include "core/application/runtime/ConfigRunState.h"
+#include "core/config/ConfigRunState.h"
 #include "core/service/DaemonClient.h"
 #include "core/system_tray/TrayMessageSink.h"
 

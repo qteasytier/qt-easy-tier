@@ -31,7 +31,7 @@
  * 通过 VpnManager 回调 setRunningStatus() 写入，供 QML 显示。
  */
 #pragma once
-#include "core/application/runtime/ConfigRunState.h"
+#include "core/config/ConfigRunState.h"
 
 #include <QObject>
 #include <QVariantList>

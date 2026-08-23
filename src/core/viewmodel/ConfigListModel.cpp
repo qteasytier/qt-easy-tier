@@ -10,33 +10,18 @@
 #include "ConfigListModel.h"
 #include "core/application/config/ConfigCommandService.h"
 #include "core/application/config/ConfigImportExportService.h"
-#include "core/repository/NetworkConfigRepository.h"
-#include "core/service/DaemonApi.h"
 #include <QFutureWatcher>
 #include <QUrl>
 
-ConfigListModel::ConfigListModel(NetworkConfigRepository *repo,
-                                 DaemonApi *daemonApi,
-                                 ConfigCommandService *commandService,
+ConfigListModel::ConfigListModel(ConfigCommandService *commandService,
                                  ConfigImportExportService *importExportService,
                                  QObject *parent)
     : QAbstractListModel(parent)
-    , m_repo(repo)
-    , m_daemonApi(daemonApi)
     , m_commandService(commandService)
     , m_importExportService(importExportService)
 {
-    if (!m_commandService)
-        m_commandService = new ConfigCommandService(repo, this);
-    if (!m_importExportService)
-        m_importExportService = new ConfigImportExportService(repo, daemonApi, this);
     // 首次加载全部配置数据
     refresh();
-}
-
-ConfigListModel::ConfigListModel(NetworkConfigRepository *repo, DaemonApi *daemonApi, QObject *parent)
-    : ConfigListModel(repo, daemonApi, nullptr, nullptr, parent)
-{
 }
 
 int ConfigListModel::rowCount(const QModelIndex &parent) const
@@ -79,7 +64,7 @@ QHash<int, QByteArray> ConfigListModel::roleNames() const
 void ConfigListModel::refresh()
 {
     beginResetModel();
-    m_configs = m_repo->loadAll();
+    m_configs = m_commandService ? m_commandService->loadAll() : QList<NetworkConf>{};
     endResetModel();
 }
 

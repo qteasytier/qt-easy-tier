@@ -13,7 +13,7 @@
 #include <QJsonObject>
 #include "core/config/NetworkConf.h"
 #include "core/config/NetworkConfToml.h"
-#include "core/application/config/ConfigPayloadBuilder.h"
+#include "core/config/ConfigPayloadBuilder.h"
 
 class TestNetworkConf : public QObject
 {

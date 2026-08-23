@@ -11,8 +11,11 @@
 
 #include "core/application/config/ConfigCommandService.h"
 #include "core/application/config/ConfigImportExportService.h"
+#include "core/application/dangerous/DangerousOperationService.h"
 #include "core/application/favorite/FavoriteNodeImportExportService.h"
 #include "core/application/logging/RepositoryLogSink.h"
+#include "core/application/runtime/VpnRuntimeService.h"
+#include "core/application/settings/SettingsBackendService.h"
 #include "core/log/LogDispatcher.h"
 #include "core/repository/FavoriteNodeRepository.h"
 #include "core/repository/LogRepository.h"
@@ -62,7 +65,9 @@ AppServices::AppServices(const QSqlDatabase &database,
     // ===== 应用基础服务：状态、设置、字体 =====
     m_appState = new AppState(parentObject);
     m_updateCheckService = new UpdateCheckService(parentObject);
-    m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, parentObject);
+    // 设置后端服务：桥接 daemon 自动回连与版本更新检查，UI 层不直接接触这两类基础服务
+    m_settingsBackendService = new SettingsBackendService(m_daemonApi, m_updateCheckService, parentObject);
+    m_settingsViewModel = new SettingsViewModel(m_settingsBackendService, parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。
@@ -97,11 +102,16 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_repositoryLogSink = new RepositoryLogSink(m_logRepository, parentObject);
         m_statusMonitor = new StatusMonitor(parentObject);
         m_vpnManager = new VpnManager(m_daemonClient, m_daemonApi, m_configRepository, m_statusMonitor, parentObject);
-        m_dangerousOperationViewModel = new DangerousOperationViewModel(m_vpnManager,
-                                                                        m_configRepository,
-                                                                        m_favoriteNodeRepository,
-                                                                        m_logRepository,
-                                                                        QString(),
+        // VPN 运行服务：桥接 VpnManager 与 UI 层，暴露运行状态展示模型
+        m_vpnRuntimeService = new VpnRuntimeService(m_vpnManager, parentObject);
+        // 危险操作服务：编排后端安装/卸载与全量数据清空的跨基础服务流程
+        m_dangerousOperationService = new DangerousOperationService(m_vpnManager,
+                                                                    m_configRepository,
+                                                                    m_favoriteNodeRepository,
+                                                                    m_logRepository,
+                                                                    QString(),
+                                                                    parentObject);
+        m_dangerousOperationViewModel = new DangerousOperationViewModel(m_dangerousOperationService,
                                                                         parentObject);
         // 清空全部数据成功后退出应用（信号方式便于测试）
         QObject::connect(m_dangerousOperationViewModel, &DangerousOperationViewModel::quitRequested,
@@ -110,11 +120,10 @@ AppServices::AppServices(const QSqlDatabase &database,
                          });
         m_configCommandService = new ConfigCommandService(m_configRepository, parentObject);
         m_configImportExportService = new ConfigImportExportService(m_configRepository, m_daemonApi, parentObject);
-        m_configListModel = new ConfigListModel(m_configRepository, m_daemonApi, m_configCommandService,
-                                                m_configImportExportService, parentObject);
-        m_configEditorViewModel = new ConfigEditorViewModel(m_configRepository, parentObject);
+        m_configListModel = new ConfigListModel(m_configCommandService, m_configImportExportService, parentObject);
+        m_configEditorViewModel = new ConfigEditorViewModel(m_configCommandService, parentObject);
         m_networkPageViewModel = new NetworkPageViewModel(m_configListModel, m_configEditorViewModel,
-                                                          m_vpnManager, m_backendStatusViewModel,
+                                                          m_vpnRuntimeService, m_backendStatusViewModel,
                                                           parentObject);
 
         // 连线日志和运行时信号
@@ -137,6 +146,7 @@ NetworkPageViewModel *AppServices::networkPageViewModel() const { return m_netwo
 BackendStatusViewModel *AppServices::backendStatusViewModel() const { return m_backendStatusViewModel; }
 ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_importNodesViewModel; }
 VpnManager *AppServices::vpnManager() const { return m_vpnManager; }
+VpnRuntimeService *AppServices::vpnRuntimeService() const { return m_vpnRuntimeService; }
 DangerousOperationViewModel *AppServices::dangerousOperationViewModel() const { return m_dangerousOperationViewModel; }
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }
@@ -202,15 +212,15 @@ void AppServices::wireFavoriteNodeNotifications()
 
 void AppServices::wireRuntime()
 {
-    if (!m_vpnManager || !m_appState || !m_configListModel)
+    if (!m_vpnManager || !m_vpnRuntimeService || !m_appState || !m_configListModel)
         return;
 
-    // 设置页的服务节点隐藏开关只影响运行状态 UI 展示，不影响 controller 内部缓存。
+    // 设置页的服务节点隐藏开关只影响运行状态 UI 展示，作用于 VPN 运行服务的节点信息模型。
     if (m_settingsViewModel) {
-        m_vpnManager->setHideServerNodes(m_settingsViewModel->hideServerNodes());
+        m_vpnRuntimeService->setHideServerNodes(m_settingsViewModel->hideServerNodes());
         QObject::connect(m_settingsViewModel, &SettingsViewModel::hideServerNodesChanged,
-                         m_vpnManager, [this]() {
-                             m_vpnManager->setHideServerNodes(m_settingsViewModel->hideServerNodes());
+                         m_vpnRuntimeService, [this]() {
+                             m_vpnRuntimeService->setHideServerNodes(m_settingsViewModel->hideServerNodes());
                          });
     }
 
@@ -223,18 +233,19 @@ void AppServices::wireRuntime()
                              ensureDaemonServiceOnce();
                      });
     // VPN 配置运行状态变化 → 托盘只统计 Running 状态的网络连接数量。
-    QObject::connect(m_vpnManager, &VpnManager::configStateChanged,
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_systemTrayManager, &SystemTrayManager::setConfigRunState);
     // VPN 停止失败 → 显示全局错误消息
-    QObject::connect(m_vpnManager, &VpnManager::stopFailed, m_appState, &AppState::showError);
-    // 配置列表请求停止配置 → 调用 VpnManager 执行停止
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::stopFailed,
+                     m_appState, &AppState::showError);
+    // 配置列表请求停止配置 → 经 VPN 运行服务执行停止
     QObject::connect(m_configListModel, &ConfigListModel::requestStopConfig,
-                     m_vpnManager, &VpnManager::stopConfig);
-    // 配置被删除 → 通知 VpnManager 清理对应的 controller
+                     m_vpnRuntimeService, &VpnRuntimeService::stopConfig);
+    // 配置被删除 → 经 VPN 运行服务通知清理对应的 controller
     QObject::connect(m_configListModel, &ConfigListModel::configDeleted,
-                     m_vpnManager, &VpnManager::cleanupController);
+                     m_vpnRuntimeService, &VpnRuntimeService::cleanupController);
     // VPN 状态变更 → 同步更新配置列表的显示状态
-    QObject::connect(m_vpnManager, &VpnManager::configStateChanged,
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_configListModel, &ConfigListModel::onRunningStateChanged);
 }
 

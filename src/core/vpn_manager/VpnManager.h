@@ -1,16 +1,15 @@
 /**
  * @file VpnManager.h
- * @brief VPN 全局管理器单例
+ * @brief VPN 全局管理器
  *
  * 管理所有网络配置的生命周期，为每个配置维护独立的 VpnController 状态机。
  * 内置心跳定时器，通过 daemon list_instances 同步真实运行状态。
- * 暴露 activeInstanceName 与运行状态模型供 QML 绑定。
  *
  * ## 架构职责
- * - VpnManager 是 QML 层的唯一入口，所有启动/停止/查询操作均通过此类
- * - 每个配置对应一个 VpnController 实例（懒创建，存储在 m_controllers 哈希表中）
- * - 心跳定时器每 3 秒向 daemon 查询当前运行实例列表，与内部状态机对比纠偏
- * - collect_network_infos 的结果交给 StatusMonitor 异步解析，解析完成后回填到对应 VpnController
+ * - 基础服务层：只负责实例生命周期与状态同步，不接触任何 UI 类型
+ * - 运行状态展示数据（节点信息、运行时日志）通过 instanceInfoUpdated 信号
+ *   向上层暴露，由应用服务层 VpnRuntimeService 填充展示模型
+ * - activeInstanceName 表示"当前查看的实例"，运行状态页的数据源指向该实例
  *
  * ## 线程模型
  * - 所有操作均在主线程（QML 引擎线程）
@@ -20,16 +19,15 @@
  * @see VpnController
  * @see DaemonClient
  * @see StatusMonitor
+ * @see VpnRuntimeService
  */
 #pragma once
 #include <QObject>
 #include <QHash>
 #include <QTimer>
 #include <QVariantList>
-#include "core/application/runtime/ConfigRunState.h"
+#include "core/config/ConfigRunState.h"
 #include "core/service/DaemonClient.h"
-#include "core/viewmodel/runtime/NodeInfoModel.h"
-#include "core/viewmodel/runtime/RuntimeLogModel.h"
 #include "VpnController.h"
 
 class DaemonApi;
@@ -37,18 +35,13 @@ class NetworkConfigRepository;
 class StatusMonitor;
 class QJsonArray;
 
-/** @brief VPN 全局管理器单例，负责所有网络配置的生命周期管理与 QML 交互入口 */
+/** @brief VPN 全局管理器，负责所有网络配置的生命周期管理与状态同步 */
 class VpnManager : public QObject {
     Q_OBJECT
 
-    /// QML 属性：当前正在查看的实例名称（用于日志和节点信息面板）
+    /// 属性：当前正在查看的实例名称（运行状态页的数据源指向）
     Q_PROPERTY(QString activeInstanceName READ activeInstanceName
                WRITE setActiveInstanceName NOTIFY activeInstanceNameChanged FINAL)
-
-    /// QML 属性：节点信息模型（当前查看实例的节点列表）
-    Q_PROPERTY(NodeInfoModel *nodeInfoModel READ nodeInfoModel CONSTANT)
-    /// QML 属性：运行时日志模型（当前查看实例的事件日志）
-    Q_PROPERTY(RuntimeLogModel *runtimeLogModel READ runtimeLogModel CONSTANT)
 
 public:
     /**
@@ -86,31 +79,42 @@ public:
 
     /// 获取当前 QML 选中的实例名
     QString activeInstanceName() const;
-    /// 设置当前 QML 选中的实例名，并刷新节点信息和日志模型
+    /// 设置当前 QML 选中的实例名（仅记录，展示数据的刷新由 VpnRuntimeService 完成）
     void setActiveInstanceName(const QString &name);
-    /// 获取节点信息模型（当前选中实例的节点数据）
-    NodeInfoModel *nodeInfoModel() const;
-    /// 获取运行时日志模型（当前选中实例的事件日志）
-    RuntimeLogModel *runtimeLogModel() const;
 
-    /// 设置运行状态页是否隐藏公共服务器节点
-    void setHideServerNodes(bool value);
+    /// 获取指定实例的节点信息列表（当前缓存，供应用服务层填充展示模型）
+    QVariantList nodeInfosFor(const QString &instanceName) const;
+    /// 获取指定实例的运行时日志列表（当前缓存，供应用服务层填充展示模型）
+    QVariantList logEntriesFor(const QString &instanceName) const;
 
 signals:
-    /// 通知 QML：某配置的状态已变更（参数字 state 为 VpnController::State 枚举整数值）
+    /// 通知上层：某配置的状态已变更
     void configStateChanged(const QString &instanceName, ConfigRunState state);
 
-    /// 通知 QML：某配置的停止操作失败（daemon 返回错误或超时）
+    /// 通知上层：某配置的停止操作失败（daemon 返回错误或超时）
     void stopFailed(const QString &instanceName, const QString &error);
 
-    /// 通知 QML：stopAll() 已收敛完成，success 为 false 表示有实例停止失败或超时
+    /// 通知上层：stopAll() 已收敛完成，success 为 false 表示有实例停止失败或超时
     void allStopped(bool success);
 
-    /// 通知 QML：当前选中实例名已变更
+    /// 通知上层：当前选中实例名已变更
     void activeInstanceNameChanged();
 
+    /**
+     * @brief 通知上层：实例的运行状态信息已更新
+     *
+     * StatusMonitor 解析完成或心跳刷新后发射，携带该实例最新的节点信息与日志。
+     * 展示模型由应用服务层（VpnRuntimeService）根据此信号填充。
+     * @param instName   实例名称
+     * @param nodeInfos  节点信息列表
+     * @param logEntries 事件日志列表
+     */
+    void instanceInfoUpdated(const QString &instName,
+                             const QVariantList &nodeInfos,
+                             const QVariantList &logEntries);
+
 public slots:
-    /// StatusMonitor 异步解析完成后回调：将解析结果缓存到对应 VpnController 并刷新 QML 绑定
+    /// StatusMonitor 异步解析完成后回调：将解析结果缓存到对应 VpnController 并通知上层
     /// @param instName   实例名称
     /// @param nodeInfos  解析后的节点信息列表
     /// @param logEntries 解析后的事件日志列表
@@ -162,13 +166,11 @@ private:
     DaemonApi *m_daemonApi;
     NetworkConfigRepository *m_repo;
     StatusMonitor *m_statusMonitor;
-    NodeInfoModel *m_nodeInfoModel = nullptr;
-    RuntimeLogModel *m_runtimeLogModel = nullptr;
 
     /// 心跳定时器：每 kHeartbeatIntervalMs 毫秒触发一次，向 daemon 轮询运行状态
     QTimer *m_heartbeatTimer;
 
-    /// 当前 QML 选中的实例名
+    /// 当前 QML 选中的实例名（运行状态页数据源指向，展示刷新由上层服务完成）
     QString m_activeInstanceName;
 
     /// 心跳进行中标志：上一轮心跳未完成时跳过本次，防止并发堆积

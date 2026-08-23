@@ -1,10 +1,10 @@
 /**
  * @file NetworkPageViewModel.h
- * @brief 网络页面 ViewModel，协调配置列表、编辑器、VPN 管理和页面状态
+ * @brief 网络页面 ViewModel，协调配置列表、编辑器、VPN 运行服务和页面状态
  *
  * 作为网络页面的顶层协调器，管理以下逻辑：
  * - 配置的选择、创建、删除、重命名、导入
- * - 配置的启动和停止（通过 VpnManager）
+ * - 配置的启动和停止（通过 VpnRuntimeService）
  * - 编辑器显示 / 运行时状态显示的页面切换
  * - 当前选中实例的运行状态查询
  */
@@ -16,9 +16,10 @@
 class BackendStatusViewModel;
 class ConfigEditorViewModel;
 class ConfigListModel;
+class VpnRuntimeService;
 
 /**
- * @brief 网络页面协调 ViewModel，聚合配置列表/编辑器/VPN 管理器，管理页面状态切换
+ * @brief 网络页面协调 ViewModel，聚合配置列表/编辑器/VPN 运行服务，管理页面状态切换
  */
 class NetworkPageViewModel : public QObject
 {
@@ -37,13 +38,13 @@ public:
      * @brief 构造网络页面 ViewModel
      * @param configListModel 配置列表模型
      * @param configEditorViewModel 配置编辑器 ViewModel
-     * @param vpnManager VPN 管理器（通过 invokeMethod 调用其 startConfig/stopConfig）
+     * @param vpnRuntimeService VPN 运行服务（应用服务层，启动/停止/状态查询的唯一入口）
      * @param backendStatusViewModel 后端状态 ViewModel
      * @param parent 父 QObject
      */
     explicit NetworkPageViewModel(ConfigListModel *configListModel,
                                   ConfigEditorViewModel *configEditorViewModel,
-                                   QObject *vpnManager,
+                                  VpnRuntimeService *vpnRuntimeService,
                                   BackendStatusViewModel *backendStatusViewModel,
                                   QObject *parent = nullptr);
 
@@ -88,7 +89,7 @@ private:
 
     ConfigListModel *m_configListModel = nullptr;              ///< 配置列表模型（非所有权）
     ConfigEditorViewModel *m_configEditorViewModel = nullptr;  ///< 配置编辑器（非所有权）
-    QObject *m_vpnManager = nullptr;                           ///< VPN 管理器（非所有权，通过 invokeMethod 调用）
+    VpnRuntimeService *m_vpnRuntimeService = nullptr;          ///< VPN 运行服务（非所有权，应用服务层）
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;///< 后端状态（非所有权）
     QString m_currentInstanceName;                             ///< 当前选中实例名缓存
     bool m_currentInstanceRunning = false;                     ///< 当前实例运行状态缓存

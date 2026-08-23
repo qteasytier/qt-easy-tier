@@ -5,20 +5,18 @@
  * 作为 QML ListView / GridView 的数据源，提供网络配置的增删改查、
  * 导入导出、运行状态展示等功能。每个配置项通过 role 映射到 QML 属性。
  *
- * 模型不直接持有数据存储——通过 NetworkConfigRepository 访问 SQLite，
- * 通过 DaemonClient 与服务进程通信。与 VpnManager 平权解耦，
- * 通过信号/槽通信，互不持有对方指针。
+ * 模型不直接访问数据存储——所有数据读写均通过应用服务层
+ * （ConfigCommandService / ConfigImportExportService）完成。
+ * 与 VpnRuntimeService 平权解耦，通过信号/槽通信，互不持有对方指针。
  */
 #pragma once
 #include <QAbstractListModel>
 #include <QHash>
 #include <QList>
 #include <QSet>
-#include "core/application/runtime/ConfigRunState.h"
+#include "core/config/ConfigRunState.h"
 #include "core/config/NetworkConf.h"
 
-class NetworkConfigRepository;
-class DaemonApi;
 class ConfigCommandService;
 class ConfigImportExportService;
 
@@ -37,16 +35,13 @@ public:
 
     /**
      * @brief 构造配置列表模型
-     * @param repo 网络配置持久化仓库（非空）
-     * @param daemonApi Daemon API，用于异步导入校验
+     * @param commandService 配置命令服务（读写、增删改，非空）
+     * @param importExportService 配置导入导出服务（可为空，为空时导入导出功能不可用）
      * @param parent 父对象
      */
-    explicit ConfigListModel(NetworkConfigRepository *repo,
-                             DaemonApi *daemonApi,
-                             ConfigCommandService *commandService,
+    explicit ConfigListModel(ConfigCommandService *commandService,
                              ConfigImportExportService *importExportService = nullptr,
                              QObject *parent = nullptr);
-    ConfigListModel(NetworkConfigRepository *repo, DaemonApi *daemonApi, QObject *parent);
 
     // ---- QAbstractListModel 核心接口 ----
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -109,8 +104,6 @@ private:
     /// 从数据库删除指定配置并通知外部
     bool performDelete(const QString &instanceName);
 
-    NetworkConfigRepository *m_repo;       ///< 配置持久化仓库（非所有权）
-    DaemonApi *m_daemonApi;                ///< 守护进程 API（非所有权）
     ConfigCommandService *m_commandService; ///< 配置命令服务（非所有权）
     ConfigImportExportService *m_importExportService; ///< 配置导入导出服务（非所有权）
     QList<NetworkConf> m_configs;                ///< 内存中的完整配置列表缓存
