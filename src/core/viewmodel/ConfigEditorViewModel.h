@@ -21,6 +21,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 #include "core/config/NetworkConf.h"
 
@@ -276,6 +277,26 @@ public:
      */
     Q_INVOKABLE void clear();
 
+    /**
+     * @brief 立即刷写尚未触发的自动保存（防抖定时器未到期的修改）
+     *
+     * 防抖自动保存模式下，最后一次修改可能仍在等待定时器触发。
+     * 在切换配置 / 销毁编辑页面等"即将离开"场景前调用，确保不丢失修改。
+     * 没有待保存修改时不做任何事。
+     */
+    Q_INVOKABLE void flushAutoSave();
+
+    /**
+     * @brief 将当前实例的全部网络设置恢复为默认值并立即落库
+     * @return true 重置成功，false 失败（无当前实例名或写库失败，错误消息写入 errorMessages）
+     *
+     * 语义：
+     * 1. 仅保留显示名称 displayName（元数据，不属于网络设置），其余字段恢复默认
+     * 2. 立即写入仓库并刷新编辑器所有字段绑定
+     * 3. 重置后 hasUnsavedChanges 置 false（内存与仓库一致）
+     */
+    Q_INVOKABLE bool resetToDefaults();
+
 signals:
     // ==================== 编辑器状态信号 ====================
     /// 当前编辑的配置实例名称发生变更（loadConfig / clear 时触发）
@@ -347,6 +368,28 @@ private:
     void markDirty();
 
     /**
+     * @brief 调度一次防抖自动保存
+     *
+     * markDirty 后调用：若防抖定时器尚未运行则启动（singleShot），
+     * 停止输入/操作约 kAutoSaveDelayMs 后触发 autoSaveTimeout() 统一落库。
+     */
+    void scheduleAutoSave();
+
+    /**
+     * @brief 防抖定时器超时槽，执行自动保存
+     *
+     * 仅当仍有未保存修改时保存，避免 load/clear 之后误保存新配置。
+     */
+    void autoSaveTimeout();
+
+    /**
+     * @brief 立即刷写待保存修改（loadConfig / clear / 外部退出前调用）
+     *
+     * 若防抖定时器仍在运行，停止它并立即保存当前 dirty 配置。
+     */
+    void flushPendingSave();
+
+    /**
      * @brief 一次性发射所有字段变更信号
      *
      * 用于 load / clear 场景：底层 m_conf 批量替换后，
@@ -363,6 +406,9 @@ private:
 
     /// 未保存变更标记（true 表示 m_conf 与仓库中版本不同）
     bool m_hasUnsavedChanges = false;
+
+    /// 自动保存防抖定时器（singleShot：停止编辑约 300ms 后落库）
+    QTimer m_autoSaveTimer;
 
     /// 操作结果错误消息列表（空列表表示无错误）
     QStringList m_errorMessages;

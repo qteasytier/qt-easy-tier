@@ -8,12 +8,13 @@
  * - 动态列表管理（服务器、监听地址、代理子网、路由、出口节点）
  * - 导出配置文件（TOML 格式）
  *
- * 数据流：所有字段通过 ConfigEditorViewModel 双向绑定。
+ * 数据流：所有字段通过 ConfigEditorViewModel 双向绑定，采用即时保存：
+ * 字段一旦修改即由 ConfigEditorViewModel 内部防抖自动落库，无需手动点击保存。
  * 列表数据通过 loadListsFromConfig() 从 ViewModel 拉取，
  * 通过 commitListsToViewModel() 写回 ViewModel。
  *
  * 依赖的单例：
- * - ConfigEditorViewModel  字段读写、保存/取消
+ * - ConfigEditorViewModel  字段读写、即时保存（防抖 300ms）
  * - ConfigListModel        导出配置
  * - AppState               错误提示、主目录路径
  * - FontHelper             小字体
@@ -581,7 +582,8 @@ ColumnLayout {
     }
 
     // ============================================
-    // 底部操作栏：导出 / 取消 / 保存
+    // 底部操作栏：导出配置 / 清空配置
+    // 配置采用即时保存（防抖自动落库），不再需要手动保存/取消按钮
     // ============================================
     RowLayout {
         Layout.fillWidth: true
@@ -595,26 +597,48 @@ ColumnLayout {
             onClicked: exportChoiceDialog.open()
         }
 
-        // 弹性空间，将取消/保存推至右侧
+        // 弹性空间，将导出按钮推至左侧、清空按钮推至右侧
         Item { Layout.fillWidth: true }
 
         Button {
-            text: qsTr("取消")
-            onClicked: {
-                ConfigEditorViewModel.cancel()
-                loadListsFromConfig()
-            }
+            text: qsTr("清空配置")
+            // 无当前配置时禁用
+            enabled: ConfigEditorViewModel.currentInstanceName !== ""
+            onClicked: resetConfirmDialog.open()
+        }
+    }
+
+    // 即时保存失败时弹出错误提示，让用户感知配置未能落库
+    Connections {
+        target: ConfigEditorViewModel
+        function onErrorMessagesChanged() {
+            var msgs = ConfigEditorViewModel.errorMessages
+            if (msgs.length > 0)
+                AppState.showError(msgs[0])
+        }
+    }
+
+    // 页面销毁前刷写防抖窗口内尚未落库的修改，避免最后几秒的编辑丢失
+    Component.onDestruction: ConfigEditorViewModel.flushAutoSave()
+
+    // 清空配置确认：将当前实例的全部网络设置恢复为默认值（不可恢复）
+    Dialog {
+        id: resetConfirmDialog
+        title: qsTr("清空配置")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        Label {
+            text: qsTr("将把当前实例「%1」的全部网络设置恢复为默认值。此操作不可恢复！\n\n是否继续？")
+                .arg(ConfigEditorViewModel.displayName)
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
 
-        Button {
-            text: qsTr("保存")
-            // 仅在有未保存修改时可用
-            enabled: ConfigEditorViewModel.hasUnsavedChanges
-            onClicked: {
-                commitListsToViewModel()
-                ConfigEditorViewModel.save()
-            }
-        }
+        onAccepted: ConfigEditorViewModel.resetToDefaults()
     }
 
     // 导出方式选择对话框

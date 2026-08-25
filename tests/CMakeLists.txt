@@ -26,6 +26,9 @@ target_link_libraries(tst_sqlite_repository PRIVATE qtet_repository)
 add_core_test(tst_config_list_model tst_config_list_model.cpp)
 target_link_libraries(tst_config_list_model PRIVATE qtet_viewmodel)
 
+add_core_test(tst_config_editor_viewmodel tst_config_editor_viewmodel.cpp)
+target_link_libraries(tst_config_editor_viewmodel PRIVATE qtet_viewmodel)
+
 add_core_test(tst_favorite_node_repository tst_favorite_node_repository.cpp)
 target_link_libraries(tst_favorite_node_repository PRIVATE qtet_repository)
 
