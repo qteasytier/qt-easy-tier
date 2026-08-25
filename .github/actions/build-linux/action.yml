@@ -1,0 +1,92 @@
+name: Build And Test Linux
+description: 在 Linux 上安装系统依赖与 Qt，配置、构建并运行测试。
+
+inputs:
+  qt_arch:
+    description: Qt 架构标识（如 linux_gcc_64 / linux_gcc_arm64）。
+    required: true
+  build_dir:
+    description: CMake 构建目录。
+    required: false
+    default: build
+  qt_version:
+    description: Qt 版本号。
+    required: false
+    default: 6.8.3
+  extract_version:
+    description: 是否从 CMakeLists.txt 提取项目版本号并作为 outputs.version 输出。
+    required: false
+    default: 'false'
+
+outputs:
+  version:
+    description: 从 CMakeLists.txt 提取的项目版本号。
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Extract project version
+      if: ${{ inputs.extract_version == 'true' }}
+      id: version
+      shell: bash
+      run: |
+        VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/.*VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+        if [ -z "$VERSION" ]; then
+          echo "Failed to extract version from CMakeLists.txt"
+          exit 1
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake ninja-build git bash dpkg-dev \
+          libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
+          libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
+          libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
+          libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
+          libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
+          libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+          libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+          libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+          libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
+          libglu1-mesa-dev libpng-dev
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{ inputs.qt_version }}
+        target: desktop
+        arch: ${{ inputs.qt_arch }}
+
+    - name: Show Qt version
+      shell: bash
+      run: |
+        qmake -query QT_VERSION
+        qmake -query QT_INSTALL_PREFIX
+
+    - name: Configure
+      shell: bash
+      run: |
+        cmake -S . -B "${{ inputs.build_dir }}" \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH="$Qt6_DIR"
+
+    - name: Build
+      shell: bash
+      run: |
+        cmake --build "${{ inputs.build_dir }}" --parallel "$(nproc)"
+
+    - name: Run tests
+      shell: bash
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        ctest --test-dir "${{ inputs.build_dir }}" --output-on-failure
