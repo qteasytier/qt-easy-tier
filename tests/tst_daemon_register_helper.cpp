@@ -48,6 +48,8 @@ private slots:
 #if defined(Q_OS_LINUX)
         QFile::remove(m_servicePath);
         QVERIFY(!DaemonRegisterHelper::isServiceRegistered());
+#else
+        QSKIP("isServiceRegistered 仅适用于 Linux");
 #endif
     }
 
@@ -60,6 +62,8 @@ private slots:
         file.close();
 
         QVERIFY(DaemonRegisterHelper::isServiceRegistered());
+#else
+        QSKIP("isServiceRegistered 仅适用于 Linux");
 #endif
     }
 
@@ -150,6 +154,8 @@ private slots:
     {
 #if defined(Q_OS_WIN)
         QCOMPARE(DaemonRegisterHelper::daemonBinaryPath(), m_daemonPath);
+#else
+        QSKIP("daemonBinaryPath 仅适用于 Windows");
 #endif
     }
 
@@ -175,6 +181,8 @@ private slots:
         QVERIFY(content.contains(QStringLiteral("ExecStart=%1").arg(m_daemonPath)));
         QVERIFY(content.contains(QStringLiteral("WorkingDirectory=%1").arg(QFileInfo(m_daemonPath).absolutePath())));
         QVERIFY(content.contains(QStringLiteral("Restart=always")));
+#else
+        QSKIP("systemd 服务内容仅适用于 Linux");
 #endif
     }
 

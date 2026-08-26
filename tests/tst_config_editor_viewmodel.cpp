@@ -147,7 +147,7 @@ private slots:
         QVERIFY(!editor.hasUnsavedChanges());
     }
 
-    /// 目标：resetToDefaults 可手动立即刷写防抖窗口内的修改
+    /// 目标：flushAutoSave 可手动立即持久化防抖窗口内的修改
     void flushAutoSave_persistsPendingEditsImmediately() {
         insertConfig(QStringLiteral("inst-a"), QStringLiteral("配置A"));
 

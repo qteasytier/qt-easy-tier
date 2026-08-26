@@ -40,14 +40,12 @@
  *   Disconnected ──connectToDaemon()──→ Connecting ──socket::connected──→ Connected
  *   Connected    ──socket::disconnected──→ Disconnected ──tryConnect()──→ ...
  * @enddot
- *
- * 注意：所有 QML 单例必须以 QQmlApplicationEngine 为父对象，参见项目架构文档。
  */
 class DaemonClient : public QObject {
     Q_OBJECT
 
     /**
-     * @brief 连接状态属性，供 QML 绑定使用
+     * @brief 连接状态属性，供 C++ 侧状态监听（如 BackendStatusViewModel）使用
      * 取值：Disconnected(0) / Connecting(1) / Connected(2)
      */
     Q_PROPERTY(ConnectionState connectionState READ connectionState NOTIFY connectionStateChanged FINAL)
@@ -74,7 +72,7 @@ public:
      */
     explicit DaemonClient(QObject *parent = nullptr);
 
-    /// 析构时停止重连定时器，终止待处理请求
+    /// 析构时停止重连定时器
     ~DaemonClient() override;
 
     /**
@@ -157,8 +155,9 @@ private slots:
      * @brief socket 连接错误处理
      *
      * 只在 Connecting 状态下处理错误。此时将状态切回 Disconnected
-     * 并启动重连定时器。如果在 Connected 状态下收到错误，
-     * Qt 会随后触发 disconnected 信号，由 onDisconnected() 统一处理。
+     * 并启动重连定时器；但用户主动断开（m_manualDisconnect）时不重连。
+     * 如果在 Connected 状态下收到错误，Qt 会随后触发 disconnected 信号，
+     * 由 onDisconnected() 统一处理。
      */
     void onSocketError();
 

@@ -29,6 +29,7 @@ class TestLogHelper : public QObject {
     Q_OBJECT
 private slots:
     void initTestCase();
+    void cleanup();
     void testDispatcherFiltering();
     void testFiltering();
 
@@ -39,6 +40,15 @@ private:
 void TestLogHelper::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
+}
+
+/// 每个测试后恢复全局 LogDispatcher 单例状态，
+/// 避免 testFiltering 修改 minimumLevel/注册 sink 后污染后续测试
+void TestLogHelper::cleanup()
+{
+    auto *dispatcher = LogDispatcher::instance();
+    dispatcher->clearSinks();
+    dispatcher->setMinimumLevel(LogLevel::Warning);
 }
 
 /// 测试目标：验证 LogDispatcher 根据 minimumLevel 正确过滤日志级别

@@ -3,7 +3,7 @@
  * @brief RuntimeLogModel 实现
  *
  * setFromVariantList 将 VpnManager 传入的原始 QVariantList 反序列化为
- * RuntimeLogItem 列表，levelText 自动转为大写。
+ * RuntimeLogItem 列表。
  * plainText 将所有日志格式化为换行分隔的纯文本，用于复制或导出。
  */
 #include "RuntimeLogModel.h"
@@ -29,8 +29,6 @@ QVariant RuntimeLogModel::data(const QModelIndex &index, int role) const
     switch (role) {
     case TimestampRole: return item.timestamp;
     case RawTimestampRole: return item.rawTimestamp;
-    case LevelRole: return item.level;
-    case LevelTextRole: return item.levelText;
     case MessageRole: return item.message;
     // DisplayTextRole: 组合时间戳和消息为一行显示文本
     case DisplayTextRole: return QStringLiteral("[%1] %2").arg(item.timestamp, item.message);
@@ -43,8 +41,6 @@ QHash<int, QByteArray> RuntimeLogModel::roleNames() const
     return {
         {TimestampRole, "timestamp"},
         {RawTimestampRole, "rawTimestamp"},
-        {LevelRole, "level"},
-        {LevelTextRole, "levelText"},
         {MessageRole, "message"},
         {DisplayTextRole, "displayText"},
     };
@@ -89,9 +85,6 @@ void RuntimeLogModel::setFromVariantList(const QVariantList &items)
         RuntimeLogItem item;
         item.rawTimestamp = map.value(QStringLiteral("rawTimestamp")).toString();
         item.timestamp = map.value(QStringLiteral("timestamp")).toString();
-        item.level = map.value(QStringLiteral("level")).toString();
-        // levelText: 有 level 值时转为大写，否则保持 level 原值
-        item.levelText = item.level.isEmpty() ? item.level : item.level.toUpper();
         item.message = map.value(QStringLiteral("message")).toString();
         converted.append(item);
     }

@@ -1,6 +1,6 @@
 /**
  * @file tst_config_list_model.cpp
- * @brief 配置列表模型模块的单元测试。测试内容：运行中配置延迟删除、未运行配置立即删除、TOML 导入解析失败处理、命令服务重命名配置、运行时模型稳定角色暴露、节点信息模型 count 通知、运行日志模型 count 通知与 plainText、日志缓存去重与数量限制、StatusMonitor 事件解析、网络信息输出安全、页面 ViewModel 初始状态、启动/停止中配置删除拒绝。
+ * @brief 配置列表模型模块的单元测试
  *
  * 覆盖：
  * - 删除运行中配置时，数据库记录应保留到状态变为 Unstarted 后才删除
@@ -183,7 +183,6 @@ private slots:
         const auto logRoles = logModel.roleNames().values();
         // 检查运行日志模型暴露关键 role
         QVERIFY(logRoles.contains("timestamp"));
-        QVERIFY(logRoles.contains("levelText"));
         QVERIFY(logRoles.contains("message"));
     }
 
@@ -394,6 +393,25 @@ private slots:
                  QStringLiteral("second event"));
         QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(2, 0), RuntimeLogModel::MessageRole).toString(),
                  QStringLiteral("third event"));
+    }
+
+    /// 目标：VpnRuntimeService::exportLog 必须是 QML 可调用的（Q_INVOKABLE）
+    /// 回归：曾因漏标 Q_INVOKABLE 导致 QML 中 exportLog 绑定失败、点击导出日志无响应
+    void vpnRuntimeServiceExportLogIsQmlInvokable() {
+        insertConfig(QStringLiteral("inst-logs"), QStringLiteral("日志配置"));
+
+        DaemonClient client;
+        DaemonApi api(&client, this);
+        StatusMonitor monitor(this);
+        VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
+        VpnRuntimeService service(&manager, this);
+
+        // QML 可调用方法必须出现在 metaobject 中（Q_INVOKABLE 或 slot）
+        const int methodIndex = service.metaObject()->indexOfMethod("exportLog(QString)");
+        QVERIFY(methodIndex >= 0);
+        const QMetaMethod method = service.metaObject()->method(methodIndex);
+        QVERIFY(method.isValid());
+        QVERIFY(method.methodType() == QMetaMethod::Method);
     }
 
     /// 目标：StatusMonitor 应完整解析 daemon events 数组，不应在 20 条处截断

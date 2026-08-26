@@ -56,8 +56,8 @@ public:
     /// 查询指定配置的当前状态（ConfigRunState 枚举整数值）
     int configState(const QString &instanceName) const;
 
-    /// 导出当前选中实例的运行日志到本地文件
-    bool exportLog(const QString &filePath);
+    /// 导出当前选中实例的运行日志到本地文件（供 QML 直接调用，须为 Q_INVOKABLE）
+    Q_INVOKABLE bool exportLog(const QString &filePath);
 
     /// 设置运行状态页是否隐藏公共服务器节点（作用于节点信息模型）
     void setHideServerNodes(bool value);

@@ -2,7 +2,7 @@
  * @file RuntimeLogModel.h
  * @brief VPN 运行时日志列表 Model（QAbstractListModel 子类）
  *
- * 展示 VPN 运行过程中产生的实时日志条目，包括时间戳、级别、消息正文。
+ * 展示 VPN 运行过程中产生的实时日志条目，包括时间戳与消息正文。
  * 支持 QML 列表展示和 plainText 纯文本导出。数据由 VpnRuntimeService 通过
  * setItems/setFromVariantList 注入。
  */
@@ -18,8 +18,6 @@
 struct RuntimeLogItem {
     QString rawTimestamp;  ///< 原始时间戳（毫秒级）
     QString timestamp;     ///< 格式化后的时间戳字符串
-    QString level;         ///< 日志级别标识
-    QString levelText;     ///< 日志级别显示文本（大写）
     QString message;       ///< 日志消息正文
 };
 
@@ -39,8 +37,6 @@ public:
     enum Roles {
         TimestampRole = Qt::UserRole + 1,  ///< 格式化时间戳
         RawTimestampRole,                   ///< 原始时间戳
-        LevelRole,                          ///< 日志级别标识
-        LevelTextRole,                      ///< 日志级别显示文本
         MessageRole,                        ///< 日志消息正文
         DisplayTextRole,                    ///< 组合显示文本（"[时间戳] 消息"）
     };

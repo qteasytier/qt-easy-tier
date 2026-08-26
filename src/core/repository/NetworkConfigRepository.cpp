@@ -23,15 +23,12 @@ NetworkConfigRepository::NetworkConfigRepository(QSqlDatabase db, QObject *paren
  * 执行流程：
  * 1. 验证 instanceName 非空
  * 2. 确定显示名称：优先使用传入的 displayName，否则用 instanceName
- * 3. 检查元数据表中是否已有该配置：
+ * 3. 启动事务，保证元数据与字段写入的原子性
+ * 4. 检查元数据表中是否已有该配置：
  *    - 已有 → UPDATE display_name 和 updated_at
  *    - 没有 → INSERT 新行，同时设置 created_at 和 updated_at
- * 4. 遍历配置的所有字段，逐字段调用 saveField() 持久化
- *
- * 注意：步骤 3 和步骤 4 之间没有事务包裹。如果步骤 4 中某个字段保存失败，
- * 步骤 3 的元数据修改已经持久化。这在当前场景下可接受，因为：
- * - 字段级存储天然支持部分写入
- * - 下次 save() 会重新保存所有字段
+ * 5. 遍历配置的所有字段，逐字段调用 saveField() 持久化
+ * 任一步失败则回滚，避免元数据已改而字段未写入的中间状态。
  */
 bool NetworkConfigRepository::save(const NetworkConf &config)
 {

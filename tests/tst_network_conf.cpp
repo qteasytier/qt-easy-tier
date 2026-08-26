@@ -114,6 +114,8 @@ private slots:
         QCOMPARE(restored.servers.size(), 1);
         QCOMPARE(restored.servers.at(0).uri, QStringLiteral("tcp://peer1:11010"));
         QCOMPARE(restored.latencyFirst, true);
+        QCOMPARE(restored.mtu, 1400);
+        QCOMPARE(restored.enableKcpProxy, true);
         QCOMPARE(restored.enableForeignNetworkWhitelist, true);
         QCOMPARE(restored.foreignNetworkWhitelist, QStringLiteral("10.0.0.0/8"));
     }
@@ -292,6 +294,8 @@ private slots:
     {
         NetworkConf conf("cred-test");
         conf.credentialFile = QStringLiteral("/data/credential.json");
+        // 同时设置 networkName 以生成 [network_identity] 节，验证 credential_file 位于其之前
+        conf.networkName = QStringLiteral("test-net");
 
         const QString toml = NetworkConfToml::toToml(conf, true);
 
@@ -300,7 +304,8 @@ private slots:
         // 必须位于 [network_identity] 节之前，否则会被归入表域而非根域
         const int credPos = toml.indexOf(QStringLiteral("credential_file"));
         const int identPos = toml.indexOf(QStringLiteral("[network_identity]"));
-        QVERIFY(identPos < 0 || credPos < identPos);
+        QVERIFY(credPos >= 0 && identPos >= 0);
+        QVERIFY(credPos < identPos);
 
         // 往返一致
         const auto restored = NetworkConfToml::fromToml(toml, "cred-test");

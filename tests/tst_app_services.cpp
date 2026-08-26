@@ -1,6 +1,6 @@
 /**
  * @file tst_app_services.cpp
- * @brief 应用服务装配层模块的单元测试。测试内容：AppServices 构造后暴露必需单例、QmlSingletonRegistrar 函数可链接。
+ * @brief 应用服务装配层模块的单元测试。测试内容：AppServices 构造后暴露必需单例、错误与导入通知经装配层转发到系统托盘。
  */
 #include <QSqlDatabase>
 #include <QDir>
@@ -10,7 +10,6 @@
 #include <QUrl>
 
 #include "app/AppServices.h"
-#include "app/QmlSingletonRegistrar.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/system_tray/TrayMessageDispatcher.h"
 #include "core/system_tray/TrayMessageSink.h"
@@ -51,14 +50,6 @@ private slots:
         QVERIFY(services.daemonApi());
         QVERIFY(services.backendStatusViewModel());
         QVERIFY(services.systemTrayManager());
-    }
-
-    /// 测试目标：验证 registerQmlSingletons 函数符号可链接
-    void singletonRegistrarFunctionIsLinkable()
-    {
-        auto registrar = &registerQmlSingletons;
-        // 检查函数指针非空
-        QVERIFY(registrar != nullptr);
     }
 
     /// 测试目标：全局错误会通过装配层转发为系统托盘错误通知

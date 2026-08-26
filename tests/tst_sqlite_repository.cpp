@@ -13,6 +13,7 @@
 #include <QTest>
 #include <QDir>
 #include <QFileInfo>
+#include <QSqlQuery>
 #include <QUuid>
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
@@ -88,8 +89,7 @@ void TestSqliteRepository::saveAndLoadMultipleConfigs()
     QCOMPARE(all.size(), 3);
 }
 
-/// 保存配置后通过 remove() 删除，断言 exists() 返回 false
-/// 同时验证底层字段行也被级联删除（不会残留孤儿行）
+/// 保存配置后通过 remove() 删除，断言字段行也被删除，不残留孤儿数据
 void TestSqliteRepository::configFieldsCascadeDelete()
 {
     // 准备测试数据：创建临时数据库并保存一条配置
@@ -100,10 +100,23 @@ void TestSqliteRepository::configFieldsCascadeDelete()
     NetworkConf cfg("cascade-test");
     cfg.hostname = QStringLiteral("test");
     QVERIFY(repo.save(cfg));
-    QVERIFY(repo.exists("cascade-test"));
+
+    // 保存后字段行确实存在
+    QSqlQuery countBefore(conn.database());
+    QVERIFY(countBefore.exec(QStringLiteral(
+        "SELECT COUNT(*) FROM network_config_fields WHERE instance_name = 'cascade-test'")));
+    QVERIFY(countBefore.next());
+    QVERIFY(countBefore.value(0).toInt() > 0);
+
     QVERIFY(repo.remove("cascade-test"));
-    // 检查删除后配置不再存在
     QVERIFY(!repo.exists("cascade-test"));
+
+    // 删除后字段行必须为空（验证外键级联删除真正生效，不残留孤儿字段）
+    QSqlQuery countAfter(conn.database());
+    QVERIFY(countAfter.exec(QStringLiteral(
+        "SELECT COUNT(*) FROM network_config_fields WHERE instance_name = 'cascade-test'")));
+    QVERIFY(countAfter.next());
+    QCOMPARE(countAfter.value(0).toInt(), 0);
 }
 
 /// 验证 DatabaseConnection::defaultDatabasePath() 返回非空路径

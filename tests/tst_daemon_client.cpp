@@ -1,15 +1,15 @@
 /**
  * @file tst_daemon_client.cpp
- * @brief Daemon IPC 客户端模块的单元测试。测试内容：帧协议编解码往返（单帧/多帧）、异步请求-响应匹配、DaemonApi 方法映射、后端状态 ViewModel 初始状态、断连时写失败、请求超时、错误消息序列化/反序列化、非法 JSON 帧过滤、错误响应完成 future。
+ * @brief Daemon IPC 客户端模块的单元测试
  *
- * 使用内存中的 QLocalServer 模拟 daemon 行为，验证：
+ * 使用内存中的 QLocalServer 模拟 daemon 行为，覆盖：
  * - 帧协议编解码往返（单帧/多帧）
- * - 请求-响应匹配（异步 RPC）
- * - 错误消息序列化/反序列化
- *
- * 注意: 断线重连场景尚未覆盖，因为重连逻辑涉及定时器与真实 socket 断连时序。
+ * - 异步请求-响应匹配（含超时、错误响应、非法帧过滤）
+ * - DaemonApi 方法映射
+ * - 主动断开不触发自动重连
  */
 #include <QTest>
+#include <QSignalSpy>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QFuture>
@@ -325,6 +325,74 @@ private slots:
 
         client.disconnectFromDaemon();
         server.close();
+    }
+
+    /// 测试目标: 用户在 Connecting 阶段主动断开后不应触发自动重连
+    /// 回归：onSocketError() 未识别 m_manualDisconnect 时，主动断开后 2s 会再次自动重连。
+    /// Linux 下 QLocalSocket 对不存在路径同步失败，Connecting 窗口极短，
+    /// 故在状态切入 Connecting 的瞬间（信号槽内、connectToServer 之前）执行主动断开。
+    void manualDisconnectDuringConnectingDoesNotReconnect()
+    {
+        const QString sockPath = QDir::temp().filePath(QStringLiteral("qtet-test-%1.sock")
+            .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+
+        DaemonClient client;
+        QSignalSpy stateSpy(&client, &DaemonClient::connectionStateChanged);
+
+        // 状态进入 Connecting 的瞬间同步执行主动断开，使 onSocketError() 在
+        // m_manualDisconnect 已置位的情况下被调用
+        QObject::connect(&client, &DaemonClient::connectionStateChanged, &client,
+            [&](DaemonClient::ConnectionState state) {
+                if (state == DaemonClient::ConnectionState::Connecting)
+                    client.disconnectFromDaemon();
+            });
+
+        client.connectToDaemon(sockPath);
+
+        // 等待超过重连间隔（2s），验证不会再次进入 Connecting
+        QTest::qWait(2500);
+
+        auto connectingCount = [&stateSpy]() {
+            int n = 0;
+            for (const auto &args : stateSpy) {
+                if (args.at(0).value<DaemonClient::ConnectionState>()
+                    == DaemonClient::ConnectionState::Connecting)
+                    ++n;
+            }
+            return n;
+        };
+        // 只有首次 connectToDaemon 触发一次 Connecting；主动断开后不应再重连
+        QCOMPARE(connectingCount(), 1);
+        QCOMPARE(client.connectionState(), DaemonClient::ConnectionState::Disconnected);
+    }
+
+    /// 测试目标: Connected 状态下主动断开后不应触发自动重连
+    void manualDisconnectWhileConnectedDoesNotReconnect()
+    {
+        // 准备模拟 daemon 服务端
+        QLocalServer server;
+        const QString sockPath = QDir::temp().filePath(QStringLiteral("qtet-test-%1.sock")
+            .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        QVERIFY(server.listen(sockPath));
+
+        DaemonClient client;
+        client.connectToDaemon(sockPath);
+        QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
+
+        QSignalSpy stateSpy(&client, &DaemonClient::connectionStateChanged);
+        client.disconnectFromDaemon();
+        QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Disconnected, 3000);
+
+        // 等待超过重连间隔，验证不再自动重连
+        QTest::qWait(2500);
+        for (const auto &args : stateSpy) {
+            QVERIFY(args.at(0).value<DaemonClient::ConnectionState>()
+                    != DaemonClient::ConnectionState::Connecting);
+        }
+        QCOMPARE(client.connectionState(), DaemonClient::ConnectionState::Disconnected);
+
+        server.close();
+        QFile::remove(sockPath);
     }
 };
 

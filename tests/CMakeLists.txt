@@ -1,8 +1,15 @@
 find_package(Qt6 REQUIRED COMPONENTS Core Sql Network Test Widgets Quick)
 
+# 创建单个 CTest 测试可执行文件。用法：
+#   add_core_test(tst_xxx tst_xxx.cpp)
+#   target_link_libraries(tst_xxx PRIVATE qtet_xxx)   # 链接被测模块
 function(add_core_test name)
     qt_add_executable(${name} ${ARGN})
-    target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
+    target_include_directories(${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR}/generated
+        ${CMAKE_SOURCE_DIR}/ThirdParty/toml++
+    )
     target_link_libraries(${name} PRIVATE
         Qt6::Core
         Qt6::Sql

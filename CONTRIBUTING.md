@@ -55,12 +55,13 @@ src/
 ├── app_service/                     应用业务服务层
 ├── core/                            基础服务层
 │   ├── config/                      配置数据结构、TOML 序列化、校验、URL 编解码
+│   ├── favorite/                    收藏节点数据结构与 JSON 编解码
 │   ├── repository/                  SQLite 持久化
 │   ├── service/                     daemon IPC 与 daemon API 封装
 │   ├── vpn_manager/                 VPN 生命周期状态机
 │   ├── system_tray/                 系统托盘与托盘消息
-│   ├── log/                         日志基础设施
-│   └── util/                        工具类与平台相关实现
+│   └── log/                         日志基础设施
+├── platform/                        平台相关实现（自启动、daemon 注册、字体）
 ├── viewmodels/                      暴露给 QML 的 ViewModel / Model
 └── qml/                             QML UI
 ```
@@ -77,7 +78,7 @@ UI 层
     承接应用业务规则和跨模块协调，是 UI 层访问基础服务层的桥接点
 
 基础服务层
-    src/core/config/、repository/、service/、vpn_manager/、system_tray/、util/、favorite/、log/
+    src/core/config/、repository/、service/、vpn_manager/、system_tray/、platform/、favorite/、log/
     提供 SQLite、daemon IPC、平台能力、日志、配置序列化、VPN 状态机等基础设施
 
 应用装配层
@@ -1072,7 +1073,7 @@ src/qml/pages/
 - 不要重新添加 `VpnManager.nodeInfos` / `VpnManager.logEntries` 或 `VpnManager.nodeInfoModel` 这类 QML 兼容属性。
 - 不要重新添加 `LogHelper::init(...)`。
 - 不要在测试 target 中重复编译大量生产 `.cpp`，应链接模块 target。
-- 不要让基础服务层（`config` / `repository` / `service` / `vpn_manager` / `system_tray` / `util` / `favorite` / `log`）
+- 不要让基础服务层（`config` / `repository` / `service` / `vpn_manager` / `system_tray` / `platform` / `favorite` / `log`）
   依赖 ViewModel、QML 或 `app_service`。
 - 不要绕过 `DaemonApi` 在上层散落 daemon method name。
 - 新增跨模块业务操作时，优先放入 `src/app_service/`，再由 ViewModel 做 QML 友好的薄壳转发。

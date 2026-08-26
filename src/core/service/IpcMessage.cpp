@@ -73,7 +73,8 @@ IpcMessage IpcMessage::error(int id, const QString &method, const QString &messa
  *
  * 解析流程：
  *   1. QJsonDocument::fromJson(json) → 解析 UTF-8 JSON
- *      **未校验 doc.isNull()**：如果输入非法 JSON，返回空文档，后续操作在空对象上进行
+ *      **校验 doc.isNull()**：非法 JSON 时返回 parseOk=false 的消息，
+ *      防止被 DaemonClient 误当作通知或响应处理
  *   2. doc.object() → 获取根 JSON 对象
  *   3. 逐字段提取：
  *      - id:      obj["id"].toInt()     → 默认为 0
@@ -83,8 +84,7 @@ IpcMessage IpcMessage::error(int id, const QString &method, const QString &messa
  *      - error:   若存在则提取 error.message，设置 isError = true
  *
  * 健壮性分析：
- *   - 非 JSON 输入：返回默认构造的 IpcMessage（id=0, method=""），
- *     会被 DaemonClient::onReadyRead() 当作通知消息处理并发出信号
+ *   - 非 JSON 输入：返回 parseOk=false，DaemonClient 会静默丢弃该帧
  *   - 缺少字段：使用 QJsonValue 的默认转换值（0/空字符串/空对象）
  *   - 类型不匹配：QJsonValue 提供默认值（如字符串"123"的 toInt() 返回 0）
  *

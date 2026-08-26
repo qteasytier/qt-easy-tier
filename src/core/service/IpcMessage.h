@@ -97,10 +97,8 @@ struct IpcMessage {
      * 解析接收到的帧 payload 为 IpcMessage 结构。
      * 自动检测消息类型：通过是否存在 "error" / "result" 字段区分。
      *
-     * **健壮性注意**：当前实现不校验 JSON 有效性。
-     * 如果输入不是合法 JSON，QJsonDocument::fromJson() 返回 null 文档，
-     * 后续 QJsonObject 操作在空对象上进行，所有字段取默认值。
-     * 调用方应确保传入的是合法 JSON 数据。
+     * **健壮性注意**：对非法 JSON 输入做校验，返回 parseOk=false 的消息，
+     * 调用方（如 DaemonClient）据此丢弃该帧，不会误当作通知或响应处理。
      *
      * @param json UTF-8 编码的 JSON 字节
      * @return 解析后的 IpcMessage

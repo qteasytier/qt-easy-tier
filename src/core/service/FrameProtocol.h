@@ -81,8 +81,8 @@ public:
      *               输出: 仅保留未消费的残留字节（半包尾部）
      * @return 完整帧的 payload 列表（按接收顺序排列）
      *
-     * @note 没有对长度头进行上限校验，恶意或在异常情况下可导致等待大量数据。
-     *       实际使用中 daemon 消息远小于典型上限（如 1MB），当前实现可满足需求。
+     * @note 对长度头做上限校验（16MiB）：超长帧被视为垃圾数据，清空缓冲区，
+     *       避免恶意或异常数据导致无限等待。
      */
     static QList<QByteArray> decode(QByteArray &buffer);
 };

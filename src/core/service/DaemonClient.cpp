@@ -98,7 +98,9 @@ void DaemonClient::connectToDaemon(const QString &socketName)
  * @brief 主动断开连接
  *
  * 设置手动断开标记，停止重连定时器，然后调用 QLocalSocket::disconnectFromServer()。
- * 注意：disconnectFromServer() 是异步操作，实际断开由 onDisconnected() 处理。
+ * 注意：disconnectFromServer() 是异步操作。Connected 状态下实际断开由
+ * onDisconnected() 处理；Connecting 阶段未建立连接时 Qt 走 errorOccurred，
+ * 由 onSocketError() 识别手动断开标记后不触发自动重连。
  */
 void DaemonClient::disconnectFromDaemon()
 {
@@ -249,6 +251,10 @@ void DaemonClient::onSocketConnected()
  * 仅处理 Connecting 状态下的连接错误。此时将状态切回 Disconnected，
  * 并启动重连定时器在 2s 后重试。
  *
+ * 例外：用户主动断开（m_manualDisconnect）时不重连——Connecting 阶段
+ * disconnectFromDaemon() 会触发 errorOccurred 而非 disconnected 信号，
+ * 因此在此处检查并清除手动断开标记。
+ *
  * 如果在 Connected 状态下收到错误信号，Qt 会随后触发 disconnected 信号，
  * 由 onDisconnected() 统一处理，此处无需重复处理。
  */
@@ -258,6 +264,12 @@ void DaemonClient::onSocketError()
         return;
 
     setState(ConnectionState::Disconnected);
+    if (m_manualDisconnect) {
+        // 用户在 Connecting 阶段主动断开时，Qt 走 errorOccurred 而非 disconnected 信号，
+        // 这里识别手动断开标记，清除后不再触发自动重连
+        m_manualDisconnect = false;
+        return;
+    }
     m_reconnectTimer->start();
 }
 

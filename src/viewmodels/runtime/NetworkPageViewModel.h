@@ -66,9 +66,9 @@ public:
     Q_INVOKABLE void deleteConfig(const QString &instanceName);
     /// 重命名指定配置的显示名称
     Q_INVOKABLE void renameConfig(const QString &instanceName, const QString &newDisplayName);
-    /// 启动指定配置（自动选中 + 调用 VpnManager::startConfig）
+    /// 启动指定配置（自动选中 + 调用 VpnRuntimeService::startConfig）
     Q_INVOKABLE void startConfig(const QString &instanceName);
-    /// 停止指定配置（自动选中 + 调用 VpnManager::stopConfig）
+    /// 停止指定配置（自动选中 + 调用 VpnRuntimeService::stopConfig）
     Q_INVOKABLE void stopConfig(const QString &instanceName);
     /// 从文件导入配置
     Q_INVOKABLE void importConfigFile(const QString &filePath);
