@@ -187,7 +187,8 @@ master:
         - *st-build
         - *st-test
         - *st-package-deb
-        - *st-upload-attachments
+      # 说明：PR 事件 CNB_TOKEN 权限受限（缺 repo-code:rw），无法上传 commit 附件；
+      # 上传附件仅保留在 master push 事件（token 权限完整）执行。
     linux-arm64:
       <<: *lnx-arm64
       name: Linux arm64 (PR check)
@@ -197,4 +198,4 @@ master:
         - *st-build
         - *st-test
         - *st-package-deb
-        - *st-upload-attachments
+      # 说明：同 amd64，PR 事件不执行 upload-attachments（token 权限受限）

@@ -417,7 +417,9 @@ def main():
                     "body": mirror_body,
                     "draft": False,
                     "prerelease": bool(r.get("prerelease")),
-                    "make_latest": make_latest,
+                    # CNB API 的 make_latest 为字符串，取值 true/false/legacy；
+                    # 不能传布尔值，否则创建 release 会失败（HTTP 4xx）
+                    "make_latest": "true" if make_latest else "false",
                 }
                 print("   创建 CNB release (make_latest=%s)" % make_latest)
                 try:
@@ -427,7 +429,15 @@ def main():
                 except ApiError as e:
                     # 创建失败时尝试幂等补全：若该 tag 已存在 release 则复用之
                     if e.status in (400, 409, 422):
-                        existing = cnb_get_release_by_tag(args.cnb_repo, token, tag)
+                        try:
+                            existing = cnb_get_release_by_tag(args.cnb_repo, token, tag)
+                        except ApiError as look:
+                            # 补全查询也失败（如该 tag 确实不存在 release）时，
+                            # 透传原始的创建失败原因，避免被查询 404 掩盖
+                            raise ApiError(
+                                e.status, e.url,
+                                "创建 release 失败（%s），且按 tag 补全查询亦失败（%s）"
+                                % (e.body, look.body))
                         if existing:
                             release_id = str(existing.get("id"))
                             print("   tag 已存在 release（%s），继续补全附件" % release_id)
