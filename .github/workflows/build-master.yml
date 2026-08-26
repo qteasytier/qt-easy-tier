@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - master
+  # 支持手动触发构建（Repository 页面 → Actions → Build Master → Run workflow）
+  workflow_dispatch:
 
 jobs:
   linux-deb:
     name: Linux build ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
-    # 提交信息以 docs 开头时跳过构建（仅文档变更，无需产物）
-    if: ${{ !startsWith(github.event.head_commit.message, 'docs') }}
+    # 提交信息以 docs 开头时跳过构建（仅文档变更，无需产物）；手动触发时始终执行
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'docs') }}
 
     strategy:
       fail-fast: false
@@ -49,8 +51,8 @@ jobs:
   windows-zip:
     name: Windows build amd64
     runs-on: windows-2022
-    # 提交信息以 docs 开头时跳过构建（仅文档变更，无需产物）
-    if: ${{ !startsWith(github.event.head_commit.message, 'docs') }}
+    # 提交信息以 docs 开头时跳过构建（仅文档变更，无需产物）；手动触发时始终执行
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'docs') }}
 
     env:
       BUILD_DIR: build

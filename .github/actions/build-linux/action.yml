@@ -56,7 +56,7 @@ runs:
           libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
           libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
           libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
-          libglu1-mesa-dev libpng-dev
+          libglu1-mesa-dev libpng-dev libssl-dev
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
