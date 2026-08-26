@@ -8,6 +8,9 @@
 # 架构差异通过 buildArgs 注入：
 #   - amd64: QT_HOST=linux             QT_ARCH=linux_gcc_64    QT_DIR_NAME=gcc_64
 #   - arm64: QT_HOST=linux_arm64       QT_ARCH=linux_gcc_arm64 QT_DIR_NAME=gcc_arm64
+#
+# Qt 下载默认走腾讯云镜像源（QT_MIRROR），国内下载更快更稳；
+# 需要切换镜像源时可通过 buildArgs 传 QT_MIRROR 覆盖。
 # =====================================================================
 
 FROM ubuntu:24.04
@@ -17,6 +20,8 @@ ARG QT_VERSION=6.8.3
 ARG QT_HOST=linux
 ARG QT_ARCH=linux_gcc_64
 ARG QT_DIR_NAME=gcc_64
+# Qt 下载镜像源（默认腾讯云，aqt 会自动拼接 /online/qtsdkrepository/）
+ARG QT_MIRROR=https://mirrors.cloud.tencent.com/qt
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -42,8 +47,9 @@ RUN apt-get update \
 # ---- 下载并安装 Qt ${QT_VERSION}（${QT_ARCH}，宿主 ${QT_HOST}） ----
 # Ubuntu 24.04 的 Python 3.12 受 PEP 668 限制，禁止 pip 全局安装；
 # 本环境为构建专用，--break-system-packages 可安全绕过。
+# --base ${QT_MIRROR}：从腾讯云镜像源下载 Qt，加速国内构建。
 RUN pip3 install --no-cache-dir --break-system-packages aqtinstall \
-    && aqt install-qt ${QT_HOST} desktop ${QT_VERSION} ${QT_ARCH} -O /opt/qt \
+    && aqt install-qt ${QT_HOST} desktop ${QT_VERSION} ${QT_ARCH} --base ${QT_MIRROR} -O /opt/qt \
     && rm -rf /root/.cache
 
 # ---- 固化 Qt 环境：前缀、PATH、动态库路径 ----
