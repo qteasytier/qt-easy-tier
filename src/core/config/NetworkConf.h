@@ -156,6 +156,7 @@ public:
 
     bool    secureModeEnabled = false;   ///< 是否启用安全模式
     QString localPrivateKey;             ///< 本地私钥
+    QString credentialFile;              ///< 临时密钥对文件路径（.json，交给 daemon 的 credential_file）
 
 private:
     QString m_instanceName;  ///< 实例名（私有，通过 setter/getter 访问）

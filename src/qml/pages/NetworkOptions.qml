@@ -8,12 +8,13 @@
  * - 动态列表管理（服务器、监听地址、代理子网、路由、出口节点）
  * - 导出配置文件（TOML 格式）
  *
- * 数据流：所有字段通过 ConfigEditorViewModel 双向绑定。
+ * 数据流：所有字段通过 ConfigEditorViewModel 双向绑定，采用即时保存：
+ * 字段一旦修改即由 ConfigEditorViewModel 内部防抖自动落库，无需手动点击保存。
  * 列表数据通过 loadListsFromConfig() 从 ViewModel 拉取，
  * 通过 commitListsToViewModel() 写回 ViewModel。
  *
  * 依赖的单例：
- * - ConfigEditorViewModel  字段读写、保存/取消
+ * - ConfigEditorViewModel  字段读写、即时保存（防抖 300ms）
  * - ConfigListModel        导出配置
  * - AppState               错误提示、主目录路径
  * - FontHelper             小字体
@@ -37,6 +38,7 @@ ColumnLayout {
     /* 绑定到 ViewModel 的当前实例名，变化时自动重载列表数据 */
     property string currentInstance: ConfigEditorViewModel.currentInstanceName
     property bool networkSecretVisible: false
+    property bool secureKeyVisible: false
 
     /* 从 ViewModel 拉取所有动态列表数据到本地 ListModel */
     function loadListsFromConfig() {
@@ -558,18 +560,83 @@ ColumnLayout {
                         onToggled: ConfigEditorViewModel.secureModeEnabled = checked
                     }
 
-                    // 节点私钥（安全模式相关）
+                    // 节点私钥（安全模式相关），采用密码输入形式，可点击眼睛图标切换明文
                     RowLayout {
                         Layout.fillWidth: true
                         Label {
-                            text: qsTr("节点私钥")
+                            text: qsTr("节点私钥Base64")
                             Layout.preferredWidth: 110
                         }
+                        Item {
+                            Layout.fillWidth: true
+                            implicitHeight: secureKeyField.implicitHeight
+
+                            TextField {
+                                id: secureKeyField
+                                anchors.fill: parent
+                                rightPadding: secureKeyToggle.implicitWidth + 8
+                                text: ConfigEditorViewModel.localPrivateKey
+                                placeholderText: qsTr("可选，留空使用随机密钥")
+                                onTextEdited: ConfigEditorViewModel.localPrivateKey = text
+                                echoMode: root.secureKeyVisible ? TextInput.Normal : TextInput.Password
+                            }
+
+                            IconToolButton {
+                                id: secureKeyToggle
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                iconSource: root.secureKeyVisible ? "qrc:/icons/eye-slash.svg" : "qrc:/icons/eye.svg"
+                                onClicked: root.secureKeyVisible = !root.secureKeyVisible
+                            }
+                        }
+                    }
+
+                    // 私钥操作按钮：随机生成密钥对 / 实时计算并展示公钥
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 4
+
+                        Button {
+                            text: qsTr("随机生成")
+                            onClicked: {
+                                if (!ConfigEditorViewModel.generateRandomPrivateKey())
+                                    AppState.showError(qsTr("随机私钥生成失败"))
+                            }
+                        }
+
+                        Button {
+                            text: qsTr("显示公钥")
+                            onClicked: {
+                                var pub = ConfigEditorViewModel.derivePublicKey()
+                                if (pub === "") {
+                                    AppState.showError(qsTr("私钥为空或无效，请先输入或随机生成私钥"))
+                                    return
+                                }
+                                publicKeyField.text = pub
+                                showPublicKeyDialog.open()
+                            }
+                        }
+                    }
+
+                    // 临时密钥对文件（.json，仅记录路径交给 daemon 的 credential_file）
+                    Label {
+                        text: qsTr("临时密钥文件(.json)")
+                        Layout.topMargin: 4
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
                         TextField {
                             Layout.fillWidth: true
-                            text: ConfigEditorViewModel.localPrivateKey
-                            placeholderText: qsTr("可选，留空使用随机密钥")
-                            onTextEdited: ConfigEditorViewModel.localPrivateKey = text
+                            text: ConfigEditorViewModel.credentialFile
+                            placeholderText: qsTr("例如 /path/to/credential.json")
+                            onTextEdited: ConfigEditorViewModel.credentialFile = text
+                        }
+
+                        IconToolButton {
+                            iconSource: "qrc:/icons/edit.svg"
+                            onClicked: credentialFileDialog.open()
                         }
                     }
                 }
@@ -581,7 +648,8 @@ ColumnLayout {
     }
 
     // ============================================
-    // 底部操作栏：导出 / 取消 / 保存
+    // 底部操作栏：导出配置 / 清空配置
+    // 配置采用即时保存（防抖自动落库），不再需要手动保存/取消按钮
     // ============================================
     RowLayout {
         Layout.fillWidth: true
@@ -595,26 +663,48 @@ ColumnLayout {
             onClicked: exportChoiceDialog.open()
         }
 
-        // 弹性空间，将取消/保存推至右侧
+        // 弹性空间，将导出按钮推至左侧、清空按钮推至右侧
         Item { Layout.fillWidth: true }
 
         Button {
-            text: qsTr("取消")
-            onClicked: {
-                ConfigEditorViewModel.cancel()
-                loadListsFromConfig()
-            }
+            text: qsTr("清空配置")
+            // 无当前配置时禁用
+            enabled: ConfigEditorViewModel.currentInstanceName !== ""
+            onClicked: resetConfirmDialog.open()
+        }
+    }
+
+    // 即时保存失败时弹出错误提示，让用户感知配置未能落库
+    Connections {
+        target: ConfigEditorViewModel
+        function onErrorMessagesChanged() {
+            var msgs = ConfigEditorViewModel.errorMessages
+            if (msgs.length > 0)
+                AppState.showError(msgs[0])
+        }
+    }
+
+    // 页面销毁前刷写防抖窗口内尚未落库的修改，避免最后几秒的编辑丢失
+    Component.onDestruction: ConfigEditorViewModel.flushAutoSave()
+
+    // 清空配置确认：将当前实例的全部网络设置恢复为默认值（不可恢复）
+    Dialog {
+        id: resetConfirmDialog
+        title: qsTr("清空配置")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
+
+        Label {
+            text: qsTr("将把当前实例「%1」的全部网络设置恢复为默认值。此操作不可恢复！\n\n是否继续？")
+                .arg(ConfigEditorViewModel.displayName)
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
 
-        Button {
-            text: qsTr("保存")
-            // 仅在有未保存修改时可用
-            enabled: ConfigEditorViewModel.hasUnsavedChanges
-            onClicked: {
-                commitListsToViewModel()
-                ConfigEditorViewModel.save()
-            }
-        }
+        onAccepted: ConfigEditorViewModel.resetToDefaults()
     }
 
     // 导出方式选择对话框
@@ -687,6 +777,59 @@ ColumnLayout {
                     onClicked: exportUrlDialog.close()
                 }
             }
+        }
+    }
+
+    // 显示公钥对话框：由安全模式私钥实时计算（公钥不落库），支持一键复制
+    Dialog {
+        id: showPublicKeyDialog
+        title: qsTr("本地公钥")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent ? parent.width - 48 : 480)
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label { text: qsTr("复制以下公钥即可分享给其他节点：") }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+
+                TextArea {
+                    id: publicKeyField
+                    readOnly: true
+                    wrapMode: TextEdit.WrapAnywhere
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: qsTr("复制")
+                    onClicked: {
+                        publicKeyField.selectAll()
+                        publicKeyField.copy()
+                    }
+                }
+                Button {
+                    text: qsTr("确定")
+                    onClicked: showPublicKeyDialog.close()
+                }
+            }
+        }
+    }
+
+    // 选择临时密钥文件（FileDialog 选择到的必然是文件）
+    FileDialog {
+        id: credentialFileDialog
+        title: qsTr("选择临时密钥文件")
+        nameFilters: [qsTr("JSON 文件 (*.json)"), qsTr("所有文件 (*)")]
+        fileMode: FileDialog.OpenFile
+        onAccepted: {
+            var p = ConfigEditorViewModel.toLocalFilePath(selectedFile.toString())
+            if (p !== "")
+                ConfigEditorViewModel.credentialFile = p
         }
     }
 

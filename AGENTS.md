@@ -23,6 +23,17 @@ ctest --test-dir build --output-on-failure
 - CI workflows under `.github/workflows/` use Qt 6.8.3 + Ninja, default `BUILD_WITH_DAEMON=ON`, and upload/package `build/Output`. `build-release.yml` runs from branches named `vX.Y.Z` and requires that version to match root `project(... VERSION ...)`.
 - No formatter, linter, pre-commit, task runner, lockfile, or repo-local OpenCode config is present; use CMake build plus CTest as the source of truth.
 
+## OpenSSL (Static)
+
+- The app uses a **static OpenSSL** for X25519 secure-mode key pairs (`src/core/config/X25519KeyHelper.*`, linked via `qtet_config` → `OpenSSL::Crypto`).
+- The static OpenSSL path is **not hardcoded** in CMake. Root `CMakeLists.txt` sets `OPENSSL_USE_STATIC_LIBS TRUE` and calls `find_package(OpenSSL REQUIRED)`; the static prefix is supplied at configure time via `CMAKE_PREFIX_PATH`:
+  ```bash
+  cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF \
+        -DCMAKE_PREFIX_PATH=/path/to/openssl-3.5.7
+  ```
+- If the static OpenSSL is **not found** on this system (e.g. configure fails under static mode, or only a shared `libcrypto.so` is available), **ask the user to provide the CMake search prefix of their static OpenSSL install** — the directory that contains `include/openssl/` plus `lib/libcrypto.a` and `lib/cmake/OpenSSL/OpenSSLConfig.cmake` — then configure with `-DCMAKE_PREFIX_PATH=<that prefix>`.
+- A successful lookup prints `-- Found OpenSSL: .../libcrypto.a (found version "X.Y.Z")`.
+
 ## CMake And Files
 
 - Root `CMakeLists.txt` defines app target, `QTET_QML_FILES`, Qt components, output dirs, and daemon options; production modules each have their own `src/**/CMakeLists.txt`.

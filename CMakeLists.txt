@@ -46,6 +46,10 @@ if(COMMAND qt_policy)
     qt_policy(SET QTP0004 NEW)
 endif()
 
+# 指定（例如 -DCMAKE_PREFIX_PATH=/path/to/openssl-3.5.7），默认静态链接 libcrypto.a。
+set(OPENSSL_USE_STATIC_LIBS TRUE CACHE BOOL "优先使用静态 OpenSSL 库")
+find_package(OpenSSL REQUIRED)
+
 qt_standard_project_setup(REQUIRES 6.8)
 
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")

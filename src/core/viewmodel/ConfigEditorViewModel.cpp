@@ -14,12 +14,24 @@
  */
 #include "ConfigEditorViewModel.h"
 #include "core/application/config/ConfigCommandService.h"
+#include "core/config/X25519KeyHelper.h"
+
+#include <QUrl>
+
+namespace {
+/// 自动保存防抖间隔（毫秒）：停止编辑约 300ms 后统一落库
+constexpr int kAutoSaveDelayMs = 300;
+}
 
 ConfigEditorViewModel::ConfigEditorViewModel(ConfigCommandService *commandService, QObject *parent)
     : QObject(parent)
     , m_commandService(commandService)
 {
     // 构造时不从仓库加载任何数据，需由外部调用 loadConfig 或 clear 初始化编辑器状态
+    // 配置自动保存防抖定时器：单次触发，超时后自动落库
+    m_autoSaveTimer.setSingleShot(true);
+    m_autoSaveTimer.setInterval(kAutoSaveDelayMs);
+    connect(&m_autoSaveTimer, &QTimer::timeout, this, &ConfigEditorViewModel::autoSaveTimeout);
 }
 
 // ==================== 内部辅助方法 ====================
@@ -32,6 +44,9 @@ ConfigEditorViewModel::ConfigEditorViewModel(ConfigCommandService *commandServic
  *
  * 注意：本方法只负责"标记为脏"，永远不会将 m_hasUnsavedChanges 从 true 改回 false。
  * 重置为 false 的时机由 save / load / clear 操作触发。
+ *
+ * 每个 setter 在值变更后都会调用本方法，因此自动保存的调度也统一收敛在这里，
+ * 所有字段共用同一个防抖定时器，无需在单个 setter 中单独处理。
  */
 void ConfigEditorViewModel::markDirty()
 {
@@ -39,6 +54,57 @@ void ConfigEditorViewModel::markDirty()
         m_hasUnsavedChanges = true;
         emit hasUnsavedChangesChanged();
     }
+    scheduleAutoSave();
+}
+
+/**
+ * @brief 调度一次防抖自动保存
+ *
+ * 定时器尚未运行时才启动，连续的编辑操作会被合并为单次落库。
+ * 使用 singleShot 定时器，停止编辑 kAutoSaveDelayMs 后触发 autoSaveTimeout()。
+ */
+void ConfigEditorViewModel::scheduleAutoSave()
+{
+    if (!m_autoSaveTimer.isActive())
+        m_autoSaveTimer.start();
+}
+
+/**
+ * @brief 防抖定时器超时槽，执行自动保存
+ *
+ * 仅当仍有未保存修改时才真正保存；loadConfig / clear 已重置 dirty 标记后，
+ * 定时器残留触发会在此被跳过，避免把新加载的配置误写回仓库。
+ */
+void ConfigEditorViewModel::autoSaveTimeout()
+{
+    if (m_hasUnsavedChanges)
+        save();
+}
+
+/**
+ * @brief 立即刷写待保存修改
+ *
+ * 在 loadConfig / clear 及外部主动退出编辑场景前调用：
+ * 停止尚未触发的防抖定时器，并立即保存当前 dirty 配置，
+ * 避免最后一次编辑因定时器未到期而丢失。
+ */
+void ConfigEditorViewModel::flushPendingSave()
+{
+    if (!m_autoSaveTimer.isActive())
+        return;
+    m_autoSaveTimer.stop();
+    if (m_hasUnsavedChanges)
+        save();
+}
+
+/**
+ * @brief 供 QML 调用的立即刷写入口，语义与 flushPendingSave 相同
+ *
+ * 用于编辑页面销毁等场景，确保防抖窗口内的修改不丢失。
+ */
+void ConfigEditorViewModel::flushAutoSave()
+{
+    flushPendingSave();
 }
 
 // ==================== 编辑器状态 getter ====================
@@ -402,6 +468,46 @@ void ConfigEditorViewModel::setLocalPrivateKey(const QString &v) {
     m_conf.localPrivateKey = v; markDirty(); emit localPrivateKeyChanged();
 }
 
+bool ConfigEditorViewModel::generateRandomPrivateKey()
+{
+    const QString key = X25519KeyHelper::generatePrivateKeyBase64();
+    if (key.isEmpty())
+        return false;
+    setLocalPrivateKey(key);
+    return true;
+}
+
+QString ConfigEditorViewModel::derivePublicKey()
+{
+    if (m_conf.localPrivateKey.isEmpty())
+        return {};
+    QString publicKey;
+    if (!X25519KeyHelper::derivePublicKeyBase64(m_conf.localPrivateKey, &publicKey))
+        return {};
+    return publicKey;
+}
+
+QString ConfigEditorViewModel::credentialFile() const { return m_conf.credentialFile; }
+void ConfigEditorViewModel::setCredentialFile(const QString &v)
+{
+    if (m_conf.credentialFile == v)
+        return;
+    m_conf.credentialFile = v.trimmed();
+    markDirty();
+    emit credentialFileChanged();
+}
+
+QString ConfigEditorViewModel::toLocalFilePath(const QString &urlOrPath)
+{
+    if (urlOrPath.isEmpty())
+        return {};
+    const QUrl url(urlOrPath);
+    if (url.isLocalFile())
+        return url.toLocalFile();
+    // 已是普通本地路径（手动输入），原样返回
+    return urlOrPath;
+}
+
 // ==================== 编辑操作（load / save / cancel / clear）====================
 
 /**
@@ -423,6 +529,9 @@ void ConfigEditorViewModel::setLocalPrivateKey(const QString &v) {
  */
 void ConfigEditorViewModel::loadConfig(const QString &instanceName)
 {
+    // 切换配置前先刷写防抖窗口内的修改，避免最后几秒的编辑丢失
+    flushPendingSave();
+
     auto loaded = m_commandService ? m_commandService->load(instanceName) : std::nullopt;
     if (!loaded.has_value()) {
         // 仓库中无此实例：显示错误，重置编辑器为零状态
@@ -501,6 +610,9 @@ void ConfigEditorViewModel::cancel()
  */
 void ConfigEditorViewModel::clear()
 {
+    // 清空前先刷写防抖窗口内的修改，避免尚未落库的编辑被丢弃
+    flushPendingSave();
+
     m_conf = NetworkConf();
     m_hasUnsavedChanges = false;
     m_errorMessages.clear();
@@ -508,6 +620,46 @@ void ConfigEditorViewModel::clear()
     emit hasUnsavedChangesChanged();
     emit errorMessagesChanged();
     emitCurrentChanged();
+}
+
+/**
+ * @brief 将当前实例的全部网络设置恢复为默认值并立即落库
+ *
+ * 流程：
+ * 1. 无当前实例名 → 直接失败（按钮已禁用，此处为防御性检查）
+ * 2. 构造默认 NetworkConf（保留显示名称 displayName），写回仓库
+ * 3. 成功 → 停止防抖定时器、直接替换 m_conf、清 dirty，并全量刷新 QML 绑定
+ *
+ * @return true 重置成功，false 失败（errorMessages 已写入失败原因）
+ */
+bool ConfigEditorViewModel::resetToDefaults()
+{
+    const QString name = m_conf.instanceName();
+    if (name.isEmpty()) {
+        m_errorMessages = QStringList{QStringLiteral("无当前配置可重置")};
+        emit errorMessagesChanged();
+        return false;
+    }
+
+    // 构造默认配置并保留显示名称（元数据，不属于网络设置）
+    NetworkConf defaults(name);
+    defaults.displayName = m_conf.displayName;
+
+    if (!m_commandService || !m_commandService->save(defaults)) {
+        m_errorMessages = QStringList{QStringLiteral("重置配置失败")};
+        emit errorMessagesChanged();
+        return false;
+    }
+
+    // 直接替换内存副本并刷新绑定；重置本身已写入仓库，无需再走防抖保存
+    m_autoSaveTimer.stop();
+    m_conf = defaults;
+    m_hasUnsavedChanges = false;
+    m_errorMessages.clear();
+    emitCurrentChanged();
+    emit hasUnsavedChangesChanged();
+    emit errorMessagesChanged();
+    return true;
 }
 
 /**
@@ -571,4 +723,5 @@ void ConfigEditorViewModel::emitCurrentChanged()
     emit foreignNetworkWhitelistChanged();
     emit secureModeEnabledChanged();
     emit localPrivateKeyChanged();
+    emit credentialFileChanged();
 }

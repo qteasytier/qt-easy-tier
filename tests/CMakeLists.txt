@@ -17,6 +17,9 @@ endfunction()
 add_core_test(tst_network_conf tst_network_conf.cpp)
 target_link_libraries(tst_network_conf PRIVATE qtet_config)
 
+add_core_test(tst_x25519_key_helper tst_x25519_key_helper.cpp)
+target_link_libraries(tst_x25519_key_helper PRIVATE qtet_config)
+
 add_core_test(tst_config_url_codec tst_config_url_codec.cpp)
 target_link_libraries(tst_config_url_codec PRIVATE qtet_config)
 
@@ -25,6 +28,9 @@ target_link_libraries(tst_sqlite_repository PRIVATE qtet_repository)
 
 add_core_test(tst_config_list_model tst_config_list_model.cpp)
 target_link_libraries(tst_config_list_model PRIVATE qtet_viewmodel)
+
+add_core_test(tst_config_editor_viewmodel tst_config_editor_viewmodel.cpp)
+target_link_libraries(tst_config_editor_viewmodel PRIVATE qtet_viewmodel)
 
 add_core_test(tst_favorite_node_repository tst_favorite_node_repository.cpp)
 target_link_libraries(tst_favorite_node_repository PRIVATE qtet_repository)
