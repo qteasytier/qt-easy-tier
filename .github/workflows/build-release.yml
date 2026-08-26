@@ -229,6 +229,9 @@ jobs:
             Branch: `${{ github.ref_name }}`
             Commit: `${{ github.sha }}`
 
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -249,10 +252,7 @@ jobs:
           tag_name: ${{ needs.release-info.outputs.release_tag }}
           name: ${{ needs.release-info.outputs.release_title }}
           target_commitish: ${{ github.sha }}
-          make_latest: false
+          make_latest: true
           fail_on_unmatched_files: true
-          body: |
-            QtEasyTier Desktop release.
-
-            Release notes will be added manually after publishing.
+          body_path: RELEASE.md
           files: release-assets/*
