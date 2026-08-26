@@ -28,6 +28,8 @@ class NetworkPageViewModel : public QObject
     Q_PROPERTY(QString currentInstanceName READ currentInstanceName NOTIFY currentInstanceNameChanged FINAL)
     /// 当前选中的配置是否正在运行
     Q_PROPERTY(bool currentInstanceRunning READ currentInstanceRunning NOTIFY currentInstanceRunningChanged FINAL)
+    /// 当前选中实例是否启用安全模式（凭据管理/签发等能力的前置条件）
+    Q_PROPERTY(bool currentInstanceSecureMode READ currentInstanceSecureMode NOTIFY currentInstanceSecureModeChanged FINAL)
     /// 是否展示编辑器界面（无选中实例 或 选中实例未运行）
     Q_PROPERTY(bool showEditor READ showEditor NOTIFY pageStateChanged FINAL)
     /// 是否展示运行时状态界面（有选中实例且正在运行）
@@ -50,6 +52,7 @@ public:
 
     QString currentInstanceName() const;
     bool currentInstanceRunning() const;
+    bool currentInstanceSecureMode() const;
     bool showEditor() const;
     bool showRuntimeStatus() const;
 
@@ -80,12 +83,16 @@ signals:
     void currentInstanceNameChanged();
     /// 当前选中实例运行状态变化时发射
     void currentInstanceRunningChanged();
+    /// 当前选中实例安全模式开关变化时发射
+    void currentInstanceSecureModeChanged();
     /// 编辑器/运行时页面切换时发射
     void pageStateChanged();
 
 private:
     void setCurrentInstanceName(const QString &instanceName);
     void setCurrentInstanceRunning(bool running);
+    /// 从编辑器同步当前选中实例的安全模式开关并发射变化信号
+    void refreshSecureMode();
 
     ConfigListModel *m_configListModel = nullptr;              ///< 配置列表模型（非所有权）
     ConfigEditorViewModel *m_configEditorViewModel = nullptr;  ///< 配置编辑器（非所有权）
@@ -93,4 +100,5 @@ private:
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;///< 后端状态（非所有权）
     QString m_currentInstanceName;                             ///< 当前选中实例名缓存
     bool m_currentInstanceRunning = false;                     ///< 当前实例运行状态缓存
+    bool m_currentInstanceSecureMode = false;                  ///< 当前实例安全模式开关缓存
 };

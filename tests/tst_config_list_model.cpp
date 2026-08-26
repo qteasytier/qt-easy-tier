@@ -28,6 +28,7 @@
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "viewmodels/ConfigListModel.h"
+#include "viewmodels/ConfigEditorViewModel.h"
 #include "viewmodels/runtime/NetworkPageViewModel.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
@@ -498,11 +499,37 @@ private slots:
     void networkPageViewModelInitialState() {
         NetworkPageViewModel vm(nullptr, nullptr, nullptr, nullptr, this);
 
-        // 检查初始状态：无当前实例、不运行、显示编辑区、不显示运行状态
+        // 检查初始状态：无当前实例、不运行、非安全模式、显示编辑区、不显示运行状态
         QVERIFY(vm.currentInstanceName().isEmpty());
         QVERIFY(!vm.currentInstanceRunning());
+        QVERIFY(!vm.currentInstanceSecureMode());
         QVERIFY(vm.showEditor());
         QVERIFY(!vm.showRuntimeStatus());
+    }
+
+    /// 目标：currentInstanceSecureMode 随编辑器加载配置的安全模式派生（凭据能力前置条件）
+    void networkPageViewModelTracksSecureMode() {
+        insertConfig(QStringLiteral("inst-sec"), QStringLiteral("安全配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-sec"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-sec"));
+        QVERIFY(!editor.secureModeEnabled());
+
+        NetworkPageViewModel vm(nullptr, &editor, nullptr, nullptr, this);
+        QVERIFY(!vm.currentInstanceSecureMode());
+
+        // 编辑器打开安全模式开关 → ViewModel 同步发射变化信号
+        QSignalSpy secureSpy(&vm, &NetworkPageViewModel::currentInstanceSecureModeChanged);
+        editor.setSecureModeEnabled(true);
+        QCOMPARE(vm.currentInstanceSecureMode(), true);
+        QCOMPARE(secureSpy.count(), 1);
+
+        // 关闭 → 同步恢复 false
+        editor.setSecureModeEnabled(false);
+        QCOMPARE(vm.currentInstanceSecureMode(), false);
+        QCOMPARE(secureSpy.count(), 2);
     }
 
     /// 目标：正在启动或停止的配置禁止删除

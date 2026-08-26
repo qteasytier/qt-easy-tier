@@ -48,6 +48,9 @@ target_link_libraries(tst_daemon_client PRIVATE qtet_viewmodel)
 add_core_test(tst_credential_service tst_credential_service.cpp)
 target_link_libraries(tst_credential_service PRIVATE qtet_application qtet_viewmodel)
 
+add_core_test(tst_credential_list_model tst_credential_list_model.cpp)
+target_link_libraries(tst_credential_list_model PRIVATE qtet_application)
+
 add_core_test(tst_autostart_helper tst_autostart_helper.cpp)
 target_link_libraries(tst_autostart_helper PRIVATE qtet_platform)
 

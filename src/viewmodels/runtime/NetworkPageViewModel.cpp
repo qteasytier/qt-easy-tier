@@ -26,11 +26,16 @@ NetworkPageViewModel::NetworkPageViewModel(ConfigListModel *configListModel,
     // 监听编辑器当前实例名称变化，同步更新本协调器的 currentInstanceName
     if (m_configEditorViewModel) {
         setCurrentInstanceName(m_configEditorViewModel->currentInstanceName());
+        refreshSecureMode();
         connect(m_configEditorViewModel, &ConfigEditorViewModel::currentInstanceNameChanged,
                 this, [this]() {
                     setCurrentInstanceName(m_configEditorViewModel->currentInstanceName());
+                    refreshSecureMode();
                     refreshRunning();
                 });
+        // 编辑器内切换安全模式开关时同步（运行状态页凭据能力据此禁用/启用）
+        connect(m_configEditorViewModel, &ConfigEditorViewModel::secureModeEnabledChanged,
+                this, &NetworkPageViewModel::refreshSecureMode);
     }
 
     // 监听 VPN 运行服务发出的配置状态变更信号，自动刷新当前实例的运行状态
@@ -49,6 +54,20 @@ QString NetworkPageViewModel::currentInstanceName() const
 bool NetworkPageViewModel::currentInstanceRunning() const
 {
     return m_currentInstanceRunning;
+}
+
+bool NetworkPageViewModel::currentInstanceSecureMode() const
+{
+    return m_currentInstanceSecureMode;
+}
+
+void NetworkPageViewModel::refreshSecureMode()
+{
+    const bool secure = m_configEditorViewModel && m_configEditorViewModel->secureModeEnabled();
+    if (m_currentInstanceSecureMode == secure)
+        return;
+    m_currentInstanceSecureMode = secure;
+    emit currentInstanceSecureModeChanged();
 }
 
 bool NetworkPageViewModel::showEditor() const

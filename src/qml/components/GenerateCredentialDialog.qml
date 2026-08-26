@@ -22,7 +22,7 @@ Dialog {
     /* 是否处于错误状态 */
     property bool hasError: false
     /* 生成中标志（禁用按钮） */
-    readonly property bool generating: CredentialViewModel.busy
+    readonly property bool generating: CredentialViewModel.generating
 
     /* 生成成功后暂存的凭证字段 */
     property string resultCredentialId: ""
@@ -208,24 +208,14 @@ Dialog {
                 text: qsTr("密钥（credential_secret）")
                 color: palette.placeholderText
             }
-            ScrollView {
+            TextField {
+                id: secretArea
+                text: root.resultSecret
+                readOnly: true
+                selectByMouse: true
+                font.family: "monospace"
+                color: palette.windowText
                 Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                clip: true
-
-                TextArea {
-                    id: secretArea
-                    text: root.resultSecret
-                    readOnly: true
-                    selectByMouse: true
-                    wrapMode: TextEdit.WrapAnywhere
-                    font.family: "monospace"
-                    color: palette.windowText
-                    background: Rectangle {
-                        color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.06)
-                        radius: 6
-                    }
-                }
             }
 
             RowLayout {

@@ -4,6 +4,8 @@ add_qtet_library(qtet_application
     config/ConfigImportExportService.cpp
     config/ConfigImportExportService.h
     config/ConfigOperationResult.h
+    credential/CredentialListModel.cpp
+    credential/CredentialListModel.h
     credential/CredentialService.cpp
     credential/CredentialService.h
     dangerous/DangerousOperationService.cpp

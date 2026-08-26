@@ -792,15 +792,10 @@ ColumnLayout {
             anchors.fill: parent
             spacing: 8
             Label { text: qsTr("复制以下公钥即可分享给其他节点：") }
-            ScrollView {
+            TextField {
+                id: publicKeyField
+                readOnly: true
                 Layout.fillWidth: true
-                Layout.preferredHeight: 100
-
-                TextArea {
-                    id: publicKeyField
-                    readOnly: true
-                    wrapMode: TextEdit.WrapAnywhere
-                }
             }
             RowLayout {
                 Layout.fillWidth: true

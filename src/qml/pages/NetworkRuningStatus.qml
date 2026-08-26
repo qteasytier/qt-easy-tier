@@ -208,8 +208,9 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
 
         Button {
-            text: qsTr("添加临时节点密钥")
-            onClicked: generateCredentialDialog.open()
+            text: qsTr("管理临时节点密钥")
+            enabled: NetworkPageViewModel.currentInstanceSecureMode
+            onClicked: manageCredentialDialog.open()
         }
 
         Button {
@@ -218,9 +219,9 @@ ColumnLayout {
         }
     }
 
-    // 添加临时节点密钥对话框
-    GenerateCredentialDialog {
-        id: generateCredentialDialog
+    // 管理临时节点密钥对话框（内含新增/编辑/撤销，仅安全模式实例可用）
+    CredentialManageDialog {
+        id: manageCredentialDialog
     }
 
     // 导出日志文件对话框
