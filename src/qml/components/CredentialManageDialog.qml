@@ -25,6 +25,8 @@ Dialog {
     readonly property bool mutating: CredentialViewModel.mutating
     /* 编辑取钥进行中（自动获取原密钥，取到后才进入编辑表单） */
     readonly property bool fetchingSecret: CredentialViewModel.fetchingSecret
+    /* 密钥输入框是否明文显示（默认隐藏，可点击眼睛切换） */
+    property bool secretVisible: false
 
     /* 编辑表单预填数据（点击列表项"编辑"时暂存） */
     property string editCredentialId: ""
@@ -393,15 +395,31 @@ Dialog {
                     text: qsTr("密钥（credential_secret）")
                     color: palette.placeholderText
                 }
-                TextField {
-                    id: secretField
+                // 密码输入框：默认隐藏，可点击眼睛图标切换明文
+                Item {
                     Layout.fillWidth: true
-                    placeholderText: CredentialViewModel.editSecretReady
-                        ? qsTr("留空使用原密钥")
-                        : qsTr("正在获取原密钥…")
-                    selectByMouse: true
-                    font.family: "monospace"
-                    color: palette.windowText
+                    implicitHeight: secretField.implicitHeight
+
+                    TextField {
+                        id: secretField
+                        anchors.fill: parent
+                        rightPadding: secretToggle.implicitWidth + 8
+                        placeholderText: CredentialViewModel.editSecretReady
+                            ? qsTr("留空使用原密钥")
+                            : qsTr("正在获取原密钥…")
+                        selectByMouse: true
+                        font.family: "monospace"
+                        color: palette.windowText
+                        echoMode: root.secretVisible ? TextInput.Normal : TextInput.Password
+                    }
+
+                    IconToolButton {
+                        id: secretToggle
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconSource: root.secretVisible ? "qrc:/icons/eye-slash.svg" : "qrc:/icons/eye.svg"
+                        onClicked: root.secretVisible = !root.secretVisible
+                    }
                 }
             }
 

@@ -210,7 +210,7 @@ ColumnLayout {
         Button {
             text: qsTr("管理临时节点密钥")
             enabled: NetworkPageViewModel.currentInstanceSecureMode
-            onClicked: manageCredentialDialog.open()
+            onClicked: manageCredentialDialogLoader.active = true
         }
 
         Button {
@@ -219,9 +219,18 @@ ColumnLayout {
         }
     }
 
-    // 管理临时节点密钥对话框（内含新增/编辑/撤销，仅安全模式实例可用）
-    CredentialManageDialog {
-        id: manageCredentialDialog
+    // 管理临时节点密钥对话框（懒加载：用到时创建，关闭即卸载释放资源）
+    Component {
+        id: manageCredentialDialogComponent
+        CredentialManageDialog {
+            onClosed: manageCredentialDialogLoader.active = false
+        }
+    }
+
+    Loader {
+        id: manageCredentialDialogLoader
+        active: false
+        onLoaded: item.open()
     }
 
     // 导出日志文件对话框

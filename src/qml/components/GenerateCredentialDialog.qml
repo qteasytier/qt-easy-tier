@@ -177,6 +177,15 @@ Dialog {
             visible: !root.showForm && !root.hasError
             spacing: 10
 
+            // 密钥仅本次展示，关闭后无法再次查看
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("关闭本页面后密钥将不再显示，请妥善保管")
+                font.bold: true
+                color: theme.statusRed
+                wrapMode: Text.WordWrap
+            }
+
             Label {
                 Layout.fillWidth: true
                 text: qsTr("临时凭证生成成功，复制密钥分发给其他节点即可临时加入网络：")
@@ -226,7 +235,8 @@ Dialog {
                     text: qsTr("复制密钥")
                     highlighted: true
                     onClicked: {
-                        Clipboard.setText(root.resultSecret)
+                        secretArea.selectAll()
+                        secretArea.copy()
                         copyHint.visible = true
                         copyHintTimer.restart()
                     }

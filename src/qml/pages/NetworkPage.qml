@@ -97,7 +97,7 @@ Rectangle {
                 }
                 onStartRequested: function(instanceName) { NetworkPageViewModel.startConfig(instanceName) }
                 onStopRequested: function(instanceName) { NetworkPageViewModel.stopConfig(instanceName) }
-                onImportRequested: importChoiceDialog.open()
+                onImportRequested: importChoiceDialogLoader.active = true
             }
 
             // 分隔线
@@ -116,63 +116,83 @@ Rectangle {
             }
         }
 
-        // 导入方式选择对话框
-        Dialog {
-            id: importChoiceDialog
-            title: qsTr("导入配置")
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            standardButtons: Dialog.Cancel
-            RowLayout {
-                spacing: 12
-                Button {
-                    text: qsTr("从文件导入")
-                    Layout.fillWidth: true
-                    onClicked: {
-                        importChoiceDialog.close()
-                        importFileDialog.open()
+        // 导入方式选择对话框（懒加载：打开时创建，关闭即卸载）
+        Component {
+            id: importChoiceDialogComponent
+            Dialog {
+                id: importChoiceDialog
+                title: qsTr("导入配置")
+                modal: true
+                parent: Overlay.overlay
+                anchors.centerIn: parent
+                standardButtons: Dialog.Cancel
+                RowLayout {
+                    spacing: 12
+                    Button {
+                        text: qsTr("从文件导入")
+                        Layout.fillWidth: true
+                        onClicked: {
+                            importChoiceDialog.close()
+                            importFileDialog.open()
+                        }
+                    }
+                    Button {
+                        text: qsTr("从 URL 导入")
+                        Layout.fillWidth: true
+                        onClicked: {
+                            importChoiceDialog.close()
+                            importUrlDialogLoader.active = true
+                        }
                     }
                 }
-                Button {
-                    text: qsTr("从 URL 导入")
-                    Layout.fillWidth: true
-                    onClicked: {
-                        importChoiceDialog.close()
-                        importUrlDialog.open()
-                    }
-                }
+                onClosed: importChoiceDialogLoader.active = false
             }
         }
 
-        // 导入 URL 对话框
-        Dialog {
-            id: importUrlDialog
-            title: qsTr("从 URL 导入")
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(520, parent ? parent.width - 48 : 480)
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 8
-                Label { text: qsTr("粘贴 qtet:// 开头的配置 URL：") }
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 80
+        Loader {
+            id: importChoiceDialogLoader
+            active: false
+            onLoaded: item.open()
+        }
 
-                    TextArea {
-                        id: importUrlField
-                        placeholderText: "qtet://..."
-                        wrapMode: TextEdit.WrapAnywhere
+        // 导入 URL 对话框（懒加载：打开时创建，关闭即卸载）
+        Component {
+            id: importUrlDialogComponent
+            Dialog {
+                id: importUrlDialog
+                title: qsTr("从 URL 导入")
+                modal: true
+                parent: Overlay.overlay
+                anchors.centerIn: parent
+                width: Math.min(520, parent ? parent.width - 48 : 480)
+                standardButtons: Dialog.Ok | Dialog.Cancel
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 8
+                    Label { text: qsTr("粘贴 qtet:// 开头的配置 URL：") }
+                    ScrollView {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 80
+
+                        TextArea {
+                            id: importUrlField
+                            placeholderText: "qtet://..."
+                            wrapMode: TextEdit.WrapAnywhere
+                        }
                     }
                 }
+                onAccepted: {
+                    NetworkPageViewModel.importConfigUrl(importUrlField.text)
+                    importUrlField.text = ""
+                }
+                onClosed: importUrlDialogLoader.active = false
             }
-            onAccepted: {
-                NetworkPageViewModel.importConfigUrl(importUrlField.text)
-                importUrlField.text = ""
-            }
+        }
+
+        Loader {
+            id: importUrlDialogLoader
+            active: false
+            onLoaded: item.open()
         }
 
         // 导入配置文件对话框
