@@ -4,10 +4,12 @@
 # 本文件由根目录 .cnb.yml 通过 include 引入，与 .cnb/windows.yml 合并。
 #
 # 平台说明：
-#   - 使用 CNB 官方节点（cnb:arch:amd64 / cnb:arch:arm64:v8），直接使用
-#     ubuntu:24.04 镜像。系统依赖与 Qt 6.8.3 在 setup-env
-#     stage 内安装下载（等价于 GitHub 流水线的 Install system dependencies + Install Qt），
-#     Qt 安装路径通过 exports 导出为 Qt6_DIR 供后续 stage 使用。
+#   - 使用 CNB 官方节点（cnb:arch:amd64 / cnb:arch:arm64:v8）。
+#   - 构建环境（系统依赖 + Qt 6.8.3）固化在 docker/linux-build.Dockerfile 中，
+#     通过 docker.build 动态构建镜像机制由 CNB 平台按哈希自动缓存到制品库：
+#     首次构建执行完整安装并推送，后续构建直接复用缓存的环境镜像，无需重复安装。
+#   - 镜像内已通过 ENV 将 Qt bin 目录加入 PATH、Qt lib 目录加入 LD_LIBRARY_PATH，
+#     并固化 Qt6_DIR 供 configure / build / test 使用。
 #
 # =====================================================================
 
@@ -28,53 +30,11 @@
   exports:
     VERSION: QTET_VERSION
 
-# 安装系统依赖 + 下载 Qt 6.8.3（等价于 GitHub 流水线的 Install system dependencies + Install Qt）
-# 说明：基础镜像 ubuntu:24.04 内不预装任何构建工具，每次构建都由此 stage 准备环境；
-#       Qt 安装目录通过 exports 导出为 Qt6_DIR，供 configure / build / test 使用。
-.st-setup-env: &st-setup-env
-  name: setup-env
-  script: |
-    set -e
-
-    echo "==> [1/3] 安装系统依赖"
-    apt-get update
-    apt-get install -y --no-install-recommends \
-      build-essential cmake ninja-build git bash file dpkg-dev ca-certificates \
-      libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev \
-      libfontconfig1-dev libdbus-1-dev libfreetype6-dev \
-      libx11-dev libxcb1-dev libxext-dev libxfixes-dev libxi-dev \
-      libxrender-dev libxcb-glx0-dev libxcb-keysyms1-dev \
-      libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev \
-      libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
-      libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
-      libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev \
-      libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
-      libglu1-mesa-dev libpng-dev \
-      libglib2.0-0 libglib2.0-dev libicu-dev libdouble-conversion3 \
-      libpcre2-16-0 libmd4c0 libzstd1 \
-      python3 python3-pip \
-      && rm -rf /var/lib/apt/lists/*
-
-    echo "==> [2/3] 下载并安装 Qt ${QT_VERSION}（${QT_ARCH}，宿主 ${QT_HOST}）"
-    # Ubuntu 24.04 的 Python 3.12 受 PEP 668 限制，禁止 pip 全局安装；
-    # 本环境为构建专用，--break-system-packages 可安全绕过
-    pip3 install --no-cache-dir --break-system-packages aqtinstall
-    aqt install-qt ${QT_HOST} desktop ${QT_VERSION} ${QT_ARCH} -O /opt/qt
-    rm -rf /root/.cache
-
-    echo "==> [3/3] 校验并导出 Qt 环境"
-    Qt6_DIR=/opt/qt/${QT_VERSION}/${QT_DIR_NAME}
-    export PATH="$Qt6_DIR/bin:$PATH"
-    qmake -query QT_VERSION
-    qmake -query QT_INSTALL_PREFIX
-    echo "##[set-output Qt6_DIR=$Qt6_DIR]"
-  exports:
-    Qt6_DIR: Qt6_DIR
-
 .st-configure: &st-configure
   name: configure
   script: |
-    # Qt6_DIR 兜底：若 setup-env 导出未生效，按构建架构推导 aqt 实际安装目录（无 linux_ 前缀）
+    # Qt6_DIR 由环境镜像 ENV 固化提供；此处为兜底：若镜像内变量未生效，
+    # 按构建架构推导 aqt 实际安装目录（无 linux_ 前缀）
     if [ -z "${Qt6_DIR:-}" ]; then
       if [ "$QTET_BUILD_ARCH" = "arm64" ]; then
         Qt6_DIR="/opt/qt/${QT_VERSION:-6.8.3}/gcc_arm64"
@@ -134,31 +94,47 @@
     *) exit 0 ;;
   esac
 
-# Linux amd64：官方节点 + ubuntu:24.04（依赖与 Qt 在 setup-env stage 内安装）
+# Linux amd64：官方节点 + 动态构建环境镜像（docker/linux-build.Dockerfile，缓存复用）
 .lnx-amd64: &lnx-amd64
   runner:
     tags: cnb:arch:amd64
   docker:
-    image: ubuntu:24.04
+    # 动态构建镜像：CNB 按哈希（Dockerfile + buildArgs + arch）自动缓存到制品库，
+    # 命中直接复用，未命中才构建并推送
+    build:
+      dockerfile: docker/linux-build.Dockerfile
+      buildArgs:
+        QT_VERSION: 6.8.3
+        QT_HOST: linux
+        QT_ARCH: linux_gcc_64
+        QT_DIR_NAME: gcc_64
   env:
     QTET_BUILD_ARCH: amd64
     QT_VERSION: 6.8.3
-    # aqt 下载参数：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名（无 linux_ 前缀）
+    # aqt 下载参数（供 Qt6_DIR fallback 兜底）：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名
     QT_HOST: linux
     QT_ARCH: linux_gcc_64
     QT_DIR_NAME: gcc_64
 
-# Linux arm64：官方节点 + ubuntu:24.04（依赖与 Qt 在 setup-env stage 内安装）
+# Linux arm64：官方节点 + 动态构建环境镜像（docker/linux-build.Dockerfile，缓存复用）
 # QT_HOST=linux_arm64：让 aqt 从 Qt 官方 linux_arm64 仓库下载（对应 GitHub 原生 ARM runner）
 .lnx-arm64: &lnx-arm64
   runner:
     tags: cnb:arch:arm64:v8
   docker:
-    image: ubuntu:24.04
+    # 动态构建镜像：CNB 按哈希（Dockerfile + buildArgs + arch）自动缓存到制品库，
+    # 命中直接复用，未命中才构建并推送
+    build:
+      dockerfile: docker/linux-build.Dockerfile
+      buildArgs:
+        QT_VERSION: 6.8.3
+        QT_HOST: linux_arm64
+        QT_ARCH: linux_gcc_arm64
+        QT_DIR_NAME: gcc_arm64
   env:
     QTET_BUILD_ARCH: arm64
     QT_VERSION: 6.8.3
-    # aqt 下载参数：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名（无 linux_ 前缀）
+    # aqt 下载参数（供 Qt6_DIR fallback 兜底）：QT_ARCH 为 aqt 模块标识，QT_DIR_NAME 为安装目录名
     QT_HOST: linux_arm64
     QT_ARCH: linux_gcc_arm64
     QT_DIR_NAME: gcc_arm64
@@ -180,7 +156,6 @@ master:
           if: *st-if-not-docs
           jobs:
             - *st-extract-version
-            - *st-setup-env
             - *st-configure
             - *st-build
             - *st-test
@@ -194,7 +169,6 @@ master:
           if: *st-if-not-docs
           jobs:
             - *st-extract-version
-            - *st-setup-env
             - *st-configure
             - *st-build
             - *st-test
@@ -209,7 +183,6 @@ master:
       name: Linux amd64 (PR check)
       stages:
         - *st-extract-version
-        - *st-setup-env
         - *st-configure
         - *st-build
         - *st-test
@@ -221,7 +194,6 @@ master:
       name: Linux arm64 (PR check)
       stages:
         - *st-extract-version
-        - *st-setup-env
         - *st-configure
         - *st-build
         - *st-test

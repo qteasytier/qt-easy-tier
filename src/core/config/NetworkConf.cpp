@@ -142,6 +142,7 @@ QVariantMap NetworkConf::toFieldMap() const
     // --- 安全模式 ---
     m["secure_mode_enabled"] = secureModeEnabled;
     m["local_private_key"] = localPrivateKey;
+    m["credential_file"] = credentialFile;
 
     return m;
 }
@@ -278,6 +279,7 @@ NetworkConf NetworkConf::fromFieldMap(const QVariantMap &map, const QString &ins
     // --- 安全模式 ---
     conf.secureModeEnabled = b("secure_mode_enabled");
     conf.localPrivateKey   = s("local_private_key");
+    conf.credentialFile    = s("credential_file");
 
     // 反序列化后补充默认值并清除脏标记
     applyDefaults(conf);
