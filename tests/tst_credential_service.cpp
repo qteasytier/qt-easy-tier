@@ -18,6 +18,8 @@
 #include <QFuture>
 #include <QDir>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QDateTime>
 #include <QUuid>
 #include <QFile>
