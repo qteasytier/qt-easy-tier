@@ -89,5 +89,6 @@ configs-shm
 configs-wal
 **/configs
 .opencode/
+.codebuddy/
 .worktrees/
 docs/
