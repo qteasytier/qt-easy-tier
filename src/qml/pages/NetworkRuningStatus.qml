@@ -210,7 +210,11 @@ ColumnLayout {
         Button {
             text: qsTr("管理临时节点密钥")
             enabled: NetworkPageViewModel.currentInstanceSecureMode
-            onClicked: manageCredentialDialogLoader.active = true
+            onClicked: {
+                // 懒加载：active 同步创建实例后立即 open（onLoaded 时机 Dialog 尚未 attach Overlay，open 不生效）
+                manageCredentialDialogLoader.active = true
+                manageCredentialDialogLoader.item.open()
+            }
         }
 
         Button {
@@ -230,7 +234,7 @@ ColumnLayout {
     Loader {
         id: manageCredentialDialogLoader
         active: false
-        onLoaded: item.open()
+        sourceComponent: manageCredentialDialogComponent
     }
 
     // 导出日志文件对话框

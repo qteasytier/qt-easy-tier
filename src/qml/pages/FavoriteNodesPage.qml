@@ -17,16 +17,6 @@ Rectangle {
     /* 是否为编辑模式：true=编辑已有节点，false=新增节点 */
     property bool editMode: false
 
-    /* nodeDialog 懒加载打开前的暂存注入值 */
-    property int pendingNodeId: -1
-    property bool pendingEditMode: false
-    property string pendingNodeName: ""
-    property string pendingNodeUri: ""
-    property string pendingNodePubkey: ""
-    /* deleteConfirmDialog 懒加载打开前的暂存注入值 */
-    property string pendingDeleteName: ""
-    property int pendingDeleteId: -1
-
     // 页面加载时从数据库读取节点列表
     Component.onCompleted: FavoriteNodeViewModel.loadNodes()
 
@@ -122,12 +112,12 @@ Rectangle {
                         iconSource: "qrc:/icons/edit.svg"
                         flat: true
                         onClicked: {
-                            root.pendingNodeName = nodeName
-                            root.pendingNodeUri = nodeUri
-                            root.pendingNodePubkey = nodePublicKey
-                            root.pendingNodeId = nodeId
-                            root.pendingEditMode = true
-                            nodeDialogLoader.active = true
+                            editNameField.text = nodeName
+                            editUriField.text = nodeUri
+                            editPublicKeyField.text = nodePublicKey
+                            editNodeId = nodeId
+                            editMode = true
+                            nodeDialog.open()
                         }
                     }
 
@@ -136,9 +126,9 @@ Rectangle {
                         iconSource: "qrc:/icons/delete.svg"
                         flat: true
                         onClicked: {
-                            root.pendingDeleteName = nodeName
-                            root.pendingDeleteId = nodeId
-                            deleteConfirmDialogLoader.active = true
+                            deleteConfirmDialog.nodeName = nodeName
+                            deleteConfirmDialog.nodeId = nodeId
+                            deleteConfirmDialog.open()
                         }
                     }
                 }
@@ -160,13 +150,13 @@ Rectangle {
                     Layout.fillWidth: true
                     text: qsTr("添加节点")
                     onClicked: {
-                        // 清空注入值，进入新增模式
-                        root.pendingNodeName = ""
-                        root.pendingNodeUri = ""
-                        root.pendingNodePubkey = ""
-                        root.pendingNodeId = -1
-                        root.pendingEditMode = false
-                        nodeDialogLoader.active = true
+                        // 清空编辑字段，进入新增模式
+                        editNameField.text = ""
+                        editUriField.text = ""
+                        editPublicKeyField.text = ""
+                        editNodeId = -1
+                        editMode = false
+                        nodeDialog.open()
                     }
                 }
 
@@ -174,7 +164,7 @@ Rectangle {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("导入节点")
-                    onClicked: importModeDialogLoader.active = true
+                    onClicked: importModeDialog.open()
                 }
 
                 // 批量导出节点：导出为与 publicservers.json 相同格式的 JSON 文件
@@ -194,95 +184,76 @@ Rectangle {
                 text: qsTr("清空节点列表")
                 flat: true
                 enabled: FavoriteNodeViewModel.count > 0
-                onClicked: clearConfirmDialogLoader.active = true
+                onClicked: clearConfirmDialog.open()
             }
 
         }
     }
 
-    // 批量导入方式选择对话框（懒加载：打开时创建，关闭即卸载）
-    Component {
-        id: importModeDialogComponent
-        Dialog {
-            id: importModeDialog
-            title: qsTr("导入节点")
-            modal: true
-            anchors.centerIn: parent
-            width: Math.min(360, parent ? parent.width - 48 : 320)
+    // 批量导入方式选择对话框
+    Dialog {
+        id: importModeDialog
+        title: qsTr("导入节点")
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
 
-            ColumnLayout {
-                width: parent ? parent.width : 320
-                spacing: 8
+        ColumnLayout {
+            width: parent ? parent.width : 320
+            spacing: 8
 
-                Button {
-                    Layout.fillWidth: true
-                    text: qsTr("从本地文件导入")
-                    onClicked: {
-                        importModeDialog.close()
-                        importNodesFileDialog.open()
-                    }
-                }
-
-                Button {
-                    Layout.fillWidth: true
-                    text: qsTr("从 URL 导入")
-                    onClicked: {
-                        importModeDialog.close()
-                        importUrlDialogLoader.active = true
-                    }
+            Button {
+                Layout.fillWidth: true
+                text: qsTr("从本地文件导入")
+                onClicked: {
+                    importModeDialog.close()
+                    importNodesFileDialog.open()
                 }
             }
-            onClosed: importModeDialogLoader.active = false
+
+            Button {
+                Layout.fillWidth: true
+                text: qsTr("从 URL 导入")
+                onClicked: {
+                    importModeDialog.close()
+                    importUrlField.text = ""
+                    importUrlDialog.open()
+                }
+            }
         }
     }
 
-    Loader {
-        id: importModeDialogLoader
-        active: false
-        onLoaded: item.open()
-    }
+    // 批量导入 URL 输入对话框
+    Dialog {
+        id: importUrlDialog
+        title: qsTr("从 URL 导入节点")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(420, parent ? parent.width - 48 : 360)
 
-    // 批量导入 URL 输入对话框（懒加载：打开时创建，关闭即卸载）
-    Component {
-        id: importUrlDialogComponent
-        Dialog {
-            id: importUrlDialog
-            title: qsTr("从 URL 导入节点")
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            modal: true
-            anchors.centerIn: parent
-            width: Math.min(420, parent ? parent.width - 48 : 360)
+        ColumnLayout {
+            width: parent ? parent.width : 360
+            spacing: 8
 
-            ColumnLayout {
-                width: parent ? parent.width : 360
-                spacing: 8
-
-                Label {
-                    text: qsTr("节点 JSON 地址（http/https）")
-                }
-
-                TextField {
-                    id: importUrlField
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("https://example.com/nodes.json")
-                    inputMethodHints: Qt.ImhUrlCharactersOnly
-                }
+            Label {
+                text: qsTr("节点 JSON 地址（http/https）")
             }
 
-            onOpened: importUrlField.forceActiveFocus()
-            onAccepted: {
-                var url = importUrlField.text.trim()
-                if (url)
-                    FavoriteNodeViewModel.importNodesFromUrl(url)
+            TextField {
+                id: importUrlField
+                Layout.fillWidth: true
+                placeholderText: qsTr("https://example.com/nodes.json")
+                inputMethodHints: Qt.ImhUrlCharactersOnly
             }
-            onClosed: importUrlDialogLoader.active = false
         }
-    }
 
-    Loader {
-        id: importUrlDialogLoader
-        active: false
-        onLoaded: item.open()
+        onOpened: importUrlField.forceActiveFocus()
+        onAccepted: {
+            var url = importUrlField.text.trim()
+            if (url)
+                FavoriteNodeViewModel.importNodesFromUrl(url)
+        }
     }
 
     // 批量导入收藏节点文件对话框
@@ -309,159 +280,110 @@ Rectangle {
         }
     }
 
-    // 节点编辑/添加对话框（懒加载，数据由外部暂存注入）
-    Component {
-        id: nodeDialogComponent
-        Dialog {
-            id: nodeDialog
-            title: nodeDialog.editing ? qsTr("编辑节点") : qsTr("添加节点")
-            property int nodeIdValue: -1
-            property bool editing: false
-            property string nameText: ""
-            property string uriText: ""
-            property string publicKeyText: ""
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            modal: true
-            anchors.centerIn: parent
-            width: Math.min(420, parent ? parent.width - 48 : 360)
+    // 节点编辑/添加对话框
+    Dialog {
+        id: nodeDialog
+        title: editMode ? qsTr("编辑节点") : qsTr("添加节点")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(420, parent ? parent.width - 48 : 360)
 
-            ColumnLayout {
-                width: parent ? parent.width : 360
-                spacing: 8
-
-                Label {
-                    text: qsTr("节点名称（必填）")
-                }
-
-                TextField {
-                    id: editNameField
-                    text: nodeDialog.nameText
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("请输入节点名称")
-                }
-
-                Label {
-                    text: qsTr("节点地址（必填）")
-                }
-
-                TextField {
-                    id: editUriField
-                    text: nodeDialog.uriText
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("例如：tcp://example.com:27773")
-                }
-
-                Label {
-                    text: qsTr("节点公钥（选填）")
-                }
-
-                TextField {
-                    id: editPublicKeyField
-                    text: nodeDialog.publicKeyText
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("留空表示不使用公钥验证")
-                }
-            }
-
-            // 对话框打开后自动聚焦名称输入框
-            onOpened: {
-                editNameField.forceActiveFocus()
-            }
-
-            // 点击确定：校验必填字段后保存
-            onAccepted: {
-                var name = editNameField.text.trim()
-                var uri = editUriField.text.trim()
-                var publicKey = editPublicKeyField.text.trim()
-
-                if (!name || !uri) return
-
-                if (nodeDialog.editing && nodeDialog.nodeIdValue >= 0) {
-                    FavoriteNodeViewModel.updateNode(nodeDialog.nodeIdValue, name, uri, publicKey)
-                } else {
-                    FavoriteNodeViewModel.addNode(name, uri, publicKey)
-                }
-            }
-            onClosed: nodeDialogLoader.active = false
-        }
-    }
-
-    Loader {
-        id: nodeDialogLoader
-        active: false
-        onLoaded: {
-            item.nodeIdValue = root.pendingNodeId
-            item.editing = root.pendingEditMode
-            item.nameText = root.pendingNodeName
-            item.uriText = root.pendingNodeUri
-            item.publicKeyText = root.pendingNodePubkey
-            item.open()
-        }
-    }
-
-    // 删除单个节点确认对话框（懒加载，数据由外部暂存注入）
-    Component {
-        id: deleteConfirmDialogComponent
-        Dialog {
-            id: deleteConfirmDialog
-            title: qsTr("确认删除")
-            anchors.centerIn: parent
-            width: Math.min(320, parent.width - 32)
-            modal: true
-            standardButtons: Dialog.Yes | Dialog.No
-
-            property string nodeName: ""
-            property int nodeId: -1
+        ColumnLayout {
+            width: parent ? parent.width : 360
+            spacing: 8
 
             Label {
-                text: qsTr("确定要删除节点 \"%1\" 吗？").arg(deleteConfirmDialog.nodeName)
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 280
+                text: qsTr("节点名称（必填）")
             }
 
-            onAccepted: {
-                if (deleteConfirmDialog.nodeId >= 0)
-                    FavoriteNodeViewModel.removeNode(deleteConfirmDialog.nodeId)
+            TextField {
+                id: editNameField
+                Layout.fillWidth: true
+                placeholderText: qsTr("请输入节点名称")
             }
-            onClosed: deleteConfirmDialogLoader.active = false
-        }
-    }
-
-    Loader {
-        id: deleteConfirmDialogLoader
-        active: false
-        onLoaded: {
-            item.nodeName = root.pendingDeleteName
-            item.nodeId = root.pendingDeleteId
-            item.open()
-        }
-    }
-
-    // 清空全部节点确认对话框（懒加载：打开时创建，关闭即卸载）
-    Component {
-        id: clearConfirmDialogComponent
-        Dialog {
-            id: clearConfirmDialog
-            title: qsTr("确认清空")
-            anchors.centerIn: parent
-            width: Math.min(320, parent.width - 32)
-            modal: true
-            standardButtons: Dialog.Yes | Dialog.No
 
             Label {
-                text: qsTr("确定要清空所有节点吗？此操作不可恢复。")
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 280
+                text: qsTr("节点地址（必填）")
             }
 
-            onAccepted: FavoriteNodeViewModel.clearAll()
-            onClosed: clearConfirmDialogLoader.active = false
+            TextField {
+                id: editUriField
+                Layout.fillWidth: true
+                placeholderText: qsTr("例如：tcp://example.com:27773")
+            }
+
+            Label {
+                text: qsTr("节点公钥（选填）")
+            }
+
+            TextField {
+                id: editPublicKeyField
+                Layout.fillWidth: true
+                placeholderText: qsTr("留空表示不使用公钥验证")
+            }
+        }
+
+        // 对话框打开后自动聚焦名称输入框
+        onOpened: {
+            editNameField.forceActiveFocus()
+        }
+
+        // 点击确定：校验必填字段后保存
+        onAccepted: {
+            var name = editNameField.text.trim()
+            var uri = editUriField.text.trim()
+            var publicKey = editPublicKeyField.text.trim()
+
+            if (!name || !uri) return
+
+            if (editMode && editNodeId >= 0) {
+                FavoriteNodeViewModel.updateNode(editNodeId, name, uri, publicKey)
+            } else {
+                FavoriteNodeViewModel.addNode(name, uri, publicKey)
+            }
         }
     }
 
-    Loader {
-        id: clearConfirmDialogLoader
-        active: false
-        onLoaded: item.open()
+    // 删除单个节点确认对话框
+    Dialog {
+        id: deleteConfirmDialog
+        title: qsTr("确认删除")
+        anchors.centerIn: parent
+        width: Math.min(320, parent.width - 32)
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.No
+
+        property string nodeName: ""
+        property int nodeId: -1
+
+        Label {
+            text: qsTr("确定要删除节点 \"%1\" 吗？").arg(deleteConfirmDialog.nodeName)
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 280
+        }
+
+        onAccepted: {
+            if (deleteConfirmDialog.nodeId >= 0)
+                FavoriteNodeViewModel.removeNode(deleteConfirmDialog.nodeId)
+        }
+    }
+
+    // 清空全部节点确认对话框
+    Dialog {
+        id: clearConfirmDialog
+        title: qsTr("确认清空")
+        anchors.centerIn: parent
+        width: Math.min(320, parent.width - 32)
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.No
+
+        Label {
+            text: qsTr("确定要清空所有节点吗？此操作不可恢复。")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 280
+        }
+
+        onAccepted: FavoriteNodeViewModel.clearAll()
     }
 }

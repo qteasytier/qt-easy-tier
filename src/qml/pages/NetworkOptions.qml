@@ -39,9 +39,6 @@ ColumnLayout {
     property string currentInstance: ConfigEditorViewModel.currentInstanceName
     property bool networkSecretVisible: false
     property bool secureKeyVisible: false
-    /* 导出 URL / 本地公钥 对话框打开前的暂存注入值（懒加载后由 Loader 注入） */
-    property string pendingExportUrl: ""
-    property string pendingPublicKey: ""
 
     /* 从 ViewModel 拉取所有动态列表数据到本地 ListModel */
     function loadListsFromConfig() {
@@ -266,39 +263,29 @@ ColumnLayout {
                         text: qsTr("从收藏导入")
                         flat: true
                         Layout.fillWidth: true
-                        onClicked: importNodesDialogLoader.active = true
+                        onClicked: importNodesDialog.open()
                     }
 
-                    // 从收藏导入对话框（懒加载：打开时创建，关闭即卸载）
-                    Component {
-                        id: importNodesDialogComponent
-                        ImportNodesDialog {
-                            onClosed: importNodesDialogLoader.active = false
-                            onNodesSelected: function(nodes) {
-                                // 导入时去重：检查 uri 是否已存在
-                                for (var i = 0; i < nodes.length; i++) {
-                                    var dup = false
-                                    for (var j = 0; j < serverList.model.count; j++) {
-                                        if (serverList.model.get(j).uri === nodes[i].uri) {
-                                            dup = true
-                                            break
-                                        }
+                    ImportNodesDialog {
+                        id: importNodesDialog
+                        onNodesSelected: function(nodes) {
+                            // 导入时去重：检查 uri 是否已存在
+                            for (var i = 0; i < nodes.length; i++) {
+                                var dup = false
+                                for (var j = 0; j < serverList.model.count; j++) {
+                                    if (serverList.model.get(j).uri === nodes[i].uri) {
+                                        dup = true
+                                        break
                                     }
-                                    if (!dup)
-                                        serverList.model.append({
-                                            uri: nodes[i].uri,
-                                            publicKey: nodes[i].publicKey || ""
-                                        })
                                 }
-                                commitListsToViewModel()
+                                if (!dup)
+                                    serverList.model.append({
+                                        uri: nodes[i].uri,
+                                        publicKey: nodes[i].publicKey || ""
+                                    })
                             }
+                            commitListsToViewModel()
                         }
-                    }
-
-                    Loader {
-                        id: importNodesDialogLoader
-                        active: false
-                        onLoaded: item.open()
                     }
                 }
 
@@ -625,8 +612,8 @@ ColumnLayout {
                                     AppState.showError(qsTr("私钥为空或无效，请先输入或随机生成私钥"))
                                     return
                                 }
-                                root.pendingPublicKey = pub
-                                showPublicKeyLoader.active = true
+                                publicKeyField.text = pub
+                                showPublicKeyDialog.open()
                             }
                         }
                     }
@@ -673,7 +660,7 @@ ColumnLayout {
             text: qsTr("导出配置")
             // 无当前配置时禁用
             enabled: ConfigEditorViewModel.currentInstanceName !== ""
-            onClicked: exportChoiceDialogLoader.active = true
+            onClicked: exportChoiceDialog.open()
         }
 
         // 弹性空间，将导出按钮推至左侧、清空按钮推至右侧
@@ -683,7 +670,7 @@ ColumnLayout {
             text: qsTr("清空配置")
             // 无当前配置时禁用
             enabled: ConfigEditorViewModel.currentInstanceName !== ""
-            onClicked: resetConfirmDialogLoader.active = true
+            onClicked: resetConfirmDialog.open()
         }
     }
 
@@ -701,180 +688,130 @@ ColumnLayout {
     Component.onDestruction: ConfigEditorViewModel.flushAutoSave()
 
     // 清空配置确认：将当前实例的全部网络设置恢复为默认值（不可恢复）
-    Component {
-        id: resetConfirmDialogComponent
-        Dialog {
-            id: resetConfirmDialog
-            title: qsTr("清空配置")
-            standardButtons: Dialog.Yes | Dialog.No
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(360, parent ? parent.width - 48 : 320)
+    Dialog {
+        id: resetConfirmDialog
+        title: qsTr("清空配置")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
 
-            Label {
-                text: qsTr("将把当前实例「%1」的全部网络设置恢复为默认值。此操作不可恢复！\n\n是否继续？")
-                    .arg(ConfigEditorViewModel.displayName)
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 320
-            }
-
-            onAccepted: ConfigEditorViewModel.resetToDefaults()
-            onClosed: resetConfirmDialogLoader.active = false
+        Label {
+            text: qsTr("将把当前实例「%1」的全部网络设置恢复为默认值。此操作不可恢复！\n\n是否继续？")
+                .arg(ConfigEditorViewModel.displayName)
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
+
+        onAccepted: ConfigEditorViewModel.resetToDefaults()
     }
 
-    Loader {
-        id: resetConfirmDialogLoader
-        active: false
-        onLoaded: item.open()
-    }
-
-    // 导出方式选择对话框（懒加载：打开时创建，关闭即卸载）
-    Component {
-        id: exportChoiceDialogComponent
-        Dialog {
-            id: exportChoiceDialog
-            title: qsTr("导出配置")
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            standardButtons: Dialog.Cancel
-            RowLayout {
-                spacing: 12
-                Button {
-                    text: qsTr("导出为文件")
-                    Layout.fillWidth: true
-                    onClicked: {
-                        exportChoiceDialog.close()
-                        exportFileDialog.open()
-                    }
+    // 导出方式选择对话框
+    Dialog {
+        id: exportChoiceDialog
+        title: qsTr("导出配置")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        RowLayout {
+            spacing: 12
+            Button {
+                text: qsTr("导出为文件")
+                Layout.fillWidth: true
+                onClicked: {
+                    exportChoiceDialog.close()
+                    exportFileDialog.open()
                 }
-                Button {
-                    text: qsTr("导出为 URL")
-                    Layout.fillWidth: true
-                    onClicked: {
-                        exportChoiceDialog.close()
-                        var urlStr = ConfigListModel.exportConfigUrl(ConfigEditorViewModel.currentInstanceName)
-                        if (urlStr !== "") {
-                            root.pendingExportUrl = urlStr
-                            exportUrlDialogLoader.active = true
-                        }
+            }
+            Button {
+                text: qsTr("导出为 URL")
+                Layout.fillWidth: true
+                onClicked: {
+                    exportChoiceDialog.close()
+                    var urlStr = ConfigListModel.exportConfigUrl(ConfigEditorViewModel.currentInstanceName)
+                    if (urlStr !== "") {
+                        exportUrlField.text = urlStr
+                        exportUrlDialog.open()
                     }
                 }
             }
-            onClosed: exportChoiceDialogLoader.active = false
         }
     }
 
-    Loader {
-        id: exportChoiceDialogLoader
-        active: false
-        onLoaded: item.open()
-    }
+    // 导出 URL 展示对话框
+    Dialog {
+        id: exportUrlDialog
+        title: qsTr("导出 URL")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent ? parent.width - 48 : 480)
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label { text: qsTr("复制以下 URL 即可分享配置：") }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
 
-    // 导出 URL 展示对话框（懒加载，URL 由外部暂存注入）
-    Component {
-        id: exportUrlDialogComponent
-        Dialog {
-            id: exportUrlDialog
-            title: qsTr("导出 URL")
-            property string exportUrl: ""
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(520, parent ? parent.width - 48 : 480)
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 8
-                Label { text: qsTr("复制以下 URL 即可分享配置：") }
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 100
-
-                    TextArea {
-                        id: exportUrlField
-                        text: exportUrlDialog.exportUrl
-                        readOnly: true
-                        wrapMode: TextEdit.WrapAnywhere
-                    }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    Item { Layout.fillWidth: true }
-                    Button {
-                        text: qsTr("复制")
-                        onClicked: {
-                            exportUrlField.selectAll()
-                            exportUrlField.copy()
-                        }
-                    }
-                    Button {
-                        text: qsTr("确定")
-                        onClicked: exportUrlDialog.close()
-                    }
-                }
-            }
-            onClosed: exportUrlDialogLoader.active = false
-        }
-    }
-
-    Loader {
-        id: exportUrlDialogLoader
-        active: false
-        onLoaded: {
-            item.exportUrl = root.pendingExportUrl
-            item.open()
-        }
-    }
-
-    // 显示公钥对话框（懒加载，公钥由外部暂存注入）：由安全模式私钥实时计算（公钥不落库），支持一键复制
-    Component {
-        id: showPublicKeyComponent
-        Dialog {
-            id: showPublicKeyDialog
-            title: qsTr("本地公钥")
-            property string pubkey: ""
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(520, parent ? parent.width - 48 : 480)
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 8
-                Label { text: qsTr("复制以下公钥即可分享给其他节点：") }
-                TextField {
-                    id: publicKeyField
-                    text: showPublicKeyDialog.pubkey
+                TextArea {
+                    id: exportUrlField
                     readOnly: true
-                    Layout.fillWidth: true
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    Item { Layout.fillWidth: true }
-                    Button {
-                        text: qsTr("复制")
-                        onClicked: {
-                            publicKeyField.selectAll()
-                            publicKeyField.copy()
-                        }
-                    }
-                    Button {
-                        text: qsTr("确定")
-                        onClicked: showPublicKeyDialog.close()
-                    }
+                    wrapMode: TextEdit.WrapAnywhere
                 }
             }
-            onClosed: showPublicKeyLoader.active = false
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: qsTr("复制")
+                    onClicked: {
+                        exportUrlField.selectAll()
+                        exportUrlField.copy()
+                    }
+                }
+                Button {
+                    text: qsTr("确定")
+                    onClicked: exportUrlDialog.close()
+                }
+            }
         }
     }
 
-    Loader {
-        id: showPublicKeyLoader
-        active: false
-        onLoaded: {
-            item.pubkey = root.pendingPublicKey
-            item.open()
+    // 显示公钥对话框：由安全模式私钥实时计算（公钥不落库），支持一键复制
+    Dialog {
+        id: showPublicKeyDialog
+        title: qsTr("本地公钥")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent ? parent.width - 48 : 480)
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label { text: qsTr("复制以下公钥即可分享给其他节点：") }
+            TextField {
+                id: publicKeyField
+                readOnly: true
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: qsTr("复制")
+                    onClicked: {
+                        publicKeyField.selectAll()
+                        publicKeyField.copy()
+                    }
+                }
+                Button {
+                    text: qsTr("确定")
+                    onClicked: showPublicKeyDialog.close()
+                }
+            }
         }
     }
 

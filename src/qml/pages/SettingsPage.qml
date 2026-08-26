@@ -290,9 +290,9 @@ Rectangle {
                         Layout.fillWidth: true
                         onClicked: {
                             if (DangerousOperationViewModel.daemonInstalled)
-                                uninstallDialogLoader.active = true
+                                uninstallDialog.open()
                             else
-                                installDialogLoader.active = true
+                                installDialog.open()
                         }
                     }
 
@@ -300,7 +300,7 @@ Rectangle {
                         text: qsTr("清空配置")
                         enabled: !DangerousOperationViewModel.busy
                         Layout.fillWidth: true
-                        onClicked: clearConfirmDialogLoader.active = true
+                        onClicked: clearConfirmDialog.open()
                     }
                 }
             }
@@ -324,93 +324,63 @@ Rectangle {
         }
     }
 
-    // ========== 危险操作确认对话框（懒加载：打开时创建，关闭即卸载） ==========
+    // ========== 危险操作确认对话框 ==========
 
     // 安装后端确认：安装包括注册并启动系统服务
-    Component {
-        id: installDialogComponent
-        Dialog {
-            id: installDialog
-            title: qsTr("安装后端")
-            standardButtons: Dialog.Yes | Dialog.No
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(360, parent ? parent.width - 48 : 320)
+    Dialog {
+        id: installDialog
+        title: qsTr("安装后端")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
 
-            Label {
-                text: qsTr("将把后端 qtet-daemon 注册为系统服务并启动，需要管理员权限。\n\n是否继续？")
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 320
-            }
-
-            onAccepted: DangerousOperationViewModel.performDaemonOperation()
-            onClosed: installDialogLoader.active = false
+        Label {
+            text: qsTr("将把后端 qtet-daemon 注册为系统服务并启动，需要管理员权限。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
-    }
 
-    Loader {
-        id: installDialogLoader
-        active: false
-        onLoaded: item.open()
+        onAccepted: DangerousOperationViewModel.performDaemonOperation()
     }
 
     // 卸载后端确认：卸载包括停止并移除服务
-    Component {
-        id: uninstallDialogComponent
-        Dialog {
-            id: uninstallDialog
-            title: qsTr("卸载后端")
-            standardButtons: Dialog.Yes | Dialog.No
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(360, parent ? parent.width - 48 : 320)
+    Dialog {
+        id: uninstallDialog
+        title: qsTr("卸载后端")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
 
-            Label {
-                text: qsTr("将停止并卸载后端 qtet-daemon 系统服务，需要管理员权限。\n卸载后将无法连接 EasyTier VPN。\n\n是否继续？")
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 320
-            }
-
-            onAccepted: DangerousOperationViewModel.performDaemonOperation()
-            onClosed: uninstallDialogLoader.active = false
+        Label {
+            text: qsTr("将停止并卸载后端 qtet-daemon 系统服务，需要管理员权限。\n卸载后将无法连接 EasyTier VPN。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
-    }
 
-    Loader {
-        id: uninstallDialogLoader
-        active: false
-        onLoaded: item.open()
+        onAccepted: DangerousOperationViewModel.performDaemonOperation()
     }
 
     // 清空配置确认：先停止所有网络服务，再删除全部数据并退出
-    Component {
-        id: clearConfirmDialogComponent
-        Dialog {
-            id: clearConfirmDialog
-            title: qsTr("清空配置")
-            standardButtons: Dialog.Yes | Dialog.No
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            width: Math.min(360, parent ? parent.width - 48 : 320)
+    Dialog {
+        id: clearConfirmDialog
+        title: qsTr("清空配置")
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 48 : 320)
 
-            Label {
-                text: qsTr("卸载配置需要先停止所有运行中的网络配置，然后清空全部数据（网络配置、收藏节点、日志、全局设置）。\n此操作不可恢复，操作完成后需要重启本程序。\n\n是否继续？")
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 320
-            }
-
-            onAccepted: DangerousOperationViewModel.clearAllData()
-            onClosed: clearConfirmDialogLoader.active = false
+        Label {
+            text: qsTr("卸载配置需要先停止所有运行中的网络配置，然后清空全部数据（网络配置、收藏节点、日志、全局设置）。\n此操作不可恢复，操作完成后需要重启本程序。\n\n是否继续？")
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 320
         }
-    }
 
-    Loader {
-        id: clearConfirmDialogLoader
-        active: false
-        onLoaded: item.open()
+        onAccepted: DangerousOperationViewModel.clearAllData()
     }
 
     // 危险操作结果处理：仅失败时需要提示（成功时应用会自动退出）

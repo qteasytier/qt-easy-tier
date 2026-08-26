@@ -98,44 +98,30 @@ Window {
         }
     }
 
-    // 全局错误弹窗（懒加载：首次触发时创建并常驻，卸载会丢失随时可能到来的错误信号）
-    property string pendingErrorText: ""
+    // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动
+    Dialog {
+        id: errorDialog
+        title: qsTr("错误")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok
+        width: Math.min(420, parent ? parent.width - 48 : 360)
 
-    Component {
-        id: errorDialogComponent
-        Dialog {
-            id: errorDialog
-            title: qsTr("错误")
-            modal: true
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            standardButtons: Dialog.Ok
-            width: Math.min(420, parent ? parent.width - 48 : 360)
+        property string text: ""
 
-            property string text: ""
-
-            Label {
-                text: errorDialog.text
-                wrapMode: Text.WordWrap
-                width: parent ? parent.width : 360
-            }
-        }
-    }
-
-    Loader {
-        id: errorDialogLoader
-        active: false
-        onLoaded: {
-            item.text = root.pendingErrorText
-            item.open()
+        Label {
+            text: errorDialog.text
+            wrapMode: Text.WordWrap
+            width: parent ? parent.width : 360
         }
     }
 
     Connections {
         target: AppState
         function onErrorOccurred(message) {
-            root.pendingErrorText = message
-            errorDialogLoader.active = true
+            errorDialog.text = message
+            errorDialog.open()
         }
     }
 }
