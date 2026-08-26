@@ -241,6 +241,37 @@ private slots:
                  QStringList({QStringLiteral("tcp"), QStringLiteral("udp"), QStringLiteral("icmp")}));
     }
 
+    /// 测试目标: 安全模式启用且私钥有效时，TOML 必须包含实时计算的 local_public_key
+    void secureModeTomlIncludesPublicKey()
+    {
+        // 使用 easytier 官方示例私钥，公钥为已知固定值
+        NetworkConf conf("secure-test");
+        conf.secureModeEnabled = true;
+        conf.localPrivateKey = QStringLiteral("4AQit0gGw2am6mO0nFXZ2pFeCJpKmaRr9L5Dksh7slM=");
+
+        const QString toml = NetworkConfToml::toToml(conf, true);
+
+        QVERIFY(toml.contains(QStringLiteral("[secure_mode]")));
+        QVERIFY(toml.contains(QStringLiteral("enabled = true")));
+        QVERIFY(toml.contains(QStringLiteral("local_private_key = \"4AQit0gGw2am6mO0nFXZ2pFeCJpKmaRr9L5Dksh7slM=\"")));
+        // 公钥由私钥实时推导，不持久化，但 TOML 输出必须包含
+        QVERIFY(toml.contains(QStringLiteral("local_public_key = \"Uu23K3mO3i/O2GAOi3gbiznIfYXttFX/XjqCv9FMQUA=\"")));
+    }
+
+    /// 测试目标: 安全模式启用但私钥为空时，不输出密钥字段（仅 enabled）
+    void secureModeTomlWithoutPrivateKey()
+    {
+        NetworkConf conf("secure-no-key");
+        conf.secureModeEnabled = true;
+
+        const QString toml = NetworkConfToml::toToml(conf, true);
+
+        QVERIFY(toml.contains(QStringLiteral("[secure_mode]")));
+        QVERIFY(toml.contains(QStringLiteral("enabled = true")));
+        QVERIFY(!toml.contains(QStringLiteral("local_private_key")));
+        QVERIFY(!toml.contains(QStringLiteral("local_public_key")));
+    }
+
     /// 测试目标: 验证 daemon 配置 payload 统一生成 cfg_str，且内容是运行时 TOML 的 base64
     void payloadBuilderCreatesCfgStr()
     {

@@ -16,6 +16,8 @@
 #include <QFutureWatcher>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QDateTime>
+#include <QVariantMap>
 
 namespace {
 constexpr int kMaxRuntimeLogEntries = 200;
@@ -72,6 +74,25 @@ void VpnController::start()
         LogHelper::logWarning(QStringLiteral("[%1] 启动失败: 仓库中找不到该配置").arg(m_instanceName), "VpnController");
         setState(State::Unstarted);
         return;
+    }
+
+    // 步骤 2.5：将完整 TOML 配置写入运行日志缓存，待下次心跳刷新时展示在 UI 顶部
+    {
+        // 与 daemon cfg_str 载荷保持一致：包含 instance_name
+        const QString toml = NetworkConfToml::toToml(loaded.value(), true);
+
+        // 构造与 StatusMonitor 解析条目同构的日志条目（字段与时间戳格式保持一致）
+        const QDateTime now = QDateTime::currentDateTime();
+        QVariantMap entry;
+        entry[QStringLiteral("rawTimestamp")] = now.toString(QStringLiteral("yyyy-MM-ddTHH:mm:ss"));
+        entry[QStringLiteral("timestamp")] = now.toString(QStringLiteral("MM-dd HH:mm:ss"));
+        entry[QStringLiteral("level")] = QStringLiteral("info");
+        entry[QStringLiteral("message")] = QStringLiteral("本次启动使用的完整 TOML 配置：\n%1").arg(toml);
+
+        // 日志条数达到上限时先移除最旧的一条，保证插入后不超上限且 TOML 日志保留在顶部
+        if (m_runningStatus.logEntries.size() >= kMaxRuntimeLogEntries)
+            m_runningStatus.logEntries.removeAt(0);
+        m_runningStatus.logEntries.prepend(entry);
     }
 
     // 步骤 3：构造 daemon IPC 参数（运行时 TOML 的 Base64 格式）

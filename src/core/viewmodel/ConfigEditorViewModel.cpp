@@ -14,6 +14,7 @@
  */
 #include "ConfigEditorViewModel.h"
 #include "core/application/config/ConfigCommandService.h"
+#include "core/config/X25519KeyHelper.h"
 
 namespace {
 /// 自动保存防抖间隔（毫秒）：停止编辑约 300ms 后统一落库
@@ -463,6 +464,25 @@ QString ConfigEditorViewModel::localPrivateKey() const { return m_conf.localPriv
 void ConfigEditorViewModel::setLocalPrivateKey(const QString &v) {
     if (m_conf.localPrivateKey == v) return;
     m_conf.localPrivateKey = v; markDirty(); emit localPrivateKeyChanged();
+}
+
+bool ConfigEditorViewModel::generateRandomPrivateKey()
+{
+    const QString key = X25519KeyHelper::generatePrivateKeyBase64();
+    if (key.isEmpty())
+        return false;
+    setLocalPrivateKey(key);
+    return true;
+}
+
+QString ConfigEditorViewModel::derivePublicKey()
+{
+    if (m_conf.localPrivateKey.isEmpty())
+        return {};
+    QString publicKey;
+    if (!X25519KeyHelper::derivePublicKeyBase64(m_conf.localPrivateKey, &publicKey))
+        return {};
+    return publicKey;
 }
 
 // ==================== 编辑操作（load / save / cancel / clear）====================

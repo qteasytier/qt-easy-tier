@@ -38,6 +38,7 @@ ColumnLayout {
     /* 绑定到 ViewModel 的当前实例名，变化时自动重载列表数据 */
     property string currentInstance: ConfigEditorViewModel.currentInstanceName
     property bool networkSecretVisible: false
+    property bool secureKeyVisible: false
 
     /* 从 ViewModel 拉取所有动态列表数据到本地 ListModel */
     function loadListsFromConfig() {
@@ -559,18 +560,61 @@ ColumnLayout {
                         onToggled: ConfigEditorViewModel.secureModeEnabled = checked
                     }
 
-                    // 节点私钥（安全模式相关）
+                    // 节点私钥（安全模式相关），采用密码输入形式，可点击眼睛图标切换明文
                     RowLayout {
                         Layout.fillWidth: true
                         Label {
-                            text: qsTr("节点私钥")
+                            text: qsTr("节点私钥Base64")
                             Layout.preferredWidth: 110
                         }
-                        TextField {
+                        Item {
                             Layout.fillWidth: true
-                            text: ConfigEditorViewModel.localPrivateKey
-                            placeholderText: qsTr("可选，留空使用随机密钥")
-                            onTextEdited: ConfigEditorViewModel.localPrivateKey = text
+                            implicitHeight: secureKeyField.implicitHeight
+
+                            TextField {
+                                id: secureKeyField
+                                anchors.fill: parent
+                                rightPadding: secureKeyToggle.implicitWidth + 8
+                                text: ConfigEditorViewModel.localPrivateKey
+                                placeholderText: qsTr("可选，留空使用随机密钥")
+                                onTextEdited: ConfigEditorViewModel.localPrivateKey = text
+                                echoMode: root.secureKeyVisible ? TextInput.Normal : TextInput.Password
+                            }
+
+                            IconToolButton {
+                                id: secureKeyToggle
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                iconSource: root.secureKeyVisible ? "qrc:/icons/eye-slash.svg" : "qrc:/icons/eye.svg"
+                                onClicked: root.secureKeyVisible = !root.secureKeyVisible
+                            }
+                        }
+                    }
+
+                    // 私钥操作按钮：随机生成密钥对 / 实时计算并展示公钥
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 4
+
+                        Button {
+                            text: qsTr("随机生成")
+                            onClicked: {
+                                if (!ConfigEditorViewModel.generateRandomPrivateKey())
+                                    AppState.showError(qsTr("随机私钥生成失败"))
+                            }
+                        }
+
+                        Button {
+                            text: qsTr("显示公钥")
+                            onClicked: {
+                                var pub = ConfigEditorViewModel.derivePublicKey()
+                                if (pub === "") {
+                                    AppState.showError(qsTr("私钥为空或无效，请先输入或随机生成私钥"))
+                                    return
+                                }
+                                publicKeyField.text = pub
+                                showPublicKeyDialog.open()
+                            }
                         }
                     }
                 }
@@ -709,6 +753,46 @@ ColumnLayout {
                 Button {
                     text: qsTr("确定")
                     onClicked: exportUrlDialog.close()
+                }
+            }
+        }
+    }
+
+    // 显示公钥对话框：由安全模式私钥实时计算（公钥不落库），支持一键复制
+    Dialog {
+        id: showPublicKeyDialog
+        title: qsTr("本地公钥")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent ? parent.width - 48 : 480)
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label { text: qsTr("复制以下公钥即可分享给其他节点：") }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+
+                TextArea {
+                    id: publicKeyField
+                    readOnly: true
+                    wrapMode: TextEdit.WrapAnywhere
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: qsTr("复制")
+                    onClicked: {
+                        publicKeyField.selectAll()
+                        publicKeyField.copy()
+                    }
+                }
+                Button {
+                    text: qsTr("确定")
+                    onClicked: showPublicKeyDialog.close()
                 }
             }
         }

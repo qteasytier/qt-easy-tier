@@ -239,6 +239,25 @@ public:
     QString localPrivateKey() const;        void setLocalPrivateKey(const QString &v);
 
     /**
+     * @brief 生成一个随机的 X25519 私钥并写入本地私钥字段
+     *
+     * 由 OpenSSL 生成 32 字节随机私钥（已按 RFC 7748 clamp），
+     * 写入后走既有防抖自动保存流程落库。
+     *
+     * @return true 生成并写入成功，false 生成失败
+     */
+    Q_INVOKABLE bool generateRandomPrivateKey();
+
+    /**
+     * @brief 由当前本地私钥实时计算公钥
+     *
+     * 公钥不持久化，仅按需计算。私钥为空或无效时返回空字符串。
+     *
+     * @return 44 字符 Base64 公钥；失败（空/无效私钥）返回空字符串
+     */
+    Q_INVOKABLE QString derivePublicKey();
+
+    /**
      * @brief 从仓库加载指定实例名称的配置到编辑器
      * @param instanceName 配置实例名（对应 network_configs 表主键）
      *

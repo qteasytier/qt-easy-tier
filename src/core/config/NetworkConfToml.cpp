@@ -13,6 +13,7 @@
  * - 按 TOML 节结构分层读取
  */
 #include "NetworkConfToml.h"
+#include "core/config/X25519KeyHelper.h"
 #include <QVariantList>
 #include <QLatin1Char>
 #include <QSet>
@@ -193,8 +194,15 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
         lines << QString{};
         lines << QStringLiteral("[secure_mode]");
         lines << QStringLiteral("enabled = true");
-        if (!conf.localPrivateKey.isEmpty())
+        if (!conf.localPrivateKey.isEmpty()) {
             lines << QStringLiteral("local_private_key = %1").arg(esc(conf.localPrivateKey));
+            // 公钥不落库，由私钥实时计算；生成的 TOML 必须包含 local_public_key
+            QString publicKey;
+            if (X25519KeyHelper::derivePublicKeyBase64(conf.localPrivateKey, &publicKey))
+                lines << QStringLiteral("local_public_key = %1").arg(esc(publicKey));
+            else
+                LogHelper::logWarning(QStringLiteral("安全模式私钥无效，无法推导公钥，已跳过 local_public_key 字段"), "Config");
+        }
     }
 
     return lines.join(QLatin1Char('\n')) + QLatin1Char('\n');
