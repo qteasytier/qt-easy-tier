@@ -11,9 +11,11 @@
  */
 #include <QTest>
 #include <QJsonObject>
+#include <QByteArray>
 #include "core/config/NetworkConf.h"
 #include "core/config/NetworkConfToml.h"
 #include "core/config/ConfigPayloadBuilder.h"
+#include "core/config/X25519KeyHelper.h"
 
 class TestNetworkConf : public QObject
 {
@@ -258,8 +260,8 @@ private slots:
         QVERIFY(toml.contains(QStringLiteral("local_public_key = \"Uu23K3mO3i/O2GAOi3gbiznIfYXttFX/XjqCv9FMQUA=\"")));
     }
 
-    /// 测试目标: 安全模式启用但私钥为空时，不输出密钥字段（仅 enabled）
-    void secureModeTomlWithoutPrivateKey()
+    /// 测试目标: 安全模式启用但私钥为空时，自动随机生成一对密钥并输出（仅作用于输出，不回写）
+    void secureModeTomlWithGeneratedKeys()
     {
         NetworkConf conf("secure-no-key");
         conf.secureModeEnabled = true;
@@ -268,8 +270,46 @@ private slots:
 
         QVERIFY(toml.contains(QStringLiteral("[secure_mode]")));
         QVERIFY(toml.contains(QStringLiteral("enabled = true")));
-        QVERIFY(!toml.contains(QStringLiteral("local_private_key")));
-        QVERIFY(!toml.contains(QStringLiteral("local_public_key")));
+
+        // 随机私钥应被写出：roundtrip 读回后非空、44 字符、解码 32 字节
+        const auto restored = NetworkConfToml::fromToml(toml, "secure-no-key");
+        QVERIFY(!restored.localPrivateKey.isEmpty());
+        QCOMPARE(restored.localPrivateKey.size(), 44);
+        QCOMPARE(QByteArray::fromBase64(restored.localPrivateKey.toLatin1()).size(), 32);
+
+        // 输出的公钥必须与读回的随机私钥匹配（由私钥实时推导）
+        QString publicKey;
+        QVERIFY(X25519KeyHelper::derivePublicKeyBase64(restored.localPrivateKey, &publicKey));
+        QVERIFY(toml.contains(QStringLiteral("local_public_key = %1").arg(
+            QStringLiteral("\"%1\"").arg(publicKey))));
+
+        // 内存中的配置不被回写
+        QVERIFY(conf.localPrivateKey.isEmpty());
+    }
+
+    /// 测试目标: 根级 credential_file 字段的序列化/反序列化，且输出在所有 [table] 节之前
+    void credentialFileTomlRoundtrip()
+    {
+        NetworkConf conf("cred-test");
+        conf.credentialFile = QStringLiteral("/data/credential.json");
+
+        const QString toml = NetworkConfToml::toToml(conf, true);
+
+        // 根级输出
+        QVERIFY(toml.contains(QStringLiteral("credential_file = \"/data/credential.json\"")));
+        // 必须位于 [network_identity] 节之前，否则会被归入表域而非根域
+        const int credPos = toml.indexOf(QStringLiteral("credential_file"));
+        const int identPos = toml.indexOf(QStringLiteral("[network_identity]"));
+        QVERIFY(identPos < 0 || credPos < identPos);
+
+        // 往返一致
+        const auto restored = NetworkConfToml::fromToml(toml, "cred-test");
+        QCOMPARE(restored.credentialFile, QStringLiteral("/data/credential.json"));
+
+        // 空值不输出
+        NetworkConf empty("cred-empty");
+        const QString emptyToml = NetworkConfToml::toToml(empty, true);
+        QVERIFY(!emptyToml.contains(QStringLiteral("credential_file")));
     }
 
     /// 测试目标: 验证 daemon 配置 payload 统一生成 cfg_str，且内容是运行时 TOML 的 base64

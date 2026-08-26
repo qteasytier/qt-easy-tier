@@ -16,6 +16,8 @@
 #include "core/application/config/ConfigCommandService.h"
 #include "core/config/X25519KeyHelper.h"
 
+#include <QUrl>
+
 namespace {
 /// 自动保存防抖间隔（毫秒）：停止编辑约 300ms 后统一落库
 constexpr int kAutoSaveDelayMs = 300;
@@ -485,6 +487,27 @@ QString ConfigEditorViewModel::derivePublicKey()
     return publicKey;
 }
 
+QString ConfigEditorViewModel::credentialFile() const { return m_conf.credentialFile; }
+void ConfigEditorViewModel::setCredentialFile(const QString &v)
+{
+    if (m_conf.credentialFile == v)
+        return;
+    m_conf.credentialFile = v.trimmed();
+    markDirty();
+    emit credentialFileChanged();
+}
+
+QString ConfigEditorViewModel::toLocalFilePath(const QString &urlOrPath)
+{
+    if (urlOrPath.isEmpty())
+        return {};
+    const QUrl url(urlOrPath);
+    if (url.isLocalFile())
+        return url.toLocalFile();
+    // 已是普通本地路径（手动输入），原样返回
+    return urlOrPath;
+}
+
 // ==================== 编辑操作（load / save / cancel / clear）====================
 
 /**
@@ -700,4 +723,5 @@ void ConfigEditorViewModel::emitCurrentChanged()
     emit foreignNetworkWhitelistChanged();
     emit secureModeEnabledChanged();
     emit localPrivateKeyChanged();
+    emit credentialFileChanged();
 }

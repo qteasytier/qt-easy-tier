@@ -617,6 +617,28 @@ ColumnLayout {
                             }
                         }
                     }
+
+                    // 临时密钥对文件（.json，仅记录路径交给 daemon 的 credential_file）
+                    Label {
+                        text: qsTr("临时密钥文件(.json)")
+                        Layout.topMargin: 4
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        TextField {
+                            Layout.fillWidth: true
+                            text: ConfigEditorViewModel.credentialFile
+                            placeholderText: qsTr("例如 /path/to/credential.json")
+                            onTextEdited: ConfigEditorViewModel.credentialFile = text
+                        }
+
+                        IconToolButton {
+                            iconSource: "qrc:/icons/edit.svg"
+                            onClicked: credentialFileDialog.open()
+                        }
+                    }
                 }
 
                 // 底部留白，防止内容靠底
@@ -795,6 +817,19 @@ ColumnLayout {
                     onClicked: showPublicKeyDialog.close()
                 }
             }
+        }
+    }
+
+    // 选择临时密钥文件（FileDialog 选择到的必然是文件）
+    FileDialog {
+        id: credentialFileDialog
+        title: qsTr("选择临时密钥文件")
+        nameFilters: [qsTr("JSON 文件 (*.json)"), qsTr("所有文件 (*)")]
+        fileMode: FileDialog.OpenFile
+        onAccepted: {
+            var p = ConfigEditorViewModel.toLocalFilePath(selectedFile.toString())
+            if (p !== "")
+                ConfigEditorViewModel.credentialFile = p
         }
     }
 

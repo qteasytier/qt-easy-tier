@@ -6,10 +6,11 @@ import QtQuick.Dialogs
 import QtEasyTier
 
 // 网络运行状态页面：展示当前网络的节点信息与运行日志
-/* @brief 运行状态根容器，包含节点信息 Tab 和运行日志 Tab */
-Item {
+/* @brief 运行状态根容器，包含节点信息 Tab、运行日志 Tab 与页面级导出日志按钮 */
+ColumnLayout {
     Layout.fillWidth: true
     Layout.fillHeight: true
+    spacing: 0
 
     Theme { id: theme }
 
@@ -24,7 +25,8 @@ Item {
 
     // 自定义 Tab 控件，包含两个标签页
     QtETabWidget {
-        anchors.fill: parent
+        Layout.fillWidth: true
+        Layout.fillHeight: true
 
         // ========== 标签页1：运行状态 ==========
         Item {
@@ -194,32 +196,32 @@ Item {
                         onTextChanged: cursorPosition = length
                     }
                 }
-
-                // 底部工具栏：导出日志按钮
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
-
-                    Item { Layout.fillWidth: true }
-
-                    Button {
-                        text: qsTr("导出日志")
-                        onClicked: exportLogDialog.open()
-                    }
-                }
             }
+        }
+    }
 
-            // 导出日志文件对话框
-            FileDialog {
-                id: exportLogDialog
-                title: qsTr("导出日志")
-                nameFilters: [qsTr("日志文件 (*.log)"), qsTr("所有文件 (*)")]
-                fileMode: FileDialog.SaveFile
-                currentFile: AppState.homeDirectory + "/qteasytier.log"
-                onAccepted: {
-                    VpnRuntimeService.exportLog(selectedFile.toString())
-                }
-            }
+    // 页面底部工具栏：导出日志按钮（运行状态 / 运行日志两个标签页均可见）
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.margins: 8
+
+        Item { Layout.fillWidth: true }
+
+        Button {
+            text: qsTr("导出日志")
+            onClicked: exportLogDialog.open()
+        }
+    }
+
+    // 导出日志文件对话框
+    FileDialog {
+        id: exportLogDialog
+        title: qsTr("导出日志")
+        nameFilters: [qsTr("日志文件 (*.log)"), qsTr("所有文件 (*)")]
+        fileMode: FileDialog.SaveFile
+        currentFile: AppState.homeDirectory + "/qteasytier.log"
+        onAccepted: {
+            VpnRuntimeService.exportLog(selectedFile.toString())
         }
     }
 }

@@ -110,6 +110,32 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
     makeArray(QStringLiteral("exit_nodes"), conf.exitNodes);
     makeArray(QStringLiteral("routes"), conf.customRoutes);
 
+    // --- 根级 credential_file ---
+    if (!conf.credentialFile.isEmpty())
+        lines << QStringLiteral("credential_file = %1").arg(esc(conf.credentialFile));
+
+    // --- [secure_mode] 节 ---
+    if (conf.secureModeEnabled) {
+        lines << QString{};
+        lines << QStringLiteral("[secure_mode]");
+        lines << QStringLiteral("enabled = true");
+
+        // 私钥为空时随机生成一对密钥（仅作用于输出，不写回配置）
+        QString privateKey = conf.localPrivateKey;
+        if (privateKey.isEmpty())
+            privateKey = X25519KeyHelper::generatePrivateKeyBase64();
+
+        if (!privateKey.isEmpty()) {
+            lines << QStringLiteral("local_private_key = %1").arg(esc(privateKey));
+            // 公钥由私钥实时计算；生成的 TOML 必须包含 local_public_key
+            QString publicKey;
+            if (X25519KeyHelper::derivePublicKeyBase64(privateKey, &publicKey))
+                lines << QStringLiteral("local_public_key = %1").arg(esc(publicKey));
+            else
+                LogHelper::logWarning(QStringLiteral("安全模式私钥无效，无法推导公钥，已跳过 local_public_key 字段"), "Config");
+        }
+    }
+
     // --- [network_identity] 节 ---
     if (!conf.networkName.isEmpty() || !conf.networkSecret.isEmpty()) {
         lines << QString{};
@@ -189,22 +215,6 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
     if (conf.enableForeignNetworkWhitelist && !conf.foreignNetworkWhitelist.isEmpty())
         lines << QStringLiteral("relay_network_whitelist = %1").arg(esc(conf.foreignNetworkWhitelist));
 
-    // --- [secure_mode] 节 ---
-    if (conf.secureModeEnabled) {
-        lines << QString{};
-        lines << QStringLiteral("[secure_mode]");
-        lines << QStringLiteral("enabled = true");
-        if (!conf.localPrivateKey.isEmpty()) {
-            lines << QStringLiteral("local_private_key = %1").arg(esc(conf.localPrivateKey));
-            // 公钥不落库，由私钥实时计算；生成的 TOML 必须包含 local_public_key
-            QString publicKey;
-            if (X25519KeyHelper::derivePublicKeyBase64(conf.localPrivateKey, &publicKey))
-                lines << QStringLiteral("local_public_key = %1").arg(esc(publicKey));
-            else
-                LogHelper::logWarning(QStringLiteral("安全模式私钥无效，无法推导公钥，已跳过 local_public_key 字段"), "Config");
-        }
-    }
-
     return lines.join(QLatin1Char('\n')) + QLatin1Char('\n');
 }
 
@@ -248,6 +258,7 @@ NetworkConf fromToml(const QString &toml, const QString &instanceName)
     conf.hostname     = readStr(tbl, "hostname");
     conf.dhcp         = readBool(tbl, "dhcp", true);
     conf.ipv4         = readStr(tbl, "ipv4");
+    conf.credentialFile = readStr(tbl, "credential_file");
 
     // --- [network_identity] 节 ---
     if (auto ident = tbl["network_identity"].as_table()) {

@@ -205,6 +205,39 @@ private slots:
         QVERIFY(!editor.resetToDefaults());
         QVERIFY(!editor.errorMessages().isEmpty());
     }
+
+    /// 目标：setCredentialFile 直接接受任意路径（不再校验 .json 后缀）
+    void setCredentialFile_acceptsAnyPath() {
+        insertConfig(QStringLiteral("inst-cred"), QStringLiteral("凭据测试"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-cred"));
+
+        // 非 .json 后缀也接受
+        editor.setCredentialFile(QStringLiteral("/path/to/key.txt"));
+        QCOMPARE(editor.credentialFile(), QStringLiteral("/path/to/key.txt"));
+        QVERIFY(editor.errorMessages().isEmpty());
+
+        // 空值允许（清空）
+        editor.setCredentialFile(QString());
+        QCOMPARE(editor.credentialFile(), QString());
+    }
+
+    /// 目标：toLocalFilePath 将 file:// URL 转为本地路径，普通路径原样返回，空输入返回空
+    void toLocalFilePath_convertsUrlAndKeepsLocalPath() {
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+
+        // file:// URL → 本地路径
+        QCOMPARE(editor.toLocalFilePath(QStringLiteral("file:///home/user/cred.json")),
+                 QStringLiteral("/home/user/cred.json"));
+        // 普通本地路径原样返回
+        QCOMPARE(editor.toLocalFilePath(QStringLiteral("/home/user/cred.json")),
+                 QStringLiteral("/home/user/cred.json"));
+        // 空输入返回空
+        QCOMPARE(editor.toLocalFilePath(QString()), QString());
+    }
 };
 
 QTEST_MAIN(TestConfigEditorViewModel)

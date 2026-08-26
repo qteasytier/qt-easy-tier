@@ -161,6 +161,8 @@ class ConfigEditorViewModel : public QObject {
     Q_PROPERTY(bool secureModeEnabled READ secureModeEnabled WRITE setSecureModeEnabled NOTIFY secureModeEnabledChanged FINAL)
     /// 本地私钥（安全模式下使用）
     Q_PROPERTY(QString localPrivateKey READ localPrivateKey WRITE setLocalPrivateKey NOTIFY localPrivateKeyChanged FINAL)
+    /// 临时密钥对文件路径（.json，仅记录路径，交给 daemon 的 credential_file）
+    Q_PROPERTY(QString credentialFile READ credentialFile WRITE setCredentialFile NOTIFY credentialFileChanged FINAL)
 
 public:
     /**
@@ -237,6 +239,7 @@ public:
     // ==================== 安全模式 getters/setters ====================
     bool secureModeEnabled() const;        void setSecureModeEnabled(bool v);
     QString localPrivateKey() const;        void setLocalPrivateKey(const QString &v);
+    QString credentialFile() const;         void setCredentialFile(const QString &v);
 
     /**
      * @brief 生成一个随机的 X25519 私钥并写入本地私钥字段
@@ -256,6 +259,16 @@ public:
      * @return 44 字符 Base64 公钥；失败（空/无效私钥）返回空字符串
      */
     Q_INVOKABLE QString derivePublicKey();
+
+    /**
+     * @brief 将文件选择器返回的 file:// URL（或本地路径）转换为本地文件路径
+     *
+     * 平台路径处理统一交给 Qt 的 QUrl：Windows 返回 C:/...，Linux 返回 /home/...。
+     *
+     * @param urlOrPath 可能是 file:// URL，也可能是普通本地路径
+     * @return 本地路径字符串；输入为空时返回空字符串
+     */
+    Q_INVOKABLE QString toLocalFilePath(const QString &urlOrPath);
 
     /**
      * @brief 从仓库加载指定实例名称的配置到编辑器
@@ -376,6 +389,7 @@ signals:
     void foreignNetworkWhitelistChanged();
     void secureModeEnabledChanged();
     void localPrivateKeyChanged();
+    void credentialFileChanged();
 
 private:
     /**
