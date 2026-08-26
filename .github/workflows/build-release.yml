@@ -76,6 +76,9 @@ jobs:
             qt_arch: linux_gcc_arm64
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build and test
         id: build
         uses: ./.github/actions/build-linux
@@ -109,6 +112,9 @@ jobs:
       CHERE_INVOKING: 1
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build and test
         id: build
         uses: ./.github/actions/build-windows
