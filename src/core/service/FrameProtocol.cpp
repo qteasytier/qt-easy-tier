@@ -14,7 +14,7 @@
  */
 
 #include "FrameProtocol.h"
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 // 帧 payload 最大长度限制，防止恶意帧造成 OOM
 static constexpr quint32 kMaxFrameSize = 16 * 1024 * 1024;  // 16 MiB

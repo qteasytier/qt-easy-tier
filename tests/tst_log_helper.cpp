@@ -7,12 +7,12 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include "core/repository/DatabaseConnection.h"
-#include "core/application/logging/RepositoryLogSink.h"
+#include "app_service/logging/RepositoryLogSink.h"
 #include "core/log/LogDispatcher.h"
 #include "core/log/LogSink.h"
 #include "core/repository/LogRepository.h"
-#include "core/util/LogHelper.h"
-#include "core/viewmodel/SettingsViewModel.h"
+#include "core/log/LogHelper.h"
+#include "viewmodels/SettingsViewModel.h"
 
 class CapturingSink final : public LogSink
 {

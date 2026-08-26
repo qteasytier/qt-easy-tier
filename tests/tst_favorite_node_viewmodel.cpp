@@ -11,10 +11,10 @@
 
 #include <memory>
 
-#include "core/application/favorite/FavoriteNodeImportExportService.h"
+#include "app_service/favorite/FavoriteNodeImportExportService.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/FavoriteNodeRepository.h"
-#include "core/viewmodel/FavoriteNodeViewModel.h"
+#include "viewmodels/FavoriteNodeViewModel.h"
 
 class TestFavoriteNodeViewModel : public QObject {
     Q_OBJECT

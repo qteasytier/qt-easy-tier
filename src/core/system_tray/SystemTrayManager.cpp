@@ -6,7 +6,7 @@
 
 #include "core/system_tray/TrayMessageDispatcher.h"
 #include "core/system_tray/TrayMessageHelper.h"
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 #include <QAction>
 #include <QCoreApplication>

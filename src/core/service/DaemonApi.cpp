@@ -89,3 +89,17 @@ QFuture<QJsonObject> DaemonApi::getAutoReconnect()
 {
     return m_client->call(QStringLiteral("get_auto_reconnect"), QJsonObject{});
 }
+
+QFuture<QJsonObject> DaemonApi::callJsonRpc(const QString &serviceName,
+                                            const QString &methodName,
+                                            const QString &domainName,
+                                            const QString &payloadJson)
+{
+    // daemon IPC 约定：call_json_rpc 的 payload 字段按 Base64 编码传输
+    const QString payloadB64 = QString::fromLatin1(payloadJson.toUtf8().toBase64());
+    return m_client->call(QStringLiteral("call_json_rpc"),
+                          QJsonObject{{QStringLiteral("service_name"), serviceName},
+                                      {QStringLiteral("method_name"), methodName},
+                                      {QStringLiteral("domain_name"), domainName},
+                                      {QStringLiteral("payload"), payloadB64}});
+}

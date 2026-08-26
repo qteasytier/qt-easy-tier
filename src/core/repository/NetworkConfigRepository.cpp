@@ -10,7 +10,7 @@
 #include <QJsonValue>
 #include <QDateTime>
 #include <QUuid>
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 NetworkConfigRepository::NetworkConfigRepository(QSqlDatabase db, QObject *parent)
     : QObject(parent), m_db(db)

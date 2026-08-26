@@ -12,7 +12,7 @@
 #include <QFile>
 #include <QTemporaryDir>
 #include <QDir>
-#include "core/util/AutoStartHelper.h"
+#include "platform/AutoStartHelper.h"
 
 class TestAutoStartHelper : public QObject {
     Q_OBJECT

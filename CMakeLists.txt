@@ -66,11 +66,11 @@ add_subdirectory(src/core/config)
 add_subdirectory(src/core/favorite)
 add_subdirectory(src/core/repository)
 add_subdirectory(src/core/service)
-add_subdirectory(src/core/util)
+add_subdirectory(src/platform)
 add_subdirectory(src/core/system_tray)
-add_subdirectory(src/core/application)
+add_subdirectory(src/app_service)
 add_subdirectory(src/core/vpn_manager)
-add_subdirectory(src/core/viewmodel)
+add_subdirectory(src/viewmodels)
 add_subdirectory(src/app)
 
 if(WIN32)
@@ -131,6 +131,7 @@ set(QTET_QML_FILES
     src/qml/components/ServerListItem.qml
     src/qml/components/ProxyNetworkListItem.qml
     src/qml/components/ImportNodesDialog.qml
+    src/qml/components/GenerateCredentialDialog.qml
     src/qml/components/Theme.qml
     src/qml/pages/InstanceList.qml
     src/qml/pages/NetworkPage.qml

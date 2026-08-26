@@ -26,6 +26,15 @@ struct DaemonException : public QException {
     explicit DaemonException(QString m) : msg(std::move(m)) {}
     void raise() const override { throw *this; }
     DaemonException *clone() const override { return new DaemonException(*this); }
+    const char *what() const noexcept override
+    {
+        // 缓存 UTF-8 表示，供上层 QException::what() 读取具体错误文本
+        m_msgUtf8 = msg.toUtf8();
+        return m_msgUtf8.constData();
+    }
+
+private:
+    mutable QByteArray m_msgUtf8; ///< what() 的 UTF-8 缓存
 };
 
 } // anonymous namespace

@@ -30,6 +30,8 @@ class ConfigCommandService;
 class ConfigEditorViewModel;
 class ConfigImportExportService;
 class ConfigListModel;
+class CredentialService;
+class CredentialViewModel;
 class DaemonApi;
 class DaemonClient;
 class DangerousOperationService;
@@ -112,6 +114,10 @@ public:
     VpnManager *vpnManager() const;
     /// 获取 VPN 运行服务（应用服务层，UI 层访问 VPN 运行能力的唯一入口）
     VpnRuntimeService *vpnRuntimeService() const;
+    /// 获取临时凭证服务（应用服务层，签发安全模式临时节点密钥）
+    CredentialService *credentialService() const;
+    /// 获取临时凭证 ViewModel（运行状态页"添加临时节点密钥"入口）
+    CredentialViewModel *credentialViewModel() const;
     /// 获取危险操作 ViewModel（后端安装/卸载、清空全部数据）
     DangerousOperationViewModel *dangerousOperationViewModel() const;
     /// 获取 daemon IPC 客户端
@@ -162,6 +168,8 @@ private:
     StatusMonitor *m_statusMonitor = nullptr;
     VpnManager *m_vpnManager = nullptr;
     VpnRuntimeService *m_vpnRuntimeService = nullptr;
+    CredentialService *m_credentialService = nullptr;
+    CredentialViewModel *m_credentialViewModel = nullptr;
     DangerousOperationService *m_dangerousOperationService = nullptr;
     DangerousOperationViewModel *m_dangerousOperationViewModel = nullptr;
     ConfigCommandService *m_configCommandService = nullptr;

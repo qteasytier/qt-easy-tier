@@ -1,5 +1,5 @@
 #include "ConfigUrlCodec.h"
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 #include <QFile>
 #include <QJsonArray>

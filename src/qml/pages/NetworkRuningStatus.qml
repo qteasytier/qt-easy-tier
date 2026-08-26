@@ -208,9 +208,19 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
 
         Button {
+            text: qsTr("添加临时节点密钥")
+            onClicked: generateCredentialDialog.open()
+        }
+
+        Button {
             text: qsTr("导出日志")
             onClicked: exportLogDialog.open()
         }
+    }
+
+    // 添加临时节点密钥对话框
+    GenerateCredentialDialog {
+        id: generateCredentialDialog
     }
 
     // 导出日志文件对话框

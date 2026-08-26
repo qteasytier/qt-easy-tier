@@ -12,7 +12,7 @@
 #include "core/config/NetworkConfToml.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 #include <QFutureWatcher>
 #include <QJsonObject>
 #include <QJsonArray>

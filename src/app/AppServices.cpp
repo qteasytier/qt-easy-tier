@@ -9,13 +9,14 @@
  */
 #include "AppServices.h"
 
-#include "core/application/config/ConfigCommandService.h"
-#include "core/application/config/ConfigImportExportService.h"
-#include "core/application/dangerous/DangerousOperationService.h"
-#include "core/application/favorite/FavoriteNodeImportExportService.h"
-#include "core/application/logging/RepositoryLogSink.h"
-#include "core/application/runtime/VpnRuntimeService.h"
-#include "core/application/settings/SettingsBackendService.h"
+#include "app_service/config/ConfigCommandService.h"
+#include "app_service/config/ConfigImportExportService.h"
+#include "app_service/credential/CredentialService.h"
+#include "app_service/dangerous/DangerousOperationService.h"
+#include "app_service/favorite/FavoriteNodeImportExportService.h"
+#include "app_service/logging/RepositoryLogSink.h"
+#include "app_service/runtime/VpnRuntimeService.h"
+#include "app_service/settings/SettingsBackendService.h"
 #include "core/log/LogDispatcher.h"
 #include "core/repository/FavoriteNodeRepository.h"
 #include "core/repository/LogRepository.h"
@@ -24,19 +25,20 @@
 #include "core/service/DaemonClient.h"
 #include "core/system_tray/SystemTrayManager.h"
 #include "core/system_tray/TrayMessageHelper.h"
-#include "core/util/DaemonRegisterHelper.h"
-#include "core/util/FontHelper.h"
-#include "core/util/UpdateCheckService.h"
-#include "core/viewmodel/AppState.h"
-#include "core/viewmodel/ConfigEditorViewModel.h"
-#include "core/viewmodel/ConfigListModel.h"
-#include "core/viewmodel/DangerousOperationViewModel.h"
-#include "core/viewmodel/FavoriteNodeViewModel.h"
-#include "core/viewmodel/LogViewModel.h"
-#include "core/viewmodel/SettingsViewModel.h"
-#include "core/viewmodel/nodes/ImportNodesViewModel.h"
-#include "core/viewmodel/runtime/BackendStatusViewModel.h"
-#include "core/viewmodel/runtime/NetworkPageViewModel.h"
+#include "platform/DaemonRegisterHelper.h"
+#include "platform/FontHelper.h"
+#include "app_service/settings/UpdateCheckService.h"
+#include "viewmodels/AppState.h"
+#include "viewmodels/ConfigEditorViewModel.h"
+#include "viewmodels/ConfigListModel.h"
+#include "viewmodels/credential/CredentialViewModel.h"
+#include "viewmodels/DangerousOperationViewModel.h"
+#include "viewmodels/FavoriteNodeViewModel.h"
+#include "viewmodels/LogViewModel.h"
+#include "viewmodels/SettingsViewModel.h"
+#include "viewmodels/nodes/ImportNodesViewModel.h"
+#include "viewmodels/runtime/BackendStatusViewModel.h"
+#include "viewmodels/runtime/NetworkPageViewModel.h"
 #include "core/vpn_manager/StatusMonitor.h"
 #include "core/vpn_manager/VpnManager.h"
 
@@ -104,6 +106,9 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_vpnManager = new VpnManager(m_daemonClient, m_daemonApi, m_configRepository, m_statusMonitor, parentObject);
         // VPN 运行服务：桥接 VpnManager 与 UI 层，暴露运行状态展示模型
         m_vpnRuntimeService = new VpnRuntimeService(m_vpnManager, parentObject);
+        // 临时凭证服务：签发安全模式临时节点密钥（经 DaemonApi::callJsonRpc 调 daemon）
+        m_credentialService = new CredentialService(m_daemonApi, parentObject);
+        m_credentialViewModel = new CredentialViewModel(m_credentialService, parentObject);
         // 危险操作服务：编排后端安装/卸载与全量数据清空的跨基础服务流程
         m_dangerousOperationService = new DangerousOperationService(m_vpnManager,
                                                                     m_configRepository,
@@ -147,6 +152,8 @@ BackendStatusViewModel *AppServices::backendStatusViewModel() const { return m_b
 ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_importNodesViewModel; }
 VpnManager *AppServices::vpnManager() const { return m_vpnManager; }
 VpnRuntimeService *AppServices::vpnRuntimeService() const { return m_vpnRuntimeService; }
+CredentialService *AppServices::credentialService() const { return m_credentialService; }
+CredentialViewModel *AppServices::credentialViewModel() const { return m_credentialViewModel; }
 DangerousOperationViewModel *AppServices::dangerousOperationViewModel() const { return m_dangerousOperationViewModel; }
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }

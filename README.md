@@ -51,7 +51,7 @@ src/
 └── qml/                             QML UI（UI 层）
 ```
 
-架构上按四层理解：`src/app`（装配层）→ `src/core/application`（应用服务层，桥接与编排）→
+架构上按四层理解：`src/app`（装配层）→ `src/app_service`（应用服务层，桥接与编排）→
 基础服务层（`config`/`repository`/`service`/`vpn_manager`/`system_tray`/`util`/`favorite`/`log`）→
 UI 层（`viewmodel` + `qml`）。UI 层通过应用服务层访问基础服务能力，基础服务层不反向依赖 UI。
 
@@ -93,10 +93,11 @@ pacman -S  mingw-w64-ucrt-x86_64-gcc \
            mingw-w64-ucrt-x86_64-qt6-declarative \
            mingw-w64-ucrt-x86_64-qt6-svg \
            mingw-w64-ucrt-x86_64-qt6-tools \
+           mingw-w64-ucrt-x86_64-openssl \
            git
 ```
 
-您还需要将MSYS2 UCRT安装目录添加到环境变量 `PATH` 中。
+**您还需要将MSYS2 UCRT安装目录添加到环境变量 `PATH` 中**。
 
 ### 只构建前端
 

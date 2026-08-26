@@ -7,8 +7,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 
-#include "core/application/settings/AutoStartService.h"
-#include "core/util/AutoStartHelper.h"
+#include "app_service/settings/AutoStartService.h"
+#include "platform/AutoStartHelper.h"
 
 class TestAutoStartService : public QObject {
     Q_OBJECT

@@ -75,6 +75,26 @@ public:
     QFuture<QJsonObject> setAutoReconnect(bool enabled);
     QFuture<QJsonObject> getAutoReconnect();
 
+    /**
+     * @brief 调用 daemon 的通用 JSON-RPC 桥接方法 → daemon RPC: call_json_rpc
+     *
+     * 将服务名、方法名、注册域与 protobuf JSON 请求体透传给 daemon，
+     * 由 daemon 在进程内调用 easytier-core 的 RPC 服务（对应 FFI 的 call_json_rpc）。
+     *
+     * 按 daemon IPC 约定，请求体的 payload 字段与响应的 response 字段均以 Base64 传输，
+     * 本方法负责 payload 的编码，响应解码由上层服务负责。
+     *
+     * @param serviceName  RPC 服务名（如 "api.instance.CredentialManageRpcService"）
+     * @param methodName   RPC 方法名（snake_case 或 proto 原始名均可）
+     * @param domainName   服务注册域（TcpProxyRpcService 专用，其他服务传空字符串）
+     * @param payloadJson  protobuf JSON 格式的请求体
+     * @return 异步结果 QFuture，result 含 daemon 返回的 Base64 编码 response 字段
+     */
+    QFuture<QJsonObject> callJsonRpc(const QString &serviceName,
+                                     const QString &methodName,
+                                     const QString &domainName,
+                                     const QString &payloadJson);
+
 private:
     DaemonClient *m_client = nullptr; ///< daemon IPC 客户端指针（外部管理生命周期）
 };

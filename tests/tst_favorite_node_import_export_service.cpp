@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "core/application/favorite/FavoriteNodeImportExportService.h"
+#include "app_service/favorite/FavoriteNodeImportExportService.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/FavoriteNodeRepository.h"
 

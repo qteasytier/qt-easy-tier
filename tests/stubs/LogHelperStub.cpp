@@ -5,7 +5,7 @@
  * 将 logInfo / logWarning / logError 重定向到 Qt 标准 qInfo / qWarning / qCritical 输出，
  * 避免测试环境依赖完整的平台日志业务逻辑。
  */
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 #include <QDebug>
 
 void LogHelper::logInfo(const QString &message, const QString &context)

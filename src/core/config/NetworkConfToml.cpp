@@ -18,7 +18,7 @@
 #include <QLatin1Char>
 #include <QSet>
 #include <toml.hpp>
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 namespace {
 

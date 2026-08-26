@@ -7,7 +7,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
-#include "core/util/DaemonRegisterHelper.h"
+#include "platform/DaemonRegisterHelper.h"
 
 class TestDaemonRegisterHelper : public QObject {
     Q_OBJECT

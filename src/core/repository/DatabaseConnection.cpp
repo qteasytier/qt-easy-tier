@@ -8,7 +8,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QUuid>
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 /**
  * @brief 构造函数：记录数据库路径并生成唯一连接名

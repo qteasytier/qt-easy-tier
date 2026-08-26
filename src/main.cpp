@@ -23,7 +23,7 @@
 #include "app/QmlSingletonRegistrar.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/system_tray/SystemTrayManager.h"
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 int main(int argc, char *argv[])
 {

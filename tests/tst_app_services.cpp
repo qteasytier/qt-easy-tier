@@ -14,8 +14,8 @@
 #include "core/repository/DatabaseConnection.h"
 #include "core/system_tray/TrayMessageDispatcher.h"
 #include "core/system_tray/TrayMessageSink.h"
-#include "core/viewmodel/AppState.h"
-#include "core/viewmodel/FavoriteNodeViewModel.h"
+#include "viewmodels/AppState.h"
+#include "viewmodels/FavoriteNodeViewModel.h"
 
 class RecordingTrayMessageSink final : public TrayMessageSink {
 public:

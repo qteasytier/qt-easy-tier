@@ -16,7 +16,7 @@
 #include <QUuid>
 #include <QFile>
 
-#include "core/application/dangerous/DangerousOperationService.h"
+#include "app_service/dangerous/DangerousOperationService.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/FavoriteNodeRepository.h"
 #include "core/repository/LogRepository.h"
@@ -25,8 +25,8 @@
 #include "core/service/DaemonClient.h"
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
-#include "core/util/DaemonRegisterHelper.h"
-#include "core/viewmodel/DangerousOperationViewModel.h"
+#include "platform/DaemonRegisterHelper.h"
+#include "viewmodels/DangerousOperationViewModel.h"
 #include "core/vpn_manager/StatusMonitor.h"
 #include "core/vpn_manager/VpnManager.h"
 

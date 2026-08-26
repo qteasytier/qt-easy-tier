@@ -19,16 +19,16 @@
 #include <QJsonObject>
 #include <memory>
 
-#include "core/application/config/ConfigCommandService.h"
-#include "core/application/config/ConfigImportExportService.h"
-#include "core/application/runtime/NodeInfoModel.h"
-#include "core/application/runtime/RuntimeLogModel.h"
-#include "core/application/runtime/VpnRuntimeService.h"
+#include "app_service/config/ConfigCommandService.h"
+#include "app_service/config/ConfigImportExportService.h"
+#include "app_service/runtime/NodeInfoModel.h"
+#include "app_service/runtime/RuntimeLogModel.h"
+#include "app_service/runtime/VpnRuntimeService.h"
 #include "core/config/ConfigRunState.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
-#include "core/viewmodel/ConfigListModel.h"
-#include "core/viewmodel/runtime/NetworkPageViewModel.h"
+#include "viewmodels/ConfigListModel.h"
+#include "viewmodels/runtime/NetworkPageViewModel.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
 #include "core/vpn_manager/StatusMonitor.h"

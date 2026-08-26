@@ -19,7 +19,7 @@
 #include <QFile>
 #include "core/service/DaemonClient.h"
 #include "core/service/DaemonApi.h"
-#include "core/viewmodel/runtime/BackendStatusViewModel.h"
+#include "viewmodels/runtime/BackendStatusViewModel.h"
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
 

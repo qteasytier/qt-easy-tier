@@ -14,10 +14,10 @@
 #include <QUuid>
 #include <memory>
 
-#include "core/application/config/ConfigCommandService.h"
+#include "app_service/config/ConfigCommandService.h"
 #include "core/repository/DatabaseConnection.h"
 #include "core/repository/NetworkConfigRepository.h"
-#include "core/viewmodel/ConfigEditorViewModel.h"
+#include "viewmodels/ConfigEditorViewModel.h"
 #include "core/config/NetworkConf.h"
 
 namespace {

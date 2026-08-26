@@ -8,18 +8,19 @@
 #include "QmlSingletonRegistrar.h"
 
 #include "AppServices.h"
-#include "core/application/runtime/VpnRuntimeService.h"
-#include "core/util/FontHelper.h"
-#include "core/viewmodel/AppState.h"
-#include "core/viewmodel/ConfigEditorViewModel.h"
-#include "core/viewmodel/ConfigListModel.h"
-#include "core/viewmodel/DangerousOperationViewModel.h"
-#include "core/viewmodel/FavoriteNodeViewModel.h"
-#include "core/viewmodel/LogViewModel.h"
-#include "core/viewmodel/SettingsViewModel.h"
-#include "core/viewmodel/nodes/ImportNodesViewModel.h"
-#include "core/viewmodel/runtime/BackendStatusViewModel.h"
-#include "core/viewmodel/runtime/NetworkPageViewModel.h"
+#include "app_service/runtime/VpnRuntimeService.h"
+#include "platform/FontHelper.h"
+#include "viewmodels/AppState.h"
+#include "viewmodels/ConfigEditorViewModel.h"
+#include "viewmodels/ConfigListModel.h"
+#include "viewmodels/credential/CredentialViewModel.h"
+#include "viewmodels/DangerousOperationViewModel.h"
+#include "viewmodels/FavoriteNodeViewModel.h"
+#include "viewmodels/LogViewModel.h"
+#include "viewmodels/SettingsViewModel.h"
+#include "viewmodels/nodes/ImportNodesViewModel.h"
+#include "viewmodels/runtime/BackendStatusViewModel.h"
+#include "viewmodels/runtime/NetworkPageViewModel.h"
 
 #include <QJSEngine>
 #include <QQmlApplicationEngine>
@@ -72,6 +73,8 @@ void registerQmlSingletons(QQmlApplicationEngine &, AppServices &services)
     registerPrecreatedSingleton("BackendStatusViewModel", services.backendStatusViewModel());
     // VPN 运行服务（启停控制、运行状态、节点与日志展示模型）
     registerPrecreatedSingleton("VpnRuntimeService", services.vpnRuntimeService());
+    // 临时节点密钥（签发安全模式临时凭证）
+    registerPrecreatedSingleton("CredentialViewModel", services.credentialViewModel());
     // 危险操作（后端安装/卸载、清空全部数据）
     registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationViewModel());
     // 中文字体辅助

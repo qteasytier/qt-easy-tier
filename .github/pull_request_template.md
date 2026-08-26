@@ -15,12 +15,12 @@
 
 ## 影响范围
 
-涉及哪些层 / 模块 / 页面？（如 `src/core/application`、`VpnRuntimeService`、设置页 QML 等）
+涉及哪些层 / 模块 / 页面？（如 `src/app_service`、`VpnRuntimeService`、设置页 QML 等）
 
 - [ ] 应用装配层 `src/app`
-- [ ] 应用服务层 `src/core/application`
-- [ ] 基础服务层（config / repository / service / vpn_manager / system_tray / util 等）
-- [ ] ViewModel / QML（含 QML singleton 注册）
+- [ ] 应用服务层 `src/app_service`
+- [ ] 基础服务层 `src/core`（config / repository / service / vpn_manager / system_tray / util 等）
+- [ ] ViewModel / QML（含 QML singleton 注册，`src/viewmodels`）
 - [ ] 测试 `tests/`
 - [ ] 文档
 

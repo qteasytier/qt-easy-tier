@@ -38,6 +38,9 @@ target_link_libraries(tst_favorite_node_repository PRIVATE qtet_repository)
 add_core_test(tst_daemon_client tst_daemon_client.cpp)
 target_link_libraries(tst_daemon_client PRIVATE qtet_viewmodel)
 
+add_core_test(tst_credential_service tst_credential_service.cpp)
+target_link_libraries(tst_credential_service PRIVATE qtet_application qtet_viewmodel)
+
 add_core_test(tst_autostart_helper tst_autostart_helper.cpp)
 target_link_libraries(tst_autostart_helper PRIVATE qtet_platform)
 

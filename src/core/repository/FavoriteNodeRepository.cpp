@@ -6,7 +6,7 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDateTime>
-#include "core/util/LogHelper.h"
+#include "core/log/LogHelper.h"
 
 FavoriteNodeRepository::FavoriteNodeRepository(QSqlDatabase db, QObject *parent)
     : QObject(parent), m_db(db)
