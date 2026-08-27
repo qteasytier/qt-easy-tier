@@ -507,6 +507,36 @@ private slots:
         QVERIFY(!vm.showRuntimeStatus());
     }
 
+    /// 目标：选中外部实例时不加载编辑器（避免仓库无此配置报错），消失后 clearSelection 清空选中
+    void networkPageViewModel_externalInstanceSelectAndClear() {
+        insertConfig(QStringLiteral("inst-1"), QStringLiteral("配置1"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        // 先选中本地配置，编辑器加载
+        vm.selectConfig(QStringLiteral("inst-1"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-1"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-1"));
+
+        // 外部实例出现在列表中
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-a")});
+        QVERIFY(model.isExternal(QStringLiteral("ext-a")));
+
+        // 选中外部实例：跳过编辑器加载，编辑器保持上一个本地配置不变
+        vm.selectConfig(QStringLiteral("ext-a"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("ext-a"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-1"));
+
+        // 外部实例消失后清空选中（AppServices 接线触发，此处直接调用验证行为）
+        model.onExternalInstancesChanged({});
+        vm.clearSelection();
+        QVERIFY(vm.currentInstanceName().isEmpty());
+        QVERIFY(!vm.currentInstanceRunning());
+    }
+
     /// 目标：currentInstanceSecureMode 随编辑器加载配置的安全模式派生（凭据能力前置条件）
     void networkPageViewModelTracksSecureMode() {
         insertConfig(QStringLiteral("inst-sec"), QStringLiteral("安全配置"));
@@ -564,6 +594,64 @@ private slots:
         QVERIFY(model.deleteConfig(QStringLiteral("inst-3")));
         // 检查已删除
         QCOMPARE(model.rowCount(), 0);
+    }
+
+    /// 目标：外部实例条目按传入顺序追加在本地配置之后，各 role 正确，消失后移除
+    void externalInstances_appendedAfterLocalAndRemovedWhenGone() {
+        insertConfig(QStringLiteral("inst-1"), QStringLiteral("配置1"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        QCOMPARE(model.rowCount(), 1);
+
+        // 追加两个外部实例（模拟 VpnManager 心跳发现 daemon 中存在本地没有的实例）
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-a"), QStringLiteral("ext-b")});
+
+        // 总数 = 本地 + 外部，本地在前、外部在后
+        QCOMPARE(model.rowCount(), 3);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::InstanceNameRole).toString(), QStringLiteral("inst-1"));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::IsExternalRole).toBool(), false);
+
+        // 外部条目：displayName = instance_name，始终运行中，isExternal = true
+        const QModelIndex extA = model.index(1);
+        QCOMPARE(model.data(extA, ConfigListModel::InstanceNameRole).toString(), QStringLiteral("ext-a"));
+        QCOMPARE(model.data(extA, ConfigListModel::DisplayNameRole).toString(), QStringLiteral("ext-a"));
+        QCOMPARE(model.data(extA, ConfigListModel::RunningRole).toBool(), true);
+        QCOMPARE(model.data(extA, ConfigListModel::IsExternalRole).toBool(), true);
+
+        const QModelIndex extB = model.index(2);
+        QCOMPARE(model.data(extB, ConfigListModel::InstanceNameRole).toString(), QStringLiteral("ext-b"));
+        QCOMPARE(model.data(extB, ConfigListModel::DisplayNameRole).toString(), QStringLiteral("ext-b"));
+        QCOMPARE(model.data(extB, ConfigListModel::RunningRole).toBool(), true);
+        QCOMPARE(model.data(extB, ConfigListModel::IsExternalRole).toBool(), true);
+
+        // isExternal 查询
+        QVERIFY(model.isExternal(QStringLiteral("ext-a")));
+        QVERIFY(!model.isExternal(QStringLiteral("inst-1")));
+
+        // 部分外部实例从 daemon 消失后仅移除对应条目
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-b")});
+        QCOMPARE(model.rowCount(), 2);
+        QVERIFY(!model.isExternal(QStringLiteral("ext-a")));
+        QVERIFY(model.isExternal(QStringLiteral("ext-b")));
+
+        // 全部消失后恢复为仅本地配置
+        model.onExternalInstancesChanged({});
+        QCOMPARE(model.rowCount(), 1);
+        QVERIFY(!model.isExternal(QStringLiteral("ext-b")));
+    }
+
+    /// 目标：新建配置成功后发射 configCreated（供外部同步本地 controller，保持与数据库配置集合一致）
+    void createNewConfig_emitsConfigCreated() {
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        QSignalSpy spy(&model, &ConfigListModel::configCreated);
+        const QString instanceName = model.createNewConfig();
+        QVERIFY(!instanceName.isEmpty());
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.takeFirst().at(0).toString(), instanceName);
+        QCOMPARE(model.rowCount(), 1);
     }
 };
 

@@ -185,6 +185,8 @@ Rectangle {
                 property string instanceName: model.instanceName
                 property string labelText: model.displayName || model.instanceName
                 property bool isRunning: model.running || false
+                // 外部实例：daemon 中存在但本地配置列表中没有的实例
+                property bool isExternal: model.isExternal || false
                 // 判断是否与 ViewModel 当前编辑的配置一致
                 readonly property bool isSelected:
                     NetworkPageViewModel.currentInstanceName === instanceName
@@ -210,7 +212,9 @@ Rectangle {
                             root.selectInstance(instanceName)
                         } else if (mouse.button === Qt.RightButton) {
                             root.selectInstance(instanceName)
-                            contextMenu.popup()
+                            // 外部实例无右键菜单（重命名/删除对无本地配置的实例无意义）
+                            if (!isExternal)
+                                contextMenu.popup()
                         }
                     }
 
@@ -228,7 +232,8 @@ Rectangle {
 
                     onPressAndHold: {
                         root.selectInstance(instanceName)
-                        contextMenu.popup()
+                        if (!isExternal)
+                            contextMenu.popup()
                     }
                 }
 
@@ -246,14 +251,16 @@ Rectangle {
                         Label {
                             text: labelText
                             font.bold: true
-                            color: palette.windowText
+                            // 外部实例名称用高亮色突出显示，本地实例用常规文字色
+                            color: isExternal ? palette.highlight : palette.windowText
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
 
                         // 运行/未运行状态
                         Label {
-                            text: isRunning ? qsTr("运行中") : qsTr("未运行")
+                            text: isExternal ? qsTr("运行中 · 外部实例")
+                                : (isRunning ? qsTr("运行中") : qsTr("未运行"))
                             font: FontHelper.smallFont
                             color: isRunning ? palette.highlight : palette.placeholderText
                         }

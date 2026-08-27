@@ -120,6 +120,12 @@ void VpnRuntimeService::cleanupController(const QString &instanceName)
         m_vpnManager->cleanupController(instanceName);
 }
 
+void VpnRuntimeService::ensureLocalController(const QString &instanceName)
+{
+    if (m_vpnManager)
+        m_vpnManager->ensureLocalController(instanceName);
+}
+
 void VpnRuntimeService::refreshModels()
 {
     if (!m_vpnManager)

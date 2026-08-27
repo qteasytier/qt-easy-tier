@@ -63,6 +63,8 @@ public slots:
 public:
     /// 选中一个配置实例：加载编辑器并刷新运行状态
     Q_INVOKABLE void selectConfig(const QString &instanceName);
+    /// 清空当前选中（外部实例从 daemon 消失时使用，避免残留指向已移除实例）
+    Q_INVOKABLE void clearSelection();
     /// 创建新配置并自动选中
     Q_INVOKABLE QString createConfig();
     /// 删除指定配置（若为当前选中则清空编辑器）

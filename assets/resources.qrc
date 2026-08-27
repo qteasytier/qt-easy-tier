@@ -16,6 +16,7 @@
         <file alias="log.svg">images/log.svg</file>
         <file alias="settings.svg">images/settings.svg</file>
         <file alias="favorites.svg">images/favorites.svg</file>
+        <file alias="server.svg">images/server.svg</file>
     </qresource>
     <qresource prefix="/">
         <file>publicservers.json</file>

@@ -77,6 +77,9 @@ public slots:
     /// 清理指定配置的 controller 资源（由外部在删除配置后调用，转发给 VpnManager）
     void cleanupController(const QString &instanceName);
 
+    /// 同步本地 controller（配置创建/导入成功后调用，转发给 VpnManager，保持与数据库配置集合一致）
+    void ensureLocalController(const QString &instanceName);
+
 signals:
     /// 通知 UI 层：某配置的状态已变更
     void configStateChanged(const QString &instanceName, ConfigRunState state);

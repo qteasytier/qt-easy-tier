@@ -14,6 +14,7 @@
 #include <QHash>
 #include <QList>
 #include <QSet>
+#include <QStringList>
 #include "core/config/ConfigRunState.h"
 #include "core/config/NetworkConf.h"
 
@@ -30,7 +31,8 @@ public:
         DisplayNameRole,                      ///< 用户可见的配置显示名称
         HostnameRole,                         ///< 目标主机名 / IP
         RunningRole,                          ///< 该配置当前是否正在运行
-        UpdatedAtRole                         ///< 最后更新时间（预留，当前返回空）
+        UpdatedAtRole,                        ///< 最后更新时间（预留，当前返回空）
+        IsExternalRole                        ///< 是否为外部实例（daemon 中存在但本地配置列表中没有）
     };
 
     /**
@@ -88,6 +90,8 @@ signals:
     void requestStopConfig(const QString &instanceName);
     /// 配置已删除，通知外部清理相关资源
     void configDeleted(const QString &instanceName);
+    /// 本地配置已创建或导入成功，通知外部同步本地 controller（保持与数据库配置集合一致）
+    void configCreated(const QString &instanceName);
 
 public slots:
     /**
@@ -100,6 +104,21 @@ public slots:
      */
     void onRunningStateChanged(const QString &instanceName, ConfigRunState state);
 
+    /**
+     * @brief 响应外部实例集合变更（VpnManager 心跳同步发现）
+     * @param instanceNames 当前全部外部实例名列表（按 daemon 返回顺序）
+     *
+     * 外部实例指 daemon 中存在但本地配置列表中不存在的运行中实例，
+     * 在配置列表末尾追加/移除对应条目。
+     */
+    void onExternalInstancesChanged(const QStringList &instanceNames);
+
+    /// 查询指定实例名是否为外部实例（daemon 中存在但本地配置列表中没有）
+    Q_INVOKABLE bool isExternal(const QString &instanceName) const;
+
+    /// 查询指定实例名是否为本地配置（存在于仓库加载的配置列表中）
+    Q_INVOKABLE bool isLocalInstance(const QString &instanceName) const;
+
 private:
     /// 从数据库删除指定配置并通知外部
     bool performDelete(const QString &instanceName);
@@ -109,4 +128,5 @@ private:
     QList<NetworkConf> m_configs;                ///< 内存中的完整配置列表缓存
     QHash<QString, ConfigRunState> m_instanceStates; ///< 实例名 → 运行状态缓存
     QSet<QString> m_pendingDeletion;              ///< 已请求停止、等待删除的实例名集合
+    QStringList m_externalInstanceList;           ///< 外部实例名列表（按 daemon 返回顺序，展示在本地条目之后）
 };

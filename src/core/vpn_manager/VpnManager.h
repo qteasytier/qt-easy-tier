@@ -24,6 +24,8 @@
 #pragma once
 #include <QObject>
 #include <QHash>
+#include <QSet>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantList>
 #include "core/config/ConfigRunState.h"
@@ -72,8 +74,14 @@ public:
     /// 导出当前选中实例的运行日志到本地文件
     Q_INVOKABLE bool exportLog(const QString &filePath);
 
-    /// 移除指定配置的 controller 并释放资源（仅在配置被删除时调用）
-    void removeController(const QString &instanceName);
+    /**
+     * @brief 同步本地 controller 到新建/导入的配置
+     *
+     * 本地配置创建或导入成功后调用：若该实例名此前存在外部临时 controller
+     * （外部与本地 instance_name 相同），先清除外部身份，再确保本地表存在对应
+     * controller，使本地 controller 表与数据库配置集合保持一致。
+     */
+    void ensureLocalController(const QString &instanceName);
 
     // QML 属性读取器
 
@@ -86,6 +94,9 @@ public:
     QVariantList nodeInfosFor(const QString &instanceName) const;
     /// 获取指定实例的运行时日志列表（当前缓存，供应用服务层填充展示模型）
     QVariantList logEntriesFor(const QString &instanceName) const;
+
+    /// 获取当前全部外部实例名列表（daemon 中存在但本地配置列表中不存在的运行中实例）
+    QStringList externalInstances() const;
 
 signals:
     /// 通知上层：某配置的状态已变更
@@ -112,6 +123,15 @@ signals:
     void instanceInfoUpdated(const QString &instName,
                              const QVariantList &nodeInfos,
                              const QVariantList &logEntries);
+
+    /**
+     * @brief 通知上层：外部实例集合已变化
+     *
+     * 外部实例指 daemon 中存在但本地配置列表中不存在的运行中实例。
+     * 心跳同步发现新增/移除外部实例时发射，供配置列表模型追加/移除条目。
+     * @param instanceNames 当前全部外部实例名列表
+     */
+    void externalInstancesChanged(const QStringList &instanceNames);
 
 public slots:
     /// StatusMonitor 异步解析完成后回调：将解析结果缓存到对应 VpnController 并通知上层
@@ -148,19 +168,39 @@ private slots:
     void onStopAllTimeout();
 
 private:
-    /// 获取或懒创建一个 VpnController 实例
-    VpnController *getOrCreate(const QString &instanceName);
+    /// 统一查找 controller：本地表优先，外部表兜底
+    VpnController *findController(const QString &instanceName) const;
+
+    /// 获取或懒创建一个本地配置的 VpnController 实例（本地表）
+    VpnController *getOrCreateLocal(const QString &instanceName);
+
+    /// 创建外部临时 controller（外部表，daemon 存在而本地无对应配置的实例）
+    VpnController *createExternal(const QString &instanceName);
+
+    /// 删除本地配置的 controller（配置删除路径）
+    void removeLocalController(const QString &instanceName);
+
+    /// 删除外部临时 controller 并通知上层外部实例集合变化
+    void removeExternal(const QString &instanceName);
+
+    /// 连接 controller 信号到 VpnManager（状态转发、stopAll 收敛追踪）
+    void wireController(VpnController *ctrl);
 
     /// 检查 stopAll 是否全部收敛，是则停止超时定时器并发射 allStopped
     void tryFinishStopAll();
 
     /// 根据 daemon 返回的实例列表，与内部状态机对比纠偏
-    /// - daemon 中有但状态不是 Running → 纠正为 Running
-    /// - daemon 中没有但状态不是 Unstarted → 重置为 Unstarted
+    /// - 本地 controller：daemon 中有但状态不是 Running → 纠正为 Running；
+    ///   daemon 中没有但状态不是 Unstarted → 重置为 Unstarted
+    /// - 外部临时 controller：daemon 不再返回，或本地表已出现同名配置 → 删除；
+    ///   否则保持 Running（修复断连重连后的状态）
     void syncStatesFromDaemon(const QJsonArray &instances);
 
-    /// controller 哈希表：key=实例名, value=VpnController 实例
-    QHash<QString, VpnController *> m_controllers;
+    /// 本地配置 controller 哈希表：key=实例名, value=VpnController 实例
+    QHash<QString, VpnController *> m_localControllers;
+
+    /// 外部临时 controller 哈希表：daemon 中存在但本地配置列表中不存在的运行中实例
+    QHash<QString, VpnController *> m_externalControllers;
 
     DaemonClient *m_client;
     DaemonApi *m_daemonApi;

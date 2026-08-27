@@ -27,25 +27,45 @@ ConfigListModel::ConfigListModel(ConfigCommandService *commandService,
 int ConfigListModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid()) return 0;
-    return m_configs.size();
+    // 本地配置 + 外部实例条目
+    return m_configs.size() + m_externalInstanceList.size();
 }
 
 QVariant ConfigListModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() >= m_configs.size())
+    if (!index.isValid())
         return {};
 
-    const auto &cfg = m_configs.at(index.row());
+    // 本地配置条目
+    if (index.row() < m_configs.size()) {
+        const auto &cfg = m_configs.at(index.row());
+        switch (role) {
+        case InstanceNameRole: return cfg.instanceName();
+        case DisplayNameRole:  return cfg.displayName;
+        case HostnameRole:     return cfg.hostname;
+        // RunningRole: 从完整状态缓存中查询 Running
+        case RunningRole:
+            return configRunStateIsRunning(m_instanceStates.value(cfg.instanceName(), ConfigRunState::Stopped));
+        case UpdatedAtRole:    return QVariant{};
+        case IsExternalRole:   return false;
+        case Qt::DisplayRole:  return cfg.displayName;
+        default: return {};
+        }
+    }
 
+    // 外部实例条目（本地配置之后）：仅展示 instance_name，始终处于运行中
+    const int externalRow = index.row() - m_configs.size();
+    if (externalRow >= m_externalInstanceList.size())
+        return {};
+    const QString &name = m_externalInstanceList.at(externalRow);
     switch (role) {
-    case InstanceNameRole: return cfg.instanceName();
-    case DisplayNameRole:  return cfg.displayName;
-    case HostnameRole:     return cfg.hostname;
-    // RunningRole: 从完整状态缓存中查询 Running
-    case RunningRole:
-        return configRunStateIsRunning(m_instanceStates.value(cfg.instanceName(), ConfigRunState::Stopped));
+    case InstanceNameRole: return name;
+    case DisplayNameRole:  return name;
+    case HostnameRole:     return QVariant{};
+    case RunningRole:      return true;
     case UpdatedAtRole:    return QVariant{};
-    case Qt::DisplayRole:  return cfg.displayName;
+    case IsExternalRole:   return true;
+    case Qt::DisplayRole:  return name;
     default: return {};
     }
 }
@@ -57,7 +77,8 @@ QHash<int, QByteArray> ConfigListModel::roleNames() const
         { DisplayNameRole,  "displayName" },
         { HostnameRole,     "hostname" },
         { RunningRole,      "running"  },
-        { UpdatedAtRole,    "updatedAt" }
+        { UpdatedAtRole,    "updatedAt" },
+        { IsExternalRole,   "isExternal" }
     };
 }
 
@@ -76,6 +97,8 @@ QString ConfigListModel::createNewConfig()
         return {};
     }
     refresh();
+    // 通知外部同步本地 controller（新建配置后运行时即应存在对应状态机）
+    emit configCreated(result.instanceName);
     return result.instanceName;
 }
 
@@ -101,6 +124,31 @@ void ConfigListModel::onRunningStateChanged(const QString &instanceName, ConfigR
             return;
         }
     }
+}
+
+void ConfigListModel::onExternalInstancesChanged(const QStringList &instanceNames)
+{
+    if (m_externalInstanceList == instanceNames)
+        return;
+
+    // 外部实例条目整体追加在本地配置之后，集合变化时整体重置模型
+    beginResetModel();
+    m_externalInstanceList = instanceNames;
+    endResetModel();
+}
+
+bool ConfigListModel::isExternal(const QString &instanceName) const
+{
+    return m_externalInstanceList.contains(instanceName);
+}
+
+bool ConfigListModel::isLocalInstance(const QString &instanceName) const
+{
+    for (const auto &cfg : std::as_const(m_configs)) {
+        if (cfg.instanceName() == instanceName)
+            return true;
+    }
+    return false;
 }
 
 bool ConfigListModel::deleteConfig(const QString &instanceName)
@@ -164,6 +212,8 @@ void ConfigListModel::importConfigFile(const QString &filePath)
         const auto result = watcher->result();
         if (result.success) {
             refresh();
+            // 通知外部同步本地 controller（导入成功后运行时即应存在对应状态机）
+            emit configCreated(result.instanceName);
             emit importSucceeded();
         } else {
             emit importFailed(result.message);
@@ -183,6 +233,8 @@ void ConfigListModel::importConfigUrl(const QString &url)
         const auto result = watcher->result();
         if (result.success) {
             refresh();
+            // 通知外部同步本地 controller（导入成功后运行时即应存在对应状态机）
+            emit configCreated(result.instanceName);
             emit importSucceeded();
         } else {
             emit importFailed(result.message);

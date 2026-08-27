@@ -50,10 +50,10 @@ VpnManager::VpnManager(DaemonClient *client, DaemonApi *daemonApi, NetworkConfig
     connect(m_statusMonitor, &StatusMonitor::instanceInfoParsed,
             this, &VpnManager::onInstanceInfoParsed);
 
-    // 为每个已保存的配置预创建 controller，确保心跳纠偏时有对应的状态机
+    // 为每个已保存的配置预创建本地 controller，确保心跳纠偏时有对应的状态机
     const auto allConfigs = m_repo->loadAll();
     for (const auto &cfg : allConfigs) {
-        getOrCreate(cfg.instanceName());
+        getOrCreateLocal(cfg.instanceName());
     }
 
     LogHelper::logInfo(QStringLiteral("VpnManager 初始化完成，心跳间隔=%1ms，预创建 controller=%2个")
@@ -74,8 +74,8 @@ void VpnManager::startConfig(const QString &instanceName)
 {
     LogHelper::logInfo(QStringLiteral("收到启动请求: %1").arg(instanceName), "VpnManager");
 
-    // 懒创建 controller
-    auto *ctrl = getOrCreate(instanceName);
+    // 懒创建本地 controller
+    auto *ctrl = getOrCreateLocal(instanceName);
 
     // 只允许从未启动状态启动
     if (ctrl->state() == VpnController::State::Running) {
@@ -95,13 +95,12 @@ void VpnManager::stopConfig(const QString &instanceName)
 {
     LogHelper::logInfo(QStringLiteral("收到停止请求: %1").arg(instanceName), "VpnManager");
 
-    auto it = m_controllers.find(instanceName);
-    if (it == m_controllers.end()) {
+    auto *ctrl = findController(instanceName);
+    if (!ctrl) {
         LogHelper::logInfo(QStringLiteral("停止忽略: %1 无对应的 controller").arg(instanceName), "VpnManager");
         return;
     }
 
-    auto *ctrl = it.value();
     if (ctrl->state() != VpnController::State::Running) {
         LogHelper::logWarning(QStringLiteral("停止忽略: %1 当前未在运行中").arg(instanceName), "VpnManager");
         return;
@@ -119,7 +118,12 @@ void VpnManager::stopAll()
     m_stopAllFailed = false;
 
     // 收集所有非 Unstarted 的实例（Starting / Running / Stopping 均需等待收敛）
-    for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it) {
+    // 本地配置与外部临时实例都要停止
+    for (auto it = m_localControllers.begin(); it != m_localControllers.end(); ++it) {
+        if (it.value()->state() != VpnController::State::Unstarted)
+            m_stopAllPending.insert(it.key());
+    }
+    for (auto it = m_externalControllers.begin(); it != m_externalControllers.end(); ++it) {
         if (it.value()->state() != VpnController::State::Unstarted)
             m_stopAllPending.insert(it.key());
     }
@@ -137,7 +141,7 @@ void VpnManager::stopAll()
     // 对 Running 状态的实例立即发送停止请求
     // Starting 状态的实例等待其收敛到 Running 后再补发（见 onStopAllStateChanged）
     for (const QString &name : std::as_const(m_stopAllPending)) {
-        auto *ctrl = m_controllers.value(name, nullptr);
+        auto *ctrl = findController(name);
         if (ctrl && ctrl->state() == VpnController::State::Running) {
             m_stopAllStopIssued.insert(name);
             ctrl->stop();
@@ -161,7 +165,8 @@ void VpnManager::onStopAllStateChanged(const QString &instanceName, VpnControlle
     // Starting 收敛到 Running 后补发停止请求
     if (state == VpnController::State::Running && !m_stopAllStopIssued.contains(instanceName)) {
         m_stopAllStopIssued.insert(instanceName);
-        m_controllers.value(instanceName)->stop();
+        if (auto *ctrl = findController(instanceName))
+            ctrl->stop();
     }
 }
 
@@ -203,29 +208,27 @@ void VpnManager::tryFinishStopAll()
 
 int VpnManager::configState(const QString &instanceName) const
 {
-    auto it = m_controllers.find(instanceName);
-    if (it == m_controllers.end())
+    auto *ctrl = findController(instanceName);
+    if (!ctrl)
         return static_cast<int>(VpnController::State::Unstarted);
-    return static_cast<int>(it.value()->state());
+    return static_cast<int>(ctrl->state());
 }
 
 bool VpnManager::isRunning(const QString &instanceName) const
 {
-    auto it = m_controllers.find(instanceName);
-    if (it == m_controllers.end())
-        return false;
-    return it.value()->state() == VpnController::State::Running;
+    auto *ctrl = findController(instanceName);
+    return ctrl && ctrl->state() == VpnController::State::Running;
 }
 
 // ==================== 日志导出 ====================
 
 bool VpnManager::exportLog(const QString &filePath)
 {
-    auto it = m_controllers.find(m_activeInstanceName);
-    if (it == m_controllers.end() || !it.value()->hasRunningStatus())
+    auto *ctrl = findController(m_activeInstanceName);
+    if (!ctrl || !ctrl->hasRunningStatus())
         return false;
 
-    const QVariantList entries = it.value()->logEntries();
+    const QVariantList entries = ctrl->logEntries();
 
     // 拼接日志文本
     QString text;
@@ -249,13 +252,13 @@ bool VpnManager::exportLog(const QString &filePath)
 
 void VpnManager::cleanupController(const QString &instanceName)
 {
-    removeController(instanceName);
+    removeLocalController(instanceName);
 }
 
-void VpnManager::removeController(const QString &instanceName)
+void VpnManager::removeLocalController(const QString &instanceName)
 {
-    auto it = m_controllers.find(instanceName);
-    if (it == m_controllers.end())
+    auto it = m_localControllers.find(instanceName);
+    if (it == m_localControllers.end())
         return;
 
     // 如果当前正选中的实例被删除，清空选中状态并通知上层刷新展示
@@ -266,7 +269,7 @@ void VpnManager::removeController(const QString &instanceName)
 
     // 删除 controller 对象（同时删除其子 QObject，包括正在执行的 QFutureWatcher）
     delete it.value();
-    m_controllers.erase(it);
+    m_localControllers.erase(it);
 }
 
 // ==================== QML 属性 ====================
@@ -288,14 +291,20 @@ void VpnManager::setActiveInstanceName(const QString &name)
 
 QVariantList VpnManager::nodeInfosFor(const QString &instanceName) const
 {
-    auto it = m_controllers.find(instanceName);
-    return it == m_controllers.end() ? QVariantList() : it.value()->nodeInfos();
+    auto *ctrl = findController(instanceName);
+    return ctrl ? ctrl->nodeInfos() : QVariantList();
 }
 
 QVariantList VpnManager::logEntriesFor(const QString &instanceName) const
 {
-    auto it = m_controllers.find(instanceName);
-    return it == m_controllers.end() ? QVariantList() : it.value()->logEntries();
+    auto *ctrl = findController(instanceName);
+    return ctrl ? ctrl->logEntries() : QVariantList();
+}
+
+QStringList VpnManager::externalInstances() const
+{
+    // 返回当前全部外部实例名（顺序不保证，仅供诊断/测试使用）
+    return m_externalControllers.keys();
 }
 
 // ==================== StatusMonitor 回调 ====================
@@ -304,15 +313,15 @@ void VpnManager::onInstanceInfoParsed(const QString &instName,
                                        const QVariantList &nodeInfos,
                                        const QVariantList &logEntries)
 {
-    auto it = m_controllers.find(instName);
-    if (it == m_controllers.end())
+    auto *ctrl = findController(instName);
+    if (!ctrl)
         return;
 
     // 将 StatusMonitor 异步解析的结果缓存到对应 controller
-    it.value()->setRunningStatus(nodeInfos, logEntries);
+    ctrl->setRunningStatus(nodeInfos, logEntries);
 
     // 通知上层（VpnRuntimeService）刷新该实例的节点与日志展示数据
-    emit instanceInfoUpdated(instName, nodeInfos, it.value()->logEntries());
+    emit instanceInfoUpdated(instName, nodeInfos, ctrl->logEntries());
 }
 
 // ==================== 心跳机制 ====================
@@ -402,28 +411,64 @@ void VpnManager::onDaemonConnectionChanged(DaemonClient::ConnectionState state)
         if (m_client->connectionState() == DaemonClient::ConnectionState::Connected)
             return;
 
-        // daemon 确实断开了，将所有运行中的 controller 强制重置为 Unstarted
-        for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it) {
+        // daemon 确实断开了：本地 controller 强制重置为 Unstarted；
+        // 外部临时 controller 的唯一信息来源是 daemon，全部移除并通知列表清空
+        for (auto it = m_localControllers.begin(); it != m_localControllers.end(); ++it) {
             it.value()->reset();
+        }
+        if (!m_externalControllers.isEmpty()) {
+            qDeleteAll(m_externalControllers);
+            m_externalControllers.clear();
+            emit externalInstancesChanged(QStringList{});
         }
     });
 }
 
 // ==================== 内部辅助 ====================
 
-VpnController *VpnManager::getOrCreate(const QString &instanceName)
+VpnController *VpnManager::findController(const QString &instanceName) const
 {
-    auto it = m_controllers.find(instanceName);
-    if (it != m_controllers.end())
+    auto local = m_localControllers.constFind(instanceName);
+    if (local != m_localControllers.constEnd())
+        return local.value();
+    auto external = m_externalControllers.constFind(instanceName);
+    return external != m_externalControllers.constEnd() ? external.value() : nullptr;
+}
+
+VpnController *VpnManager::getOrCreateLocal(const QString &instanceName)
+{
+    auto it = m_localControllers.find(instanceName);
+    if (it != m_localControllers.end())
         return it.value();
 
-    LogHelper::logInfo(QStringLiteral("新建 VpnController: %1").arg(instanceName), "VpnManager");
+    LogHelper::logInfo(QStringLiteral("新建本地 VpnController: %1").arg(instanceName), "VpnManager");
 
     // 创建新的 controller 并连接信号到 VpnManager，转发给 QML
     auto *ctrl = new VpnController(instanceName, m_daemonApi, m_repo, this);
+    wireController(ctrl);
+    m_localControllers.insert(instanceName, ctrl);
+    return ctrl;
+}
+
+VpnController *VpnManager::createExternal(const QString &instanceName)
+{
+    auto it = m_externalControllers.find(instanceName);
+    if (it != m_externalControllers.end())
+        return it.value();
+
+    LogHelper::logInfo(QStringLiteral("新建外部临时 VpnController: %1").arg(instanceName), "VpnManager");
+
+    auto *ctrl = new VpnController(instanceName, m_daemonApi, m_repo, this);
+    wireController(ctrl);
+    m_externalControllers.insert(instanceName, ctrl);
+    return ctrl;
+}
+
+void VpnManager::wireController(VpnController *ctrl)
+{
     connect(ctrl, &VpnController::stateChanged, this,
             [this](const QString &name, VpnController::State state) {
-                if (auto *controller = m_controllers.value(name, nullptr))
+                if (auto *controller = findController(name))
                     emit configStateChanged(name, controller->runState());
                 onStopAllStateChanged(name, state);
             });
@@ -432,8 +477,34 @@ VpnController *VpnManager::getOrCreate(const QString &instanceName)
                 emit stopFailed(name, error);
                 onStopAllStopFailed(name);
             });
-    m_controllers.insert(instanceName, ctrl);
-    return ctrl;
+}
+
+void VpnManager::ensureLocalController(const QString &instanceName)
+{
+    // 若该名字此前是外部临时实例，先清除外部身份（本地配置接管该实例名）
+    if (m_externalControllers.contains(instanceName))
+        removeExternal(instanceName);
+
+    getOrCreateLocal(instanceName);
+}
+
+void VpnManager::removeExternal(const QString &instanceName)
+{
+    auto it = m_externalControllers.find(instanceName);
+    if (it == m_externalControllers.end())
+        return;
+
+    // 如果当前正选中的外部实例被移除，清空选中状态并通知上层刷新展示
+    if (it.value()->instanceName() == m_activeInstanceName) {
+        m_activeInstanceName.clear();
+        emit activeInstanceNameChanged();
+    }
+
+    // 删除 controller 对象（同时删除其子 QObject，包括正在执行的 QFutureWatcher）
+    delete it.value();
+    m_externalControllers.erase(it);
+
+    emit externalInstancesChanged(m_externalControllers.keys());
 }
 
 void VpnManager::syncStatesFromDaemon(const QJsonArray &instances)
@@ -447,8 +518,8 @@ void VpnManager::syncStatesFromDaemon(const QJsonArray &instances)
             daemonInstances.insert(key);
     }
 
-    // 遍历所有本地 controller，与 daemon 实际状态对比纠偏
-    for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it) {
+    // 步骤 1：本地 controller 与 daemon 实际状态对比纠偏
+    for (auto it = m_localControllers.begin(); it != m_localControllers.end(); ++it) {
         const QString &name = it.key();
         VpnController *ctrl = it.value();
         const bool inDaemon = daemonInstances.contains(name);
@@ -465,4 +536,43 @@ void VpnManager::syncStatesFromDaemon(const QJsonArray &instances)
             ctrl->reset();
         }
     }
+
+    // 步骤 2：清理外部临时 controller
+    // - daemon 不再返回该实例 → 外部实例已消失
+    // - 本地 controller 表已出现同名实例（外部与本地 instance_name 一致）→ 心跳纠偏为本地
+    QList<QString> vanishedExternal;
+    for (const QString &name : m_externalControllers.keys()) {
+        if (!daemonInstances.contains(name) || m_localControllers.contains(name))
+            vanishedExternal.append(name);
+    }
+    for (const QString &name : std::as_const(vanishedExternal)) {
+        if (m_localControllers.contains(name)) {
+            LogHelper::logInfo(QStringLiteral("心跳发现外部实例 %1 已成为本地配置，移除外部临时 controller").arg(name), "VpnManager");
+        } else {
+            LogHelper::logInfo(QStringLiteral("心跳发现外部实例 %1 已从 daemon 消失，移除 controller").arg(name), "VpnManager");
+        }
+        removeExternal(name);
+    }
+
+    // 步骤 3：外部临时实例保持 Running（修复 daemon 断连重连后遗留的 Unstarted；
+    // 跳过 Stopping，避免覆盖正在进行的停止流程）
+    for (auto it = m_externalControllers.begin(); it != m_externalControllers.end(); ++it) {
+        if (it.value()->state() == VpnController::State::Unstarted)
+            it.value()->setState(VpnController::State::Running);
+    }
+
+    // 步骤 4：发现新的外部实例（daemon 中存在、本地无 controller 且外部表无记录）
+    bool newExternalFound = false;
+    for (const QString &name : std::as_const(daemonInstances)) {
+        if (m_localControllers.contains(name) || m_externalControllers.contains(name))
+            continue;
+        LogHelper::logInfo(QStringLiteral("心跳发现外部实例 %1，创建外部临时 controller").arg(name), "VpnManager");
+        auto *ctrl = createExternal(name);
+        ctrl->setState(VpnController::State::Running);
+        newExternalFound = true;
+    }
+
+    // 步骤 5：新增外部实例后统一通知上层（删除路径由 removeExternal 各自发射）
+    if (newExternalFound)
+        emit externalInstancesChanged(m_externalControllers.keys());
 }

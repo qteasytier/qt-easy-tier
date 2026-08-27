@@ -251,9 +251,28 @@ void AppServices::wireRuntime()
     // 配置被删除 → 经 VPN 运行服务通知清理对应的 controller
     QObject::connect(m_configListModel, &ConfigListModel::configDeleted,
                      m_vpnRuntimeService, &VpnRuntimeService::cleanupController);
+    // 配置被创建/导入 → 经 VPN 运行服务同步本地 controller（与数据库配置集合保持一致）
+    QObject::connect(m_configListModel, &ConfigListModel::configCreated,
+                     m_vpnRuntimeService, &VpnRuntimeService::ensureLocalController);
     // VPN 状态变更 → 同步更新配置列表的显示状态
     QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_configListModel, &ConfigListModel::onRunningStateChanged);
+    // 外部实例集合变化 → 配置列表末尾追加/移除外部实例条目
+    QObject::connect(m_vpnManager, &VpnManager::externalInstancesChanged,
+                     m_configListModel, &ConfigListModel::onExternalInstancesChanged);
+    // 外部实例从 daemon 消失时，若恰为当前选中实例则清空选中，避免右侧残留失效实例
+    QObject::connect(m_vpnManager, &VpnManager::externalInstancesChanged,
+                     this, [this](const QStringList &instanceNames) {
+                         const QString current = m_networkPageViewModel->currentInstanceName();
+                         if (current.isEmpty())
+                             return;
+                         // 本地配置不受外部实例集合变化影响
+                         if (m_configListModel->isLocalInstance(current))
+                             return;
+                         // 既非本地配置又不在新的外部实例列表中 → 当前选中的外部实例已消失，清空选中
+                         if (!instanceNames.contains(current))
+                             m_networkPageViewModel->clearSelection();
+                     });
 }
 
 void AppServices::ensureDaemonServiceOnce()

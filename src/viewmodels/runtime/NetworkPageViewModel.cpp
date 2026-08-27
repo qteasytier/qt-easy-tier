@@ -95,11 +95,20 @@ void NetworkPageViewModel::refreshRunning()
 
 void NetworkPageViewModel::selectConfig(const QString &instanceName)
 {
-    // 选中配置：加载到编辑器 → 更新当前实例名 → 刷新运行状态
-    if (m_configEditorViewModel)
+    // 外部实例（daemon 中存在但本地配置列表中没有）没有本地配置：
+    // 跳过加载到编辑器，避免 loadConfig 因仓库中无此配置而报错并重置编辑器
+    const bool external = m_configListModel && m_configListModel->isExternal(instanceName);
+    if (!external && m_configEditorViewModel)
         m_configEditorViewModel->loadConfig(instanceName);
     setCurrentInstanceName(instanceName);
     refreshRunning();
+}
+
+void NetworkPageViewModel::clearSelection()
+{
+    // 清空当前选中实例（模拟删除配置时对当前选中实例的处理）
+    setCurrentInstanceName({});
+    setCurrentInstanceRunning(false);
 }
 
 QString NetworkPageViewModel::createConfig()
