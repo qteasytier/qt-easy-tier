@@ -25,13 +25,15 @@
     GITHUB_TOKEN  可选，GitHub 访问令牌（公开仓库无需）
     CNB_API_BASE  可选，默认 https://api.cnb.cool
 
-依赖：仅 Python 3.8+ 标准库，无需第三方包。
+依赖：仅 Python 3.8+ 标准库，无需第三方包；本机需可执行 git（用于查询
+    tag 对应的提交哈希，作为创建 CNB release 的 target_commitish 必填字段）。
 """
 
 import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -76,6 +78,27 @@ def _cnb_headers(token):
 
 def _sleep_backoff(attempt):
     time.sleep(min(2 ** attempt, 30))
+
+
+def git_repo_root():
+    """返回 git 仓库根目录；优先取流水线工作空间，其次当前目录。找不到时返回空串。"""
+    base = os.environ.get("CNB_BUILD_WORKSPACE") or os.getcwd()
+    return base
+
+
+def git_tag_commit(base_dir, tag):
+    """查询本地仓库中 tag 指向的提交哈希；tag 不存在或出错时返回空串。
+
+    仅调用本地 git，不产生网络请求；用于镜像同步时为 CNB 创建 release
+    提供精确的 target_commitish（目标提交）。
+    """
+    cmd = ["git", "-C", base_dir, "rev-parse", "--verify", "--quiet",
+           "refs/tags/%s^{commit}" % tag]
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        return out.decode("utf-8").strip()
+    except (subprocess.CalledProcessError, OSError):
+        return ""
 
 
 def http_json(url, headers=None, method="GET", payload=None, retries=4, timeout=120):
@@ -325,6 +348,9 @@ def main():
                         help="等待超时分钟数，默认 120（配合 --wait-tag 使用）")
     parser.add_argument("--wait-interval", type=float, default=2,
                         help="轮询间隔分钟数，默认 2（配合 --wait-tag 使用）")
+    parser.add_argument("--cnb-branch-fallback", default="master",
+                        help="target_commitish 兜底分支名：本地不存在待同步 tag 时使用，"
+                             "默认 master")
     parser.add_argument("--dry-run", action="store_true", help="仅对比版本，不下载不上传")
     args = parser.parse_args()
 
@@ -350,6 +376,10 @@ def main():
     cnb_releases = cnb_list_releases(args.cnb_repo, token)
     cnb_tags = {r.get("tag_name") for r in cnb_releases if r.get("tag_name")}
     print("   CNB 共 %d 个 release" % len(cnb_releases))
+
+    # 解析本地 git 仓库中各 tag 指向的提交：CNB 创建 release 的 target_commitish
+    # 为必填项，缺失会被 API 以 HTTP 400 拒绝（参见 api.cnb.cool Swagger 定义）。
+    repo_root = git_repo_root()
 
     # 待同步：GitHub 有、CNB 无、且非草稿
     pending = []
@@ -411,8 +441,13 @@ def main():
                     "> 本版本由 CNB 云原生构建从 GitHub 自动镜像同步。\n"
                     "> 源发布: %s\n\n%s" % (html_url, body)
                 ).strip()
+                # target_commitish 为 CNB 创建 release 的必填字段：
+                # 优先用本地 tag 精确指向的提交哈希；tag 不存在时退回分支名兜底。
+                # 缺失该字段时 API 返回 HTTP 400："target_commitish is required"
+                target_commitish = git_tag_commit(repo_root, tag) or args.cnb_branch_fallback
                 payload = {
                     "tag_name": tag,
+                    "target_commitish": target_commitish,
                     "name": name,
                     "body": mirror_body,
                     "draft": False,
@@ -421,7 +456,8 @@ def main():
                     # 不能传布尔值，否则创建 release 会失败（HTTP 4xx）
                     "make_latest": "true" if make_latest else "false",
                 }
-                print("   创建 CNB release (make_latest=%s)" % make_latest)
+                print("   创建 CNB release (make_latest=%s, target_commitish=%s)" % (
+                    make_latest, target_commitish or "<空>"))
                 try:
                     created = cnb_create_release(args.cnb_repo, token, payload)
                     release_id = str(created.get("id"))
