@@ -55,10 +55,8 @@ src/
 ├── app_service/                     应用业务服务层
 ├── core/                            基础服务层
 │   ├── config/                      配置数据结构、TOML 序列化、校验、URL 编解码
-│   ├── favorite/                    收藏节点数据结构与 JSON 编解码
-│   ├── repository/                  SQLite 持久化
-│   ├── service/                     daemon IPC 与 daemon API 封装
-│   ├── vpn_manager/                 单实例生命周期状态机与 daemon 状态解析
+│   ├── sqlite_repository/           SQLite 持久化
+│   ├── daemon_service/              daemon IPC 与 daemon API 封装
 │   ├── system_tray/                 系统托盘与托盘消息
 │   └── log/                         日志基础设施
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
@@ -80,8 +78,8 @@ UI 层
     生命周期、心跳同步与运行状态展示模型
 
 基础服务层
-    src/core/config/、repository/、service/、vpn_manager/、system_tray/、platform/、favorite/、log/
-    提供 SQLite、daemon IPC、平台能力、日志、配置序列化、单实例状态机等基础设施
+    src/core/config/、sqlite_repository/、daemon_service/、system_tray/、platform/、log/
+    提供 SQLite、daemon IPC、平台能力、日志、配置序列化等基础设施
 
 应用装配层
     src/app/
@@ -574,14 +572,20 @@ DangerousOperationService
 路径：
 
 ```text
-src/core/favorite/
+src/app_service/favorite/
 ```
 
 主要类型：
 
 ```text
-FavoriteNode
+FavoriteNodeImportExportService
 FavoriteNodeJsonCodec
+```
+
+收藏节点值类型 `FavoriteNode` 作为 SQLite repository 的记录类型位于：
+
+```text
+src/core/sqlite_repository/FavoriteNode.h
 ```
 
 `FavoriteNodeJsonCodec` 负责读取和写出收藏节点 JSON 格式。内置公开服务器列表默认读取 Qt resource：
@@ -643,16 +647,16 @@ src/core/config/
 - daemon 载荷构建（`ConfigPayloadBuilder`）：将 `NetworkConf` 序列化为 `cfg_str` JSON payload，
   供 `VpnController` 启动实例与 `ConfigImportExportService` 导入校验使用。
 - 公共运行状态枚举（`ConfigRunState`）：统一配置运行状态表达，
-  供 vpn_manager、system_tray、viewmodel 等各层共用。
+  供 runtime、system_tray、viewmodel 等各层共用。
 
-这一层是配置领域基础模块，不应依赖 UI、ViewModel 或 VPN manager。
+这一层是配置领域基础模块，不应依赖 UI、ViewModel 或 VPN runtime。
 
-## repository 持久化层
+## sqlite_repository 持久化层
 
 路径：
 
 ```text
-src/core/repository/
+src/core/sqlite_repository/
 ```
 
 职责：
@@ -673,12 +677,12 @@ src/core/repository/
 
 repository 层不应依赖 QML，也不应包含页面逻辑。
 
-## service 层
+## daemon_service 层
 
 路径：
 
 ```text
-src/core/service/
+src/core/daemon_service/
 ```
 
 职责：
@@ -716,12 +720,12 @@ UI 层通过应用服务层访问 daemon 能力（如 `SettingsViewModel` 经注
 
 测试中通常通过内存 `QLocalServer` 模拟 daemon，不需要真实 daemon 后台进程。
 
-## vpn_manager 层
+## runtime 应用服务层
 
-路径：
+`VpnController`、`StatusMonitor` 与 `VpnRuntimeService` 一起位于：
 
 ```text
-src/core/vpn_manager/
+src/app_service/runtime/
 ```
 
 职责：
@@ -729,16 +733,18 @@ src/core/vpn_manager/
 - 单实例生命周期状态机（`VpnController`）。
 - 启动和停止流程协调（单实例）。
 - daemon 状态数据异步解析（`StatusMonitor`）。
-
-多实例协调、心跳同步、外部实例发现与展示模型填充均位于应用服务层
-`VpnRuntimeService`（见 `src/app_service/runtime/`），不在本层实现。
+- 多实例协调、心跳同步、外部实例发现与展示模型填充（`VpnRuntimeService`）。
 
 主要对象：
 
 ```text
 VpnController
 StatusMonitor
+VpnRuntimeService
 ```
+
+`VpnController` 和 `StatusMonitor` 不再是独立物理 target，作为 `qtet_application`
+内部协作者与应用 runtime 服务编译在一起。
 
 ### VpnController
 
@@ -874,12 +880,11 @@ assets/publicservers.json
 ```text
 qtet_config
 qtet_log
-qtet_repository
-qtet_service
+qtet_sqlite_repository
+qtet_daemon_service
 qtet_platform
 qtet_system_tray
 qtet_application
-qtet_vpn
 qtet_appsupport
 ```
 
@@ -890,29 +895,34 @@ appQtEasyTier
     ↓
 qtet_appsupport
     ↓
-qtet_application（应用业务服务 + ViewModel，依赖 qtet_vpn 与全部基础服务）
+qtet_application（应用业务服务 + ViewModel，依赖全部基础服务）
     ↓
-qtet_vpn / qtet_repository / qtet_service / qtet_platform / qtet_favorite / qtet_system_tray
+qtet_sqlite_repository / qtet_daemon_service / qtet_platform / qtet_system_tray
     ↓
 qtet_config / qtet_log
 ```
 
 要点：
 
-- `qtet_vpn` 只依赖基础服务（`qtet_config` / `qtet_repository` / `qtet_service` / `qtet_log`），
-  不依赖 `qtet_application`。
+- 基础服务层只保留 `qtet_config` / `qtet_log` / `qtet_sqlite_repository` /
+  `qtet_daemon_service` / `qtet_system_tray` / `qtet_platform`；其余能力（收藏、
+  VPN 状态机、应用业务、ViewModel）全部收敛进 `qtet_application`。
 - `qtet_application` 同时包含 `src/app_service/` 的业务服务与 `src/viewmodels/` 的
-  ViewModel / Model，二者不再拆分为独立物理 target；它依赖 `qtet_vpn` 及各基础服务。
-- 历史薄壳 ViewModel 对 `qtet_repository` / `qtet_service` / `qtet_platform` 的直连
-  已成为 `qtet_application` 内部实现依赖，不应再作为消费者可见的公共依赖扩散。
+  ViewModel / Model，并编译 `FavoriteNodeJsonCodec`、`VpnController`、`StatusMonitor`；
+  它依赖 `qtet_sqlite_repository`、`qtet_daemon_service` 及各基础服务。
+- `FavoriteNode` 值类型属于 `qtet_sqlite_repository`（SQLite 记录），
+  `qtet_application` 不得反向依赖 repository。
+- 历史薄壳 ViewModel 对 `qtet_sqlite_repository` / `qtet_daemon_service` /
+  `qtet_platform` 的直连已成为 `qtet_application` 内部实现依赖，
+  不应再作为消费者可见的公共依赖扩散。
 
-`qtet_system_tray` 由 `qtet_appsupport` 直接链接，依赖 `qtet_service`、`qtet_config` 和 `qtet_log`。
+`qtet_system_tray` 由 `qtet_appsupport` 直接链接，依赖 `qtet_daemon_service`、`qtet_config` 和 `qtet_log`。
 
 原则：
 
 - 上层可以依赖下层。
 - 下层不要反向依赖上层。
-- `qtet_vpn` / `qtet_system_tray` 等基础服务不得 include `app_service` 或 `viewmodels` 头文件。
+- 基础服务不得 include `app_service` 或 `viewmodels` 头文件。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
 - 新 C++ 源文件应加入所属模块 target；`src/app_service` 与 `src/viewmodels` 的新文件都加入 `qtet_application`。
 - 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；`-DCLONE_DAEMON_FROM=GITEE`（或 `CNB`）时从对应来源克隆后端源码，默认 `GITHUB`。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
@@ -924,13 +934,11 @@ qtet_config / qtet_log
 | --- | --- |
 | `qtet_config` | 配置数据结构、TOML 序列化、校验、URL 编解码、daemon 载荷构建、运行状态枚举 |
 | `qtet_log` | 日志基础类型、日志分发、日志工具入口 |
-| `qtet_favorite` | 收藏节点数据结构、收藏节点 JSON 导入导出格式 |
-| `qtet_repository` | SQLite repository 和数据库连接 |
-| `qtet_service` | daemon IPC 和 daemon API |
+| `qtet_sqlite_repository` | SQLite repository 和数据库连接、`FavoriteNode` 记录类型 |
+| `qtet_daemon_service` | daemon IPC 和 daemon API |
 | `qtet_platform` | 平台相关实现（源码在 `src/platform/`） |
 | `qtet_system_tray` | 系统托盘、托盘消息、真实通知输出 |
-| `qtet_application` | 应用业务服务层 + 暴露给 QML 的 ViewModel / Model（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
-| `qtet_vpn` | VPN 生命周期状态机与运行状态同步（不接触 UI 类型） |
+| `qtet_application` | 应用业务服务层 + 暴露给 QML 的 ViewModel / Model + 收藏编解码 + VPN 状态机（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
 | `qtet_appsupport` | AppServices 和 QML singleton 注册 |
 
 ## 测试组织
@@ -981,7 +989,7 @@ tst_app_launch_manager
 src/core/config/
 src/viewmodels/ConfigEditorViewModel.*
 src/core/config/ConfigPayloadBuilder.*
-src/core/repository/
+src/core/sqlite_repository/
 tests/
 ```
 
@@ -992,7 +1000,7 @@ tests/
 优先修改：
 
 ```text
-src/core/service/DaemonApi.*
+src/core/daemon_service/DaemonApi.*
 ```
 
 调用方应通过 `DaemonApi` 使用，不要在 ViewModel 或 QML-facing 类中散落 method name 和 JSON params。
@@ -1056,11 +1064,12 @@ src/qml/pages/
 | --- | --- | --- |
 | 配置结构、TOML、校验、URL 编解码 | `src/core/config/` | `qtet_config` |
 | 日志基础设施 | `src/core/log/` | `qtet_log` |
-| SQLite repository | `src/core/repository/` | `qtet_repository` |
-| daemon IPC / API | `src/core/service/` | `qtet_service` |
+| SQLite repository | `src/core/sqlite_repository/` | `qtet_sqlite_repository` |
+| daemon IPC / API | `src/core/daemon_service/` | `qtet_daemon_service` |
 | 平台相关实现 | `src/platform/` | `qtet_platform` |
 | 应用业务服务 | `src/app_service/` | `qtet_application` |
-| VPN 状态机 / 运行状态 | `src/core/vpn_manager/` | `qtet_vpn` |
+| 收藏节点编解码 | `src/app_service/favorite/` | `qtet_application` |
+| VPN 状态机 / 运行状态 | `src/app_service/runtime/` | `qtet_application` |
 | 系统托盘 / 托盘消息 | `src/core/system_tray/` | `qtet_system_tray` |
 | QML ViewModel / Model | `src/viewmodels/` | `qtet_application` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
@@ -1087,7 +1096,7 @@ src/qml/pages/
 - 不要重新引入裸 `QVariantList` 风格的 QML API 或让 QML 直接绑定 `VpnController`。
 - 不要重新添加 `LogHelper::init(...)`。
 - 不要在测试 target 中重复编译大量生产 `.cpp`，应链接模块 target。
-- 不要让基础服务层（`config` / `repository` / `service` / `vpn_manager` / `system_tray` / `platform` / `favorite` / `log`）
+- 不要让基础服务层（`config` / `log` / `sqlite_repository` / `daemon_service` / `system_tray` / `platform`）
   依赖 ViewModel、QML 或 `app_service`。
 - 不要绕过 `DaemonApi` 在上层散落 daemon method name。
 - 新增跨模块业务操作时，优先放入 `src/app_service/`，再由 ViewModel 做 QML 友好的薄壳转发。
