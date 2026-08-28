@@ -62,6 +62,7 @@ UI 层（`qml`）。UI 层通过应用核心层访问基础服务能力，基础
 - CMake 3.16 或更新版本
 - 支持 C++20 的 C++ 编译器
 - Qt 6.8 或更新版本，包含 `Core`、`Sql`、`Network`、`Test`、`Quick`、`Widgets`、`Concurrent`、`Svg`、`QuickDialogs2`
+- OpenSSL 库
 - `git`，用于默认构建 `qtet-daemon`
 
 默认构建会从 GitHub 克隆并编译 `qtet-daemon`，因此需要可用网络。如果只想构建前端或进行离线验证，可以关闭后端构建。
