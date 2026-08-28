@@ -623,6 +623,41 @@ void ConfigEditorViewModel::clear()
 }
 
 /**
+ * @brief 同步外部重命名的显示名称到当前编辑快照
+ *
+ * 仅当 instanceName 是当前编辑实例时更新；不标记 dirty、不触发自动保存，
+ * 因为重命名已由协调方（ConfigListModel → ConfigCommandService）落库。
+ */
+void ConfigEditorViewModel::syncDisplayName(const QString &instanceName, const QString &displayName)
+{
+    if (instanceName != m_conf.instanceName())
+        return;
+    if (m_conf.displayName == displayName)
+        return;
+
+    m_conf.displayName = displayName;
+    emit displayNameChanged();
+}
+
+/**
+ * @brief 丢弃当前编辑快照并清空编辑器，不刷写待保存修改
+ *
+ * 用于配置已被删除的场景：若调用 clear() 会先 flushPendingSave()，
+ * 可能把已删除配置的编辑器快照重新写回仓库（"复活"配置）。
+ */
+void ConfigEditorViewModel::discardAndClear()
+{
+    m_autoSaveTimer.stop();
+    m_conf = NetworkConf();
+    m_hasUnsavedChanges = false;
+    m_errorMessages.clear();
+    emit currentInstanceNameChanged();
+    emit hasUnsavedChangesChanged();
+    emit errorMessagesChanged();
+    emitCurrentChanged();
+}
+
+/**
  * @brief 将当前实例的全部网络设置恢复为默认值并立即落库
  *
  * 流程：

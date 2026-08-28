@@ -59,6 +59,8 @@ public:
 public slots:
     /// 刷新当前实例的运行状态（由 VPN 状态变更信号触发）
     void refreshRunning();
+    /// 配置真正删除成功后清空当前选择（由 configDeleted 信号触发）
+    void handleConfigDeleted(const QString &instanceName);
 
 public:
     /// 选中一个配置实例：加载编辑器并刷新运行状态

@@ -9,6 +9,7 @@
  * - clear 清空编辑器前刷写待保存修改
  * - flushAutoSave 手动立即刷写
  */
+#include <QSignalSpy>
 #include <QTest>
 #include <QTemporaryDir>
 #include <QUuid>
@@ -237,6 +238,70 @@ private slots:
                  QStringLiteral("/home/user/cred.json"));
         // 空输入返回空
         QCOMPARE(editor.toLocalFilePath(QString()), QString());
+    }
+
+    /// 目标：外部重命名同步当前编辑配置的显示名称，且不标记 dirty、不触发自动保存
+    void syncDisplayName_updatesCurrentConfigWithoutDirtying() {
+        insertConfig(QStringLiteral("inst-ren"), QStringLiteral("旧名称"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-ren"));
+
+        QSignalSpy displaySpy(&editor, &ConfigEditorViewModel::displayNameChanged);
+        editor.syncDisplayName(QStringLiteral("inst-ren"), QStringLiteral("新名称"));
+
+        // 内存快照已同步，且不标记未保存
+        QCOMPARE(editor.displayName(), QStringLiteral("新名称"));
+        QVERIFY(!editor.hasUnsavedChanges());
+        QCOMPARE(displaySpy.count(), 1);
+
+        // 修改其他字段触发自动保存，显示名称不被旧快照覆盖
+        editor.setHostname(QStringLiteral("new-host"));
+        QVERIFY(editor.hasUnsavedChanges());
+        QTest::qWait(kWaitForAutoSaveMs);
+
+        const auto loaded = m_repo->load(QStringLiteral("inst-ren"));
+        QVERIFY(loaded.has_value());
+        QCOMPARE(loaded->displayName, QStringLiteral("新名称"));
+        QCOMPARE(loaded->hostname, QStringLiteral("new-host"));
+    }
+
+    /// 目标：外部重命名其他配置时，当前编辑内容保持不变
+    void syncDisplayName_ignoresNonCurrentConfig() {
+        insertConfig(QStringLiteral("inst-cur"), QStringLiteral("当前配置"));
+        insertConfig(QStringLiteral("inst-other"), QStringLiteral("其他配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-cur"));
+
+        editor.syncDisplayName(QStringLiteral("inst-other"), QStringLiteral("其他配置新名"));
+        QCOMPARE(editor.displayName(), QStringLiteral("当前配置"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-cur"));
+    }
+
+    /// 目标：discardAndClear 丢弃待保存修改，不把已删除配置重新写回仓库
+    void discardAndClear_doesNotPersistPendingEdits() {
+        insertConfig(QStringLiteral("inst-del"), QStringLiteral("待删除配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-del"));
+
+        // 修改字段，产生未保存修改
+        editor.setHostname(QStringLiteral("pending-edit"));
+        QVERIFY(editor.hasUnsavedChanges());
+
+        editor.discardAndClear();
+        QVERIFY(editor.currentInstanceName().isEmpty());
+        QVERIFY(!editor.hasUnsavedChanges());
+        QVERIFY(editor.errorMessages().isEmpty());
+
+        // 仓库中的原配置未被 pending 修改覆盖
+        const auto loaded = m_repo->load(QStringLiteral("inst-del"));
+        QVERIFY(loaded.has_value());
+        QCOMPARE(loaded->hostname, QString());
     }
 };
 

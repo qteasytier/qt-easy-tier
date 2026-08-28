@@ -329,6 +329,27 @@ public:
      */
     Q_INVOKABLE bool resetToDefaults();
 
+    /**
+     * @brief 同步外部重命名的显示名称到当前编辑快照
+     *
+     * 仅当 instanceName 是当前编辑实例时更新 m_conf.displayName；
+     * 不标记 dirty、不触发自动保存——重命名已由协调方落库。
+     * 用于防止用户重命名列表项后，后续完整保存把编辑器旧显示名覆盖回去。
+     *
+     * @param instanceName 被重命名的配置实例名
+     * @param displayName 新的显示名称
+     */
+    void syncDisplayName(const QString &instanceName, const QString &displayName);
+
+    /**
+     * @brief 丢弃当前编辑快照并清空编辑器，不刷写待保存修改
+     *
+     * 与 clear() 不同：clear() 会先 flushPendingSave() 把待保存修改写回仓库，
+     * 本方法直接丢弃。用于配置已被删除 / 外部对象失效等场景，
+     * 避免把已删除配置的编辑器快照重新保存回仓库（"复活"配置）。
+     */
+    void discardAndClear();
+
 signals:
     // ==================== 编辑器状态信号 ====================
     /// 当前编辑的配置实例名称发生变更（loadConfig / clear 时触发）

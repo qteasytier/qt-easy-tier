@@ -127,18 +127,21 @@ void NetworkPageViewModel::deleteConfig(const QString &instanceName)
     if (!m_configListModel)
         return;
 
-    const bool wasCurrent = instanceName == m_currentInstanceName;
-    // 代理到配置列表模型执行删除
-    if (!m_configListModel->deleteConfig(instanceName))
+    // 仅转发删除请求：实际删除完成的清空由 handleConfigDeleted(configDeleted 信号)处理。
+    // 运行中配置会先请求停止、待真正删除后才清空，避免删除尚未完成就清空页面选择。
+    m_configListModel->deleteConfig(instanceName);
+}
+
+void NetworkPageViewModel::handleConfigDeleted(const QString &instanceName)
+{
+    if (instanceName != m_currentInstanceName)
         return;
 
-    // 若删除的是当前选中的配置，清空编辑器和运行状态
-    if (wasCurrent) {
-        if (m_configEditorViewModel)
-            m_configEditorViewModel->clear();
-        setCurrentInstanceName({});
-        setCurrentInstanceRunning(false);
-    }
+    // 配置已真正从仓库删除：丢弃编辑快照（不刷写待保存修改，避免"复活"配置），再清空选择
+    if (m_configEditorViewModel)
+        m_configEditorViewModel->discardAndClear();
+    setCurrentInstanceName({});
+    setCurrentInstanceRunning(false);
 }
 
 void NetworkPageViewModel::renameConfig(const QString &instanceName, const QString &newDisplayName)

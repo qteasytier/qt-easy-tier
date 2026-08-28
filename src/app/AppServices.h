@@ -136,6 +136,8 @@ private:
     void wireFavoriteNodeNotifications();
     /// 连线运行时信号与槽（VpnRuntimeService ↔ AppState ↔ ConfigListModel）
     void wireRuntime();
+    /// 连线配置协调信号与槽（ConfigListModel ↔ ConfigEditorViewModel / NetworkPageViewModel）
+    void wireConfigCoordination();
     /// daemon 断开时尝试确保系统服务已注册并启动（每次应用生命周期最多一次）
     void ensureDaemonServiceOnce();
 

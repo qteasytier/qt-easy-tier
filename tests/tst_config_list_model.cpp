@@ -650,6 +650,69 @@ private slots:
         QCOMPARE(spy.takeFirst().at(0).toString(), instanceName);
         QCOMPARE(model.rowCount(), 1);
     }
+
+    /// 目标：重命名成功后发射 configRenamed（供协调方同步编辑器共享快照，避免完整保存覆盖）
+    void renameConfig_emitsConfigRenamed() {
+        insertConfig(QStringLiteral("inst-ren"), QStringLiteral("旧名称"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        QSignalSpy spy(&model, &ConfigListModel::configRenamed);
+        QVERIFY(model.renameConfig(QStringLiteral("inst-ren"), QStringLiteral("  新名称  ")));
+        QCOMPARE(spy.count(), 1);
+        // 信号携带 trim 后的显示名称
+        QCOMPARE(spy.first().at(0).toString(), QStringLiteral("inst-ren"));
+        QCOMPARE(spy.first().at(1).toString(), QStringLiteral("新名称"));
+    }
+
+    /// 目标：删除运行中配置时，页面选择在真正删除完成（configDeleted）前保持不变
+    void runningConfigDelete_keepsSelectionUntilDeleted() {
+        insertConfig(QStringLiteral("inst-page"), QStringLiteral("页面配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        // 选中配置并模拟运行中
+        vm.selectConfig(QStringLiteral("inst-page"));
+        model.onRunningStateChanged(QStringLiteral("inst-page"), ConfigRunState::Running);
+
+        // 发起删除：请求被接受，但页面选择不应被清空
+        QVERIFY(model.deleteConfig(QStringLiteral("inst-page")));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-page"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-page"));
+
+        // 停止完成 → 真正删除 → configDeleted → 页面清空选择
+        QSignalSpy deletedSpy(&model, &ConfigListModel::configDeleted);
+        model.onRunningStateChanged(QStringLiteral("inst-page"), ConfigRunState::Stopped);
+        QCOMPARE(deletedSpy.count(), 1);
+
+        vm.handleConfigDeleted(QStringLiteral("inst-page"));
+        QVERIFY(vm.currentInstanceName().isEmpty());
+        QVERIFY(!vm.currentInstanceRunning());
+        QVERIFY(editor.currentInstanceName().isEmpty());
+    }
+
+    /// 目标：删除其他配置不影响当前选择
+    void deleteOtherConfig_keepsCurrentSelection() {
+        insertConfig(QStringLiteral("inst-cur"), QStringLiteral("当前配置"));
+        insertConfig(QStringLiteral("inst-other"), QStringLiteral("其他配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        vm.selectConfig(QStringLiteral("inst-cur"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-cur"));
+
+        QVERIFY(model.deleteConfig(QStringLiteral("inst-other")));
+        vm.handleConfigDeleted(QStringLiteral("inst-other"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-cur"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-cur"));
+    }
 };
 
 QTEST_MAIN(TestConfigListModel)

@@ -130,6 +130,7 @@ AppServices::AppServices(const QSqlDatabase &database,
         // 连线日志和运行时信号
         wireLogging();
         wireRuntime();
+        wireConfigCoordination();
     }
 
     if (daemonConnectionMode == ConnectToDaemon)
@@ -268,6 +269,22 @@ void AppServices::wireRuntime()
                          if (!instanceNames.contains(current))
                              m_networkPageViewModel->clearSelection();
                      });
+}
+
+void AppServices::wireConfigCoordination()
+{
+    if (!m_configListModel || !m_configEditorViewModel || !m_networkPageViewModel)
+        return;
+
+    // 配置重命名成功后：同步编辑器共享快照的显示名称，
+    // 避免用户随后修改其他字段触发完整保存时，把旧显示名覆盖回去。
+    QObject::connect(m_configListModel, &ConfigListModel::configRenamed,
+                     m_configEditorViewModel, &ConfigEditorViewModel::syncDisplayName);
+
+    // 配置真正从仓库删除成功后（含运行中先停止后删除）：再清空页面选择。
+    // 编辑器使用"丢弃式清空"，不刷写待保存修改，避免把已删除配置重新保存回仓库。
+    QObject::connect(m_configListModel, &ConfigListModel::configDeleted,
+                     m_networkPageViewModel, &NetworkPageViewModel::handleConfigDeleted);
 }
 
 void AppServices::ensureDaemonServiceOnce()

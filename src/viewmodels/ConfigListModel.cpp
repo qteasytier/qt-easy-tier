@@ -199,6 +199,8 @@ bool ConfigListModel::renameConfig(const QString &instanceName, const QString &n
     }
 
     refresh();
+    // 通知协调方同步编辑器等共享快照的显示名称，避免后续完整保存覆盖重命名
+    emit configRenamed(instanceName, newDisplayName.trimmed());
     return true;
 }
 

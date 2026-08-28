@@ -92,6 +92,8 @@ signals:
     void configDeleted(const QString &instanceName);
     /// 本地配置已创建或导入成功，通知外部同步本地 controller（保持与数据库配置集合一致）
     void configCreated(const QString &instanceName);
+    /// 配置重命名成功，通知协调方同步共享快照的显示名称（避免后续完整保存覆盖重命名）
+    void configRenamed(const QString &instanceName, const QString &displayName);
 
 public slots:
     /**
