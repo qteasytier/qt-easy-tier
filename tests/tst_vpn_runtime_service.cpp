@@ -20,8 +20,8 @@
 #include <QUuid>
 #include <QFile>
 
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
 #include "core/service/FrameProtocol.h"

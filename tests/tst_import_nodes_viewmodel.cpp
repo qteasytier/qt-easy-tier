@@ -11,8 +11,8 @@
 #include <memory>
 
 #include "app_service/favorite/FavoriteNodeImportExportService.h"
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/FavoriteNodeRepository.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
+#include "core/sqlite_repository/FavoriteNodeRepository.h"
 #include "viewmodels/FavoriteNodeViewModel.h"
 #include "viewmodels/nodes/ImportNodesViewModel.h"
 

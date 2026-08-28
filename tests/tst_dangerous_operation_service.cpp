@@ -17,10 +17,10 @@
 #include <QFile>
 
 #include "app_service/dangerous/DangerousOperationService.h"
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/FavoriteNodeRepository.h"
-#include "core/repository/LogRepository.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
+#include "core/sqlite_repository/FavoriteNodeRepository.h"
+#include "core/sqlite_repository/LogRepository.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
 #include "core/service/FrameProtocol.h"

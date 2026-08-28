@@ -15,8 +15,8 @@
 #include <QFileInfo>
 #include <QSqlQuery>
 #include <QUuid>
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 
 class TestSqliteRepository : public QObject {
     Q_OBJECT

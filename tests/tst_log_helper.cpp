@@ -6,11 +6,11 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include "core/repository/DatabaseConnection.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
 #include "app_service/logging/RepositoryLogSink.h"
 #include "core/log/LogDispatcher.h"
 #include "core/log/LogSink.h"
-#include "core/repository/LogRepository.h"
+#include "core/sqlite_repository/LogRepository.h"
 #include "core/log/LogHelper.h"
 #include "viewmodels/SettingsViewModel.h"
 

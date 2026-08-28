@@ -2,7 +2,7 @@
 #include "ConfigCommandService.h"
 
 #include "core/config/NetworkConf.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 
 ConfigCommandService::ConfigCommandService(NetworkConfigRepository *repository, QObject *parent)
     : QObject(parent)

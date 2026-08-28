@@ -21,7 +21,7 @@
 #include "app/AppLaunchManager.h"
 #include "app/AppServices.h"
 #include "app/QmlSingletonRegistrar.h"
-#include "core/repository/DatabaseConnection.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
 #include "core/system_tray/SystemTrayManager.h"
 #include "core/log/LogHelper.h"
 

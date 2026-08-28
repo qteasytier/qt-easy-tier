@@ -10,7 +10,7 @@
 #include <QUrl>
 
 #include "app/AppServices.h"
-#include "core/repository/DatabaseConnection.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
 #include "core/system_tray/TrayMessageDispatcher.h"
 #include "core/system_tray/TrayMessageSink.h"
 #include "viewmodels/AppState.h"

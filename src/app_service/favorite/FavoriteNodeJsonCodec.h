@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include "core/repository/FavoriteNode.h"
+#include "core/sqlite_repository/FavoriteNode.h"
 
 #include <QByteArray>
 #include <QList>

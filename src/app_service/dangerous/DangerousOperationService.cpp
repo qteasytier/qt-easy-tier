@@ -11,9 +11,9 @@
  */
 #include "DangerousOperationService.h"
 
-#include "core/repository/FavoriteNodeRepository.h"
-#include "core/repository/LogRepository.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/FavoriteNodeRepository.h"
+#include "core/sqlite_repository/LogRepository.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 #include "platform/AutoStartHelper.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "core/log/LogHelper.h"

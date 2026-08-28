@@ -16,8 +16,8 @@
 #include <memory>
 
 #include "app_service/config/ConfigCommandService.h"
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/DatabaseConnection.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 #include "viewmodels/ConfigEditorViewModel.h"
 #include "core/config/NetworkConf.h"
 

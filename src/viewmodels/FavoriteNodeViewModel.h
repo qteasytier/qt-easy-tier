@@ -9,7 +9,7 @@
 #include <QAbstractListModel>
 #include <QList>
 #include <QSqlDatabase>
-#include "core/repository/FavoriteNode.h"
+#include "core/sqlite_repository/FavoriteNode.h"
 
 class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;

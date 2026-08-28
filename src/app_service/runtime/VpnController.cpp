@@ -10,7 +10,7 @@
 #include "VpnController.h"
 #include "core/config/ConfigPayloadBuilder.h"
 #include "core/config/NetworkConfToml.h"
-#include "core/repository/NetworkConfigRepository.h"
+#include "core/sqlite_repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
 #include "core/log/LogHelper.h"
 #include <QFutureWatcher>

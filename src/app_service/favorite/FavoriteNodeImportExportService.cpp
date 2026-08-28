@@ -4,7 +4,7 @@
  */
 #include "FavoriteNodeImportExportService.h"
 
-#include "core/repository/FavoriteNodeRepository.h"
+#include "core/sqlite_repository/FavoriteNodeRepository.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>

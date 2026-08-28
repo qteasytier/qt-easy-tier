@@ -1,7 +1,7 @@
 /** @file RepositoryLogSink.cpp @brief RepositoryLogSink 实现 */
 #include "RepositoryLogSink.h"
 
-#include "core/repository/LogRepository.h"
+#include "core/sqlite_repository/LogRepository.h"
 
 RepositoryLogSink::RepositoryLogSink(LogRepository *repository, QObject *parent)
     : QObject(parent)

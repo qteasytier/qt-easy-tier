@@ -31,7 +31,7 @@ add_core_test(tst_config_url_codec tst_config_url_codec.cpp)
 target_link_libraries(tst_config_url_codec PRIVATE qtet_config)
 
 add_core_test(tst_sqlite_repository tst_sqlite_repository.cpp)
-target_link_libraries(tst_sqlite_repository PRIVATE qtet_repository)
+target_link_libraries(tst_sqlite_repository PRIVATE qtet_sqlite_repository)
 
 add_core_test(tst_config_list_model tst_config_list_model.cpp)
 target_link_libraries(tst_config_list_model PRIVATE qtet_application)
@@ -40,7 +40,7 @@ add_core_test(tst_config_editor_viewmodel tst_config_editor_viewmodel.cpp)
 target_link_libraries(tst_config_editor_viewmodel PRIVATE qtet_application)
 
 add_core_test(tst_favorite_node_repository tst_favorite_node_repository.cpp)
-target_link_libraries(tst_favorite_node_repository PRIVATE qtet_repository)
+target_link_libraries(tst_favorite_node_repository PRIVATE qtet_sqlite_repository)
 
 add_core_test(tst_daemon_client tst_daemon_client.cpp)
 # 同时覆盖 DaemonClient（qtet_service）与 BackendStatusViewModel（qtet_application）的历史混合测试
@@ -86,10 +86,10 @@ add_core_test(tst_dangerous_operation_service tst_dangerous_operation_service.cp
 target_link_libraries(tst_dangerous_operation_service PRIVATE qtet_application)
 
 add_core_test(tst_log_repository tst_log_repository.cpp)
-target_link_libraries(tst_log_repository PRIVATE qtet_repository)
+target_link_libraries(tst_log_repository PRIVATE qtet_sqlite_repository)
 
 add_core_test(tst_log_helper tst_log_helper.cpp)
-target_link_libraries(tst_log_helper PRIVATE qtet_application qtet_repository qtet_log)
+target_link_libraries(tst_log_helper PRIVATE qtet_application qtet_sqlite_repository qtet_log)
 
 add_core_test(tst_tray_message_dispatcher tst_tray_message_dispatcher.cpp)
 target_link_libraries(tst_tray_message_dispatcher PRIVATE qtet_system_tray)

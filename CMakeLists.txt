@@ -63,7 +63,7 @@ endfunction()
 
 add_subdirectory(src/core/log)
 add_subdirectory(src/core/config)
-add_subdirectory(src/core/repository)
+add_subdirectory(src/core/sqlite_repository)
 add_subdirectory(src/core/service)
 add_subdirectory(src/platform)
 add_subdirectory(src/core/system_tray)

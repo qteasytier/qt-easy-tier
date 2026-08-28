@@ -4,7 +4,7 @@
  */
 #include "FavoriteNodeViewModel.h"
 #include "app_service/favorite/FavoriteNodeImportExportService.h"
-#include "core/repository/FavoriteNodeRepository.h"
+#include "core/sqlite_repository/FavoriteNodeRepository.h"
 
 #include <QUrl>
 

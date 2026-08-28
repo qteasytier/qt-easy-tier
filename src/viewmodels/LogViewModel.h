@@ -8,7 +8,7 @@
 #pragma once
 #include <QAbstractListModel>
 #include <QList>
-#include "core/repository/LogRepository.h"
+#include "core/sqlite_repository/LogRepository.h"
 
 class LogRepository;
 
