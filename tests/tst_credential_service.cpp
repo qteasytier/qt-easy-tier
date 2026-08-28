@@ -25,13 +25,13 @@
 #include <QFile>
 #include <QSignalSpy>
 
-#include "core/daemon_service/DaemonClient.h"
-#include "core/daemon_service/DaemonApi.h"
-#include "core/daemon_service/FrameProtocol.h"
-#include "core/daemon_service/IpcMessage.h"
-#include "app_service/credential/CredentialListModel.h"
-#include "app_service/credential/CredentialService.h"
-#include "app_service/viewmodels/credential/CredentialViewModel.h"
+#include "daemon_service/DaemonClient.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/FrameProtocol.h"
+#include "daemon_service/IpcMessage.h"
+#include "core/credential/CredentialListModel.h"
+#include "core/credential/CredentialService.h"
+#include "core/viewmodels/credential/CredentialViewModel.h"
 
 class TestCredentialService : public QObject {
     Q_OBJECT

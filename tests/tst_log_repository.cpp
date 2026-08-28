@@ -6,9 +6,9 @@
 #include <QDir>
 #include <QTemporaryDir>
 #include <memory>
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/log/LogTypes.h"
-#include "core/sqlite_repository/LogRepository.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "log/LogTypes.h"
+#include "sqlite_repository/LogRepository.h"
 
 static_assert(static_cast<int>(LogLevel::Info) == 0);
 static_assert(static_cast<int>(LogLevel::Warning) == 1);

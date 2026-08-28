@@ -9,7 +9,7 @@
  * - 无效私钥拒绝：空串 / 长度不足 / 非法 Base64 / 31 字节等
  */
 #include <QTest>
-#include "core/config/X25519KeyHelper.h"
+#include "config/X25519KeyHelper.h"
 
 class TestX25519KeyHelper : public QObject
 {

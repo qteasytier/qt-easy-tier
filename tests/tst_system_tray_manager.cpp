@@ -1,9 +1,9 @@
 #include <QTest>
 #include <QWindow>
 
-#include "core/config/ConfigRunState.h"
-#include "core/daemon_service/DaemonClient.h"
-#include "core/system_tray/SystemTrayManager.h"
+#include "config/ConfigRunState.h"
+#include "daemon_service/DaemonClient.h"
+#include "system_tray/SystemTrayManager.h"
 
 class TestSystemTrayManager : public QObject {
     Q_OBJECT

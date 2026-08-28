@@ -9,7 +9,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
-#include "app_service/settings/SettingsStore.h"
+#include "core/settings/SettingsStore.h"
 
 class TestSettingsStore : public QObject {
     Q_OBJECT

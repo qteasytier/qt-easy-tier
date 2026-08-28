@@ -3,7 +3,7 @@
  * @brief daemon 系统服务注册辅助工具类实现
  */
 #include "DaemonRegisterHelper.h"
-#include "core/log/LogHelper.h"
+#include "log/LogHelper.h"
 
 #include <QCoreApplication>
 #include <QDir>

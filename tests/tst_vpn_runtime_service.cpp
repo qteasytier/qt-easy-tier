@@ -20,14 +20,14 @@
 #include <QUuid>
 #include <QFile>
 
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "core/daemon_service/DaemonApi.h"
-#include "core/daemon_service/DaemonClient.h"
-#include "core/daemon_service/FrameProtocol.h"
-#include "core/daemon_service/IpcMessage.h"
-#include "app_service/runtime/StatusMonitor.h"
-#include "app_service/runtime/VpnRuntimeService.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "daemon_service/FrameProtocol.h"
+#include "daemon_service/IpcMessage.h"
+#include "core/runtime/StatusMonitor.h"
+#include "core/runtime/VpnRuntimeService.h"
 
 /// 内存模拟 daemon：响应 run/delete/list 三类请求
 /// delete_network_instance 成功后会同步移除对应实例（与真实 daemon 行为一致）

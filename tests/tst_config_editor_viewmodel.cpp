@@ -15,11 +15,11 @@
 #include <QUuid>
 #include <memory>
 
-#include "app_service/config/ConfigCommandService.h"
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "app_service/viewmodels/ConfigEditorViewModel.h"
-#include "core/config/NetworkConf.h"
+#include "core/config/ConfigCommandService.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "core/viewmodels/ConfigEditorViewModel.h"
+#include "config/NetworkConf.h"
 
 namespace {
 /// 防抖间隔为 300ms，等待时留出余量保证定时器必然触发

@@ -12,10 +12,10 @@
 #include <QTest>
 #include <QJsonObject>
 #include <QByteArray>
-#include "core/config/NetworkConf.h"
-#include "core/config/NetworkConfToml.h"
-#include "core/config/ConfigPayloadBuilder.h"
-#include "core/config/X25519KeyHelper.h"
+#include "config/NetworkConf.h"
+#include "config/NetworkConfToml.h"
+#include "config/ConfigPayloadBuilder.h"
+#include "config/X25519KeyHelper.h"
 
 class TestNetworkConf : public QObject
 {

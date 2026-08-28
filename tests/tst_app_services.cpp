@@ -10,11 +10,11 @@
 #include <QUrl>
 
 #include "app/AppServices.h"
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/system_tray/TrayMessageDispatcher.h"
-#include "core/system_tray/TrayMessageSink.h"
-#include "app_service/viewmodels/AppState.h"
-#include "app_service/viewmodels/FavoriteNodeViewModel.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "system_tray/TrayMessageDispatcher.h"
+#include "system_tray/TrayMessageSink.h"
+#include "core/viewmodels/AppState.h"
+#include "core/viewmodels/FavoriteNodeViewModel.h"
 
 class RecordingTrayMessageSink final : public TrayMessageSink {
 public:

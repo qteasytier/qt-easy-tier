@@ -16,20 +16,20 @@
 #include <QUuid>
 #include <QFile>
 
-#include "app_service/settings/DangerousOperationService.h"
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/sqlite_repository/FavoriteNodeRepository.h"
-#include "core/sqlite_repository/LogRepository.h"
-#include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "core/daemon_service/DaemonApi.h"
-#include "core/daemon_service/DaemonClient.h"
-#include "core/daemon_service/FrameProtocol.h"
-#include "core/daemon_service/IpcMessage.h"
+#include "core/settings/DangerousOperationService.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/FavoriteNodeRepository.h"
+#include "sqlite_repository/LogRepository.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "daemon_service/FrameProtocol.h"
+#include "daemon_service/IpcMessage.h"
 #include "platform/AutoStartHelper.h"
 #include "platform/DaemonRegisterHelper.h"
-#include "app_service/runtime/VpnRuntimeService.h"
+#include "core/runtime/VpnRuntimeService.h"
 
-#include "app_service/runtime/StatusMonitor.h"
+#include "core/runtime/StatusMonitor.h"
 
 
 /// 内存模拟 daemon：list_instances 返回固定实例列表，delete_network_instance 总是失败

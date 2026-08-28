@@ -23,12 +23,12 @@
 #include <QTest>
 #include <QUuid>
 
-#include "core/daemon_service/DaemonApi.h"
-#include "core/daemon_service/DaemonClient.h"
-#include "core/daemon_service/FrameProtocol.h"
-#include "core/daemon_service/IpcMessage.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "daemon_service/FrameProtocol.h"
+#include "daemon_service/IpcMessage.h"
 #include "platform/AutoStartHelper.h"
-#include "app_service/viewmodels/SettingsViewModel.h"
+#include "core/viewmodels/SettingsViewModel.h"
 
 class TestSettingsViewModel : public QObject {
     Q_OBJECT

@@ -12,7 +12,7 @@
 #include <QSignalSpy>
 #include <QVariantList>
 
-#include "app_service/credential/CredentialListModel.h"
+#include "core/credential/CredentialListModel.h"
 
 class TestCredentialListModel : public QObject {
     Q_OBJECT

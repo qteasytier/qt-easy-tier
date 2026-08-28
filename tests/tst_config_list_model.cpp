@@ -19,22 +19,22 @@
 #include <QJsonObject>
 #include <memory>
 
-#include "app_service/config/ConfigCommandService.h"
-#include "app_service/config/ConfigImportExportService.h"
-#include "app_service/runtime/NodeInfoModel.h"
-#include "app_service/runtime/RuntimeLogModel.h"
-#include "app_service/runtime/VpnRuntimeService.h"
-#include "core/config/ConfigRunState.h"
-#include "core/sqlite_repository/DatabaseConnection.h"
-#include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "app_service/viewmodels/ConfigListModel.h"
-#include "app_service/viewmodels/ConfigEditorViewModel.h"
-#include "app_service/viewmodels/runtime/NetworkPageViewModel.h"
-#include "core/daemon_service/DaemonApi.h"
-#include "core/daemon_service/DaemonClient.h"
-#include "app_service/runtime/StatusMonitor.h"
-#include "app_service/runtime/VpnController.h"
-#include "core/config/NetworkConf.h"
+#include "core/config/ConfigCommandService.h"
+#include "core/config/ConfigImportExportService.h"
+#include "core/runtime/NodeInfoModel.h"
+#include "core/runtime/RuntimeLogModel.h"
+#include "core/runtime/VpnRuntimeService.h"
+#include "config/ConfigRunState.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "core/viewmodels/ConfigListModel.h"
+#include "core/viewmodels/ConfigEditorViewModel.h"
+#include "core/viewmodels/runtime/NetworkPageViewModel.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "core/runtime/StatusMonitor.h"
+#include "core/runtime/VpnController.h"
+#include "config/NetworkConf.h"
 
 static_assert(configRunStateCanDelete(ConfigRunState::Stopped));
 static_assert(configRunStateCanDelete(ConfigRunState::Error));
