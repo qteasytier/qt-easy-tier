@@ -46,6 +46,9 @@ QVariant ConfigListModel::data(const QModelIndex &index, int role) const
         // RunningRole: 从完整状态缓存中查询 Running
         case RunningRole:
             return configRunStateIsRunning(m_instanceStates.value(cfg.instanceName(), ConfigRunState::Stopped));
+        // RunStateRole: 暴露完整运行状态（0=Stopped,1=Starting,2=Running,3=Stopping,4=Error）
+        case RunStateRole:
+            return static_cast<int>(m_instanceStates.value(cfg.instanceName(), ConfigRunState::Stopped));
         case UpdatedAtRole:    return QVariant{};
         case IsExternalRole:   return false;
         case Qt::DisplayRole:  return cfg.displayName;
@@ -63,6 +66,7 @@ QVariant ConfigListModel::data(const QModelIndex &index, int role) const
     case DisplayNameRole:  return name;
     case HostnameRole:     return QVariant{};
     case RunningRole:      return true;
+    case RunStateRole:     return static_cast<int>(ConfigRunState::Running);
     case UpdatedAtRole:    return QVariant{};
     case IsExternalRole:   return true;
     case Qt::DisplayRole:  return name;
@@ -77,6 +81,7 @@ QHash<int, QByteArray> ConfigListModel::roleNames() const
         { DisplayNameRole,  "displayName" },
         { HostnameRole,     "hostname" },
         { RunningRole,      "running"  },
+        { RunStateRole,     "runState" },
         { UpdatedAtRole,    "updatedAt" },
         { IsExternalRole,   "isExternal" }
     };
@@ -116,11 +121,11 @@ void ConfigListModel::onRunningStateChanged(const QString &instanceName, ConfigR
         return;
     }
 
-    // 通知 QML 刷新对应行的 RunningRole
+    // 通知 QML 刷新对应行的 RunningRole 与 RunStateRole
     for (int i = 0; i < m_configs.size(); ++i) {
         if (m_configs.at(i).instanceName() == instanceName) {
             const QModelIndex idx = index(i);
-            emit dataChanged(idx, idx, {RunningRole});
+            emit dataChanged(idx, idx, {RunningRole, RunStateRole});
             return;
         }
     }
@@ -149,6 +154,14 @@ bool ConfigListModel::isLocalInstance(const QString &instanceName) const
             return true;
     }
     return false;
+}
+
+ConfigRunState ConfigListModel::instanceState(const QString &instanceName) const
+{
+    // 外部实例必然处于运行中（由 daemon 心跳发现）
+    if (m_externalInstanceList.contains(instanceName))
+        return ConfigRunState::Running;
+    return m_instanceStates.value(instanceName, ConfigRunState::Stopped);
 }
 
 bool ConfigListModel::deleteConfig(const QString &instanceName)

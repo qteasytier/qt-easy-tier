@@ -31,6 +31,7 @@ public:
         DisplayNameRole,                      ///< 用户可见的配置显示名称
         HostnameRole,                         ///< 目标主机名 / IP
         RunningRole,                          ///< 该配置当前是否正在运行
+        RunStateRole,                         ///< 完整运行状态（ConfigRunState 枚举整数值）
         UpdatedAtRole,                        ///< 最后更新时间（预留，当前返回空）
         IsExternalRole                        ///< 是否为外部实例（daemon 中存在但本地配置列表中没有）
     };
@@ -120,6 +121,9 @@ public slots:
 
     /// 查询指定实例名是否为本地配置（存在于仓库加载的配置列表中）
     Q_INVOKABLE bool isLocalInstance(const QString &instanceName) const;
+
+    /// 查询指定实例的完整运行状态（外部实例固定 Running，未知实例返回 Stopped）
+    ConfigRunState instanceState(const QString &instanceName) const;
 
 private:
     /// 从数据库删除指定配置并通知外部

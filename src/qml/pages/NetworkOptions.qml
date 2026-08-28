@@ -35,6 +35,11 @@ ColumnLayout {
     Layout.fillHeight: true
     spacing: 0
 
+    // 启动/停止过渡期间禁用整个编辑器，避免在异步收敛阶段修改配置
+    enabled: !NetworkPageViewModel.currentInstanceBusy
+    opacity: enabled ? 1.0 : 0.6
+    Behavior on opacity { NumberAnimation { duration: 150 } }
+
     /* 绑定到 ViewModel 的当前实例名，变化时自动重载列表数据 */
     property string currentInstance: ConfigEditorViewModel.currentInstanceName
     property bool networkSecretVisible: false

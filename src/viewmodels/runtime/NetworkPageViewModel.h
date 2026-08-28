@@ -13,6 +13,8 @@
 #include <QObject>
 #include <QString>
 
+#include "core/config/ConfigRunState.h"
+
 class BackendStatusViewModel;
 class ConfigEditorViewModel;
 class ConfigListModel;
@@ -28,6 +30,10 @@ class NetworkPageViewModel : public QObject
     Q_PROPERTY(QString currentInstanceName READ currentInstanceName NOTIFY currentInstanceNameChanged FINAL)
     /// 当前选中的配置是否正在运行
     Q_PROPERTY(bool currentInstanceRunning READ currentInstanceRunning NOTIFY currentInstanceRunningChanged FINAL)
+    /// 当前选中实例的完整运行状态（ConfigRunState 枚举整数值：0=Stopped,1=Starting,2=Running,3=Stopping,4=Error）
+    Q_PROPERTY(int currentInstanceRunState READ currentInstanceRunState NOTIFY currentInstanceRunStateChanged FINAL)
+    /// 当前选中实例是否处于启动/停止过渡中（由完整状态派生，用于禁用编辑与重复操作）
+    Q_PROPERTY(bool currentInstanceBusy READ currentInstanceBusy NOTIFY currentInstanceRunStateChanged FINAL)
     /// 当前选中实例是否启用安全模式（凭据管理/签发等能力的前置条件）
     Q_PROPERTY(bool currentInstanceSecureMode READ currentInstanceSecureMode NOTIFY currentInstanceSecureModeChanged FINAL)
     /// 是否展示编辑器界面（无选中实例 或 选中实例未运行）
@@ -52,6 +58,8 @@ public:
 
     QString currentInstanceName() const;
     bool currentInstanceRunning() const;
+    int currentInstanceRunState() const;
+    bool currentInstanceBusy() const;
     bool currentInstanceSecureMode() const;
     bool showEditor() const;
     bool showRuntimeStatus() const;
@@ -87,6 +95,8 @@ signals:
     void currentInstanceNameChanged();
     /// 当前选中实例运行状态变化时发射
     void currentInstanceRunningChanged();
+    /// 当前选中实例完整运行状态变化时发射
+    void currentInstanceRunStateChanged();
     /// 当前选中实例安全模式开关变化时发射
     void currentInstanceSecureModeChanged();
     /// 编辑器/运行时页面切换时发射
@@ -104,5 +114,6 @@ private:
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;///< 后端状态（非所有权）
     QString m_currentInstanceName;                             ///< 当前选中实例名缓存
     bool m_currentInstanceRunning = false;                     ///< 当前实例运行状态缓存
+    ConfigRunState m_currentInstanceRunState = ConfigRunState::Stopped; ///< 当前实例完整运行状态
     bool m_currentInstanceSecureMode = false;                  ///< 当前实例安全模式开关缓存
 };

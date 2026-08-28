@@ -713,6 +713,81 @@ private slots:
         QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-cur"));
         QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-cur"));
     }
+
+    /// 目标：RunStateRole 暴露完整运行状态（Starting/Running/Stopping/Error），区别于 bool running
+    void runStateRoleReflectsFullState() {
+        insertConfig(QStringLiteral("inst-state"), QStringLiteral("状态配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        // 初始 Stopped
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Stopped));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Starting：runState 反映完整状态，running 仍为 false
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Starting);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Starting));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Running
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Running);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Running));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), true);
+
+        // Stopping
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Stopping);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Stopping));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Error
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Error);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Error));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+    }
+
+    /// 目标：NetworkPageViewModel 的 currentInstanceRunState/currentInstanceBusy 由完整状态派生
+    void networkPageViewModelRunStateDerivation() {
+        insertConfig(QStringLiteral("inst-state"), QStringLiteral("状态配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        vm.selectConfig(QStringLiteral("inst-state"));
+
+        // 初始 Stopped：不忙
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Stopped));
+        QVERIFY(!vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
+
+        // 启动中：忙，不可编辑/重复操作（模拟 configStateChanged 后 model 缓存更新 + 页面刷新）
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Starting);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Starting));
+        QVERIFY(vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
+
+        // 运行中：不忙
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Running);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Running));
+        QVERIFY(!vm.currentInstanceBusy());
+        QVERIFY(vm.currentInstanceRunning());
+
+        // 停止中：忙
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Stopping);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Stopping));
+        QVERIFY(vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
+    }
 };
 
 QTEST_MAIN(TestConfigListModel)

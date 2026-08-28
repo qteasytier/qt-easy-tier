@@ -37,13 +37,8 @@ NetworkPageViewModel::NetworkPageViewModel(ConfigListModel *configListModel,
         connect(m_configEditorViewModel, &ConfigEditorViewModel::secureModeEnabledChanged,
                 this, &NetworkPageViewModel::refreshSecureMode);
     }
-
-    // 监听 VPN 运行服务发出的配置状态变更信号，自动刷新当前实例的运行状态
-    if (m_vpnRuntimeService)
-        connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
-                this, [this](const QString &, ConfigRunState) {
-                    refreshRunning();
-                });
+    // 注意：configStateChanged → refreshRunning 的连接统一由 AppServices 装配，
+    // 且保证 ConfigListModel 先更新状态缓存、本 ViewModel 再刷新（避免读到旧状态）。
 }
 
 QString NetworkPageViewModel::currentInstanceName() const
@@ -54,6 +49,17 @@ QString NetworkPageViewModel::currentInstanceName() const
 bool NetworkPageViewModel::currentInstanceRunning() const
 {
     return m_currentInstanceRunning;
+}
+
+int NetworkPageViewModel::currentInstanceRunState() const
+{
+    return static_cast<int>(m_currentInstanceRunState);
+}
+
+bool NetworkPageViewModel::currentInstanceBusy() const
+{
+    // 纯派生属性：启动/停止过渡期间禁止编辑与重复启停
+    return configRunStateIsBusy(m_currentInstanceRunState);
 }
 
 bool NetworkPageViewModel::currentInstanceSecureMode() const
@@ -84,12 +90,20 @@ bool NetworkPageViewModel::showRuntimeStatus() const
 
 void NetworkPageViewModel::refreshRunning()
 {
-    // 通过应用服务层查询当前实例运行状态
-    const bool running = m_vpnRuntimeService && !m_currentInstanceName.isEmpty()
-        && m_vpnRuntimeService->isRunning(m_currentInstanceName);
-    setCurrentInstanceRunning(running);
+    // 从配置列表模型读取当前实例的完整运行状态（该缓存由 configStateChanged 信号维护）
+    const ConfigRunState state = m_configListModel
+        ? m_configListModel->instanceState(m_currentInstanceName)
+        : ConfigRunState::Stopped;
+
+    // 更新完整状态缓存并发射变化信号
+    if (m_currentInstanceRunState != state) {
+        m_currentInstanceRunState = state;
+        emit currentInstanceRunStateChanged();
+    }
+
+    setCurrentInstanceRunning(state == ConfigRunState::Running);
     // 若正在运行，将当前实例名同步到 VPN 运行服务的 activeInstanceName 属性
-    if (running && m_vpnRuntimeService)
+    if (state == ConfigRunState::Running && m_vpnRuntimeService)
         m_vpnRuntimeService->setActiveInstanceName(m_currentInstanceName);
 }
 

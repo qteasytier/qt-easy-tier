@@ -215,7 +215,7 @@ void AppServices::wireFavoriteNodeNotifications()
 
 void AppServices::wireRuntime()
 {
-    if (!m_vpnRuntimeService || !m_appState || !m_configListModel)
+    if (!m_vpnRuntimeService || !m_appState || !m_configListModel || !m_networkPageViewModel)
         return;
 
     // 设置页的服务节点隐藏开关只影响运行状态 UI 展示，作用于 VPN 运行服务的节点信息模型。
@@ -253,6 +253,10 @@ void AppServices::wireRuntime()
     // VPN 状态变更 → 同步更新配置列表的显示状态
     QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_configListModel, &ConfigListModel::onRunningStateChanged);
+    // VPN 状态变更 → 页面 ViewModel 刷新当前实例状态。
+    // 连接顺序保证在 onRunningStateChanged 之后，确保读取到已更新的状态缓存。
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
+                     m_networkPageViewModel, &NetworkPageViewModel::refreshRunning);
     // 外部实例集合变化 → 配置列表末尾追加/移除外部实例条目
     QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::externalInstancesChanged,
                      m_configListModel, &ConfigListModel::onExternalInstancesChanged);
