@@ -106,7 +106,8 @@ def git_branch_head(base_dir, branch):
 
     仅调用本地 git，不产生网络请求；当待同步的 tag 在本地不存在时，
     以该分支最新提交作为 target_commitish，让 CNB 在此提交上新建 tag，
-    而不是因缺少提交目标而失败。
+    而不是因缺少提交目标而失败。v* 分支发布流程中该分支即当前签出的
+    vX.Y.Z 分支本身（其最新提交正是要发布的版本），而非 master。
     """
     cmd = ["git", "-C", base_dir, "rev-parse", "--verify", "--quiet",
            "refs/remotes/origin/%s^{commit}" % branch]
@@ -372,10 +373,13 @@ def main():
                         help="等待超时分钟数，默认 120（配合 --wait-tag 使用）")
     parser.add_argument("--wait-interval", type=float, default=2,
                         help="轮询间隔分钟数，默认 2（配合 --wait-tag 使用）")
-    parser.add_argument("--cnb-branch-fallback", default="master",
+    default_fallback = os.environ.get("CNB_BRANCH") or "master"
+    parser.add_argument("--cnb-branch-fallback", default=default_fallback,
                         help="target_commitish 兜底分支：本地不存在待同步 tag 时，"
-                             "以该分支最新提交作为目标（CNB 在其上新建 tag），"
-                             "默认 master")
+                             "以该分支最新提交作为目标（CNB 在其上新建 tag）。"
+                             "默认取当前签出的分支（环境变量 CNB_BRANCH，"
+                             "v* 分支发布流程即为 vX.Y.Z 分支本身），"
+                             "无环境变量时回退 master")
     parser.add_argument("--dry-run", action="store_true", help="仅对比版本，不下载不上传")
     args = parser.parse_args()
 
