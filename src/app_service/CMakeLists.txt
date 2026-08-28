@@ -1,4 +1,5 @@
 add_qtet_library(qtet_application
+    # ---- 应用业务服务（src/app_service） ----
     config/ConfigCommandService.cpp
     config/ConfigCommandService.h
     config/ConfigImportExportService.cpp
@@ -24,5 +25,26 @@ add_qtet_library(qtet_application
     settings/SettingsStore.h
     settings/UpdateCheckService.cpp
     settings/UpdateCheckService.h
+    # ---- 暴露给 QML 的 ViewModel / Model（原 src/viewmodels） ----
+    ../viewmodels/AppState.cpp
+    ../viewmodels/AppState.h
+    ../viewmodels/ConfigListModel.cpp
+    ../viewmodels/ConfigListModel.h
+    ../viewmodels/ConfigEditorViewModel.cpp
+    ../viewmodels/ConfigEditorViewModel.h
+    ../viewmodels/SettingsViewModel.cpp
+    ../viewmodels/SettingsViewModel.h
+    ../viewmodels/FavoriteNodeViewModel.cpp
+    ../viewmodels/FavoriteNodeViewModel.h
+    ../viewmodels/LogViewModel.cpp
+    ../viewmodels/LogViewModel.h
+    ../viewmodels/credential/CredentialViewModel.cpp
+    ../viewmodels/credential/CredentialViewModel.h
+    ../viewmodels/nodes/ImportNodesViewModel.cpp
+    ../viewmodels/nodes/ImportNodesViewModel.h
+    ../viewmodels/runtime/BackendStatusViewModel.cpp
+    ../viewmodels/runtime/BackendStatusViewModel.h
+    ../viewmodels/runtime/NetworkPageViewModel.cpp
+    ../viewmodels/runtime/NetworkPageViewModel.h
 )
-target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network qtet_config qtet_repository qtet_service qtet_platform qtet_favorite qtet_log qtet_vpn)
+target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql qtet_config qtet_repository qtet_service qtet_platform qtet_favorite qtet_log qtet_vpn)
