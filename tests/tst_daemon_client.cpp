@@ -17,11 +17,11 @@
 #include <QJsonArray>
 #include <QUuid>
 #include <QFile>
-#include "core/service/DaemonClient.h"
-#include "core/service/DaemonApi.h"
-#include "viewmodels/runtime/BackendStatusViewModel.h"
-#include "core/service/FrameProtocol.h"
-#include "core/service/IpcMessage.h"
+#include "daemon_service/DaemonClient.h"
+#include "daemon_service/DaemonApi.h"
+#include "core/viewmodels/runtime/BackendStatusViewModel.h"
+#include "daemon_service/FrameProtocol.h"
+#include "daemon_service/IpcMessage.h"
 
 class TestDaemonClient : public QObject {
     Q_OBJECT

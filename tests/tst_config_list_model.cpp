@@ -19,23 +19,22 @@
 #include <QJsonObject>
 #include <memory>
 
-#include "app_service/config/ConfigCommandService.h"
-#include "app_service/config/ConfigImportExportService.h"
-#include "app_service/runtime/NodeInfoModel.h"
-#include "app_service/runtime/RuntimeLogModel.h"
-#include "app_service/runtime/VpnRuntimeService.h"
-#include "core/config/ConfigRunState.h"
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/NetworkConfigRepository.h"
-#include "viewmodels/ConfigListModel.h"
-#include "viewmodels/ConfigEditorViewModel.h"
-#include "viewmodels/runtime/NetworkPageViewModel.h"
-#include "core/service/DaemonApi.h"
-#include "core/service/DaemonClient.h"
-#include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnController.h"
-#include "core/vpn_manager/VpnManager.h"
-#include "core/config/NetworkConf.h"
+#include "core/config/ConfigCommandService.h"
+#include "core/config/ConfigImportExportService.h"
+#include "core/runtime/NodeInfoModel.h"
+#include "core/runtime/RuntimeLogModel.h"
+#include "core/runtime/VpnRuntimeService.h"
+#include "config/ConfigRunState.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "core/viewmodels/ConfigListModel.h"
+#include "core/viewmodels/ConfigEditorViewModel.h"
+#include "core/viewmodels/runtime/NetworkPageViewModel.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "core/runtime/StatusMonitor.h"
+#include "core/runtime/VpnController.h"
+#include "config/NetworkConf.h"
 
 static_assert(configRunStateCanDelete(ConfigRunState::Stopped));
 static_assert(configRunStateCanDelete(ConfigRunState::Error));
@@ -362,8 +361,7 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client, this);
         StatusMonitor monitor(this);
-        VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
-        VpnRuntimeService service(&manager, this);
+        VpnRuntimeService service(&client, &api, m_repo.get(), &monitor, this);
         service.setActiveInstanceName(QStringLiteral("inst-logs"));
 
         // 准备测试数据：构造不同批次的日志
@@ -382,9 +380,9 @@ private slots:
         third[QStringLiteral("timestamp")] = QStringLiteral("07-12 12:00:02");
         third[QStringLiteral("message")] = QStringLiteral("third event");
 
-        // 分两次推送，第二次与第一次有重叠；服务监听 instanceInfoUpdated 刷新展示模型
-        manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
-        manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
+        // 分两次推送，第二次与第一次有重叠；服务缓存累计日志并刷新展示模型
+        service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
+        service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
 
         // 检查 RuntimeLogModel 包含全部 3 条日志（不重复）
         QCOMPARE(service.runtimeLogModel()->rowCount(), 3);
@@ -404,8 +402,7 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client, this);
         StatusMonitor monitor(this);
-        VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
-        VpnRuntimeService service(&manager, this);
+        VpnRuntimeService service(&client, &api, m_repo.get(), &monitor, this);
 
         // QML 可调用方法必须出现在 metaobject 中（Q_INVOKABLE 或 slot）
         const int methodIndex = service.metaObject()->indexOfMethod("exportLog(QString)");
@@ -507,6 +504,36 @@ private slots:
         QVERIFY(!vm.showRuntimeStatus());
     }
 
+    /// 目标：选中外部实例时不加载编辑器（避免仓库无此配置报错），消失后 clearSelection 清空选中
+    void networkPageViewModel_externalInstanceSelectAndClear() {
+        insertConfig(QStringLiteral("inst-1"), QStringLiteral("配置1"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        // 先选中本地配置，编辑器加载
+        vm.selectConfig(QStringLiteral("inst-1"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-1"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-1"));
+
+        // 外部实例出现在列表中
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-a")});
+        QVERIFY(model.isExternal(QStringLiteral("ext-a")));
+
+        // 选中外部实例：跳过编辑器加载，编辑器保持上一个本地配置不变
+        vm.selectConfig(QStringLiteral("ext-a"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("ext-a"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-1"));
+
+        // 外部实例消失后清空选中（AppServices 接线触发，此处直接调用验证行为）
+        model.onExternalInstancesChanged({});
+        vm.clearSelection();
+        QVERIFY(vm.currentInstanceName().isEmpty());
+        QVERIFY(!vm.currentInstanceRunning());
+    }
+
     /// 目标：currentInstanceSecureMode 随编辑器加载配置的安全模式派生（凭据能力前置条件）
     void networkPageViewModelTracksSecureMode() {
         insertConfig(QStringLiteral("inst-sec"), QStringLiteral("安全配置"));
@@ -564,6 +591,202 @@ private slots:
         QVERIFY(model.deleteConfig(QStringLiteral("inst-3")));
         // 检查已删除
         QCOMPARE(model.rowCount(), 0);
+    }
+
+    /// 目标：外部实例条目按传入顺序追加在本地配置之后，各 role 正确，消失后移除
+    void externalInstances_appendedAfterLocalAndRemovedWhenGone() {
+        insertConfig(QStringLiteral("inst-1"), QStringLiteral("配置1"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        QCOMPARE(model.rowCount(), 1);
+
+        // 追加两个外部实例（模拟 VpnRuntimeService 心跳发现 daemon 中存在本地没有的实例）
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-a"), QStringLiteral("ext-b")});
+
+        // 总数 = 本地 + 外部，本地在前、外部在后
+        QCOMPARE(model.rowCount(), 3);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::InstanceNameRole).toString(), QStringLiteral("inst-1"));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::IsExternalRole).toBool(), false);
+
+        // 外部条目：displayName = instance_name，始终运行中，isExternal = true
+        const QModelIndex extA = model.index(1);
+        QCOMPARE(model.data(extA, ConfigListModel::InstanceNameRole).toString(), QStringLiteral("ext-a"));
+        QCOMPARE(model.data(extA, ConfigListModel::DisplayNameRole).toString(), QStringLiteral("ext-a"));
+        QCOMPARE(model.data(extA, ConfigListModel::RunningRole).toBool(), true);
+        QCOMPARE(model.data(extA, ConfigListModel::IsExternalRole).toBool(), true);
+
+        const QModelIndex extB = model.index(2);
+        QCOMPARE(model.data(extB, ConfigListModel::InstanceNameRole).toString(), QStringLiteral("ext-b"));
+        QCOMPARE(model.data(extB, ConfigListModel::DisplayNameRole).toString(), QStringLiteral("ext-b"));
+        QCOMPARE(model.data(extB, ConfigListModel::RunningRole).toBool(), true);
+        QCOMPARE(model.data(extB, ConfigListModel::IsExternalRole).toBool(), true);
+
+        // isExternal 查询
+        QVERIFY(model.isExternal(QStringLiteral("ext-a")));
+        QVERIFY(!model.isExternal(QStringLiteral("inst-1")));
+
+        // 部分外部实例从 daemon 消失后仅移除对应条目
+        model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-b")});
+        QCOMPARE(model.rowCount(), 2);
+        QVERIFY(!model.isExternal(QStringLiteral("ext-a")));
+        QVERIFY(model.isExternal(QStringLiteral("ext-b")));
+
+        // 全部消失后恢复为仅本地配置
+        model.onExternalInstancesChanged({});
+        QCOMPARE(model.rowCount(), 1);
+        QVERIFY(!model.isExternal(QStringLiteral("ext-b")));
+    }
+
+    /// 目标：新建配置成功后发射 configCreated（供外部同步本地 controller，保持与数据库配置集合一致）
+    void createNewConfig_emitsConfigCreated() {
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        QSignalSpy spy(&model, &ConfigListModel::configCreated);
+        const QString instanceName = model.createNewConfig();
+        QVERIFY(!instanceName.isEmpty());
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.takeFirst().at(0).toString(), instanceName);
+        QCOMPARE(model.rowCount(), 1);
+    }
+
+    /// 目标：重命名成功后发射 configRenamed（供协调方同步编辑器共享快照，避免完整保存覆盖）
+    void renameConfig_emitsConfigRenamed() {
+        insertConfig(QStringLiteral("inst-ren"), QStringLiteral("旧名称"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        QSignalSpy spy(&model, &ConfigListModel::configRenamed);
+        QVERIFY(model.renameConfig(QStringLiteral("inst-ren"), QStringLiteral("  新名称  ")));
+        QCOMPARE(spy.count(), 1);
+        // 信号携带 trim 后的显示名称
+        QCOMPARE(spy.first().at(0).toString(), QStringLiteral("inst-ren"));
+        QCOMPARE(spy.first().at(1).toString(), QStringLiteral("新名称"));
+    }
+
+    /// 目标：删除运行中配置时，页面选择在真正删除完成（configDeleted）前保持不变
+    void runningConfigDelete_keepsSelectionUntilDeleted() {
+        insertConfig(QStringLiteral("inst-page"), QStringLiteral("页面配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        // 选中配置并模拟运行中
+        vm.selectConfig(QStringLiteral("inst-page"));
+        model.onRunningStateChanged(QStringLiteral("inst-page"), ConfigRunState::Running);
+
+        // 发起删除：请求被接受，但页面选择不应被清空
+        QVERIFY(model.deleteConfig(QStringLiteral("inst-page")));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-page"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-page"));
+
+        // 停止完成 → 真正删除 → configDeleted → 页面清空选择
+        QSignalSpy deletedSpy(&model, &ConfigListModel::configDeleted);
+        model.onRunningStateChanged(QStringLiteral("inst-page"), ConfigRunState::Stopped);
+        QCOMPARE(deletedSpy.count(), 1);
+
+        vm.handleConfigDeleted(QStringLiteral("inst-page"));
+        QVERIFY(vm.currentInstanceName().isEmpty());
+        QVERIFY(!vm.currentInstanceRunning());
+        QVERIFY(editor.currentInstanceName().isEmpty());
+    }
+
+    /// 目标：删除其他配置不影响当前选择
+    void deleteOtherConfig_keepsCurrentSelection() {
+        insertConfig(QStringLiteral("inst-cur"), QStringLiteral("当前配置"));
+        insertConfig(QStringLiteral("inst-other"), QStringLiteral("其他配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        vm.selectConfig(QStringLiteral("inst-cur"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-cur"));
+
+        QVERIFY(model.deleteConfig(QStringLiteral("inst-other")));
+        vm.handleConfigDeleted(QStringLiteral("inst-other"));
+        QCOMPARE(vm.currentInstanceName(), QStringLiteral("inst-cur"));
+        QCOMPARE(editor.currentInstanceName(), QStringLiteral("inst-cur"));
+    }
+
+    /// 目标：RunStateRole 暴露完整运行状态（Starting/Running/Stopping/Error），区别于 bool running
+    void runStateRoleReflectsFullState() {
+        insertConfig(QStringLiteral("inst-state"), QStringLiteral("状态配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+
+        // 初始 Stopped
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Stopped));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Starting：runState 反映完整状态，running 仍为 false
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Starting);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Starting));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Running
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Running);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Running));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), true);
+
+        // Stopping
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Stopping);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Stopping));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+
+        // Error
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Error);
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunStateRole).toInt(),
+                 static_cast<int>(ConfigRunState::Error));
+        QCOMPARE(model.data(model.index(0), ConfigListModel::RunningRole).toBool(), false);
+    }
+
+    /// 目标：NetworkPageViewModel 的 currentInstanceRunState/currentInstanceBusy 由完整状态派生
+    void networkPageViewModelRunStateDerivation() {
+        insertConfig(QStringLiteral("inst-state"), QStringLiteral("状态配置"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigListModel model(&commandService, nullptr, this);
+        ConfigEditorViewModel editor(&commandService, this);
+        NetworkPageViewModel vm(&model, &editor, nullptr, nullptr, this);
+
+        vm.selectConfig(QStringLiteral("inst-state"));
+
+        // 初始 Stopped：不忙
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Stopped));
+        QVERIFY(!vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
+
+        // 启动中：忙，不可编辑/重复操作（模拟 configStateChanged 后 model 缓存更新 + 页面刷新）
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Starting);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Starting));
+        QVERIFY(vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
+
+        // 运行中：不忙
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Running);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Running));
+        QVERIFY(!vm.currentInstanceBusy());
+        QVERIFY(vm.currentInstanceRunning());
+
+        // 停止中：忙
+        model.onRunningStateChanged(QStringLiteral("inst-state"), ConfigRunState::Stopping);
+        vm.refreshRunning();
+        QCOMPARE(vm.currentInstanceRunState(), static_cast<int>(ConfigRunState::Stopping));
+        QVERIFY(vm.currentInstanceBusy());
+        QVERIFY(!vm.currentInstanceRunning());
     }
 };
 

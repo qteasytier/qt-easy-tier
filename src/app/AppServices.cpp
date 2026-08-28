@@ -3,44 +3,42 @@
  * @brief AppServices 实现
  *
  * 实现应用启动时的服务对象装配：
- * - 按依赖顺序创建基础设施 → 数据层 → ViewModel 层的服务对象
+ * - 创建并持有基础模块、应用核心服务、ViewModel 与平台/托盘协作者
  * - wireLogging() 连线日志分发器、存储槽和设置 ViewModel
- * - wireRuntime() 连线 VPN 管理器、应用状态和配置列表之间的信号
+ * - wireRuntime() 连线 VPN 运行服务、应用状态和配置列表之间的信号
  */
 #include "AppServices.h"
 
-#include "app_service/config/ConfigCommandService.h"
-#include "app_service/config/ConfigImportExportService.h"
-#include "app_service/credential/CredentialService.h"
-#include "app_service/dangerous/DangerousOperationService.h"
-#include "app_service/favorite/FavoriteNodeImportExportService.h"
-#include "app_service/logging/RepositoryLogSink.h"
-#include "app_service/runtime/VpnRuntimeService.h"
-#include "app_service/settings/SettingsBackendService.h"
-#include "core/log/LogDispatcher.h"
-#include "core/repository/FavoriteNodeRepository.h"
-#include "core/repository/LogRepository.h"
-#include "core/repository/NetworkConfigRepository.h"
-#include "core/service/DaemonApi.h"
-#include "core/service/DaemonClient.h"
-#include "core/system_tray/SystemTrayManager.h"
-#include "core/system_tray/TrayMessageHelper.h"
+#include "core/config/ConfigCommandService.h"
+#include "core/config/ConfigImportExportService.h"
+#include "core/credential/CredentialService.h"
+#include "core/settings/DangerousOperationService.h"
+#include "core/favorite/FavoriteNodeImportExportService.h"
+#include "core/logging/RepositoryLogSink.h"
+#include "core/runtime/VpnRuntimeService.h"
+#include "core/settings/UpdateCheckService.h"
+#include "log/LogDispatcher.h"
+#include "sqlite_repository/FavoriteNodeRepository.h"
+#include "sqlite_repository/LogRepository.h"
+#include "sqlite_repository/NetworkConfigRepository.h"
+#include "daemon_service/DaemonApi.h"
+#include "daemon_service/DaemonClient.h"
+#include "system_tray/SystemTrayManager.h"
+#include "system_tray/TrayMessageHelper.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "platform/FontHelper.h"
-#include "app_service/settings/UpdateCheckService.h"
-#include "viewmodels/AppState.h"
-#include "viewmodels/ConfigEditorViewModel.h"
-#include "viewmodels/ConfigListModel.h"
-#include "viewmodels/credential/CredentialViewModel.h"
-#include "viewmodels/DangerousOperationViewModel.h"
-#include "viewmodels/FavoriteNodeViewModel.h"
-#include "viewmodels/LogViewModel.h"
-#include "viewmodels/SettingsViewModel.h"
-#include "viewmodels/nodes/ImportNodesViewModel.h"
-#include "viewmodels/runtime/BackendStatusViewModel.h"
-#include "viewmodels/runtime/NetworkPageViewModel.h"
-#include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnManager.h"
+#include "core/settings/UpdateCheckService.h"
+#include "core/viewmodels/AppState.h"
+#include "core/viewmodels/ConfigEditorViewModel.h"
+#include "core/viewmodels/ConfigListModel.h"
+#include "core/viewmodels/credential/CredentialViewModel.h"
+#include "core/viewmodels/FavoriteNodeViewModel.h"
+#include "core/viewmodels/LogViewModel.h"
+#include "core/viewmodels/SettingsViewModel.h"
+#include "core/viewmodels/nodes/ImportNodesViewModel.h"
+#include "core/viewmodels/runtime/BackendStatusViewModel.h"
+#include "core/viewmodels/runtime/NetworkPageViewModel.h"
+#include "core/runtime/StatusMonitor.h"
 
 #include <QCoreApplication>
 #include <QCheckBox>
@@ -57,7 +55,7 @@ AppServices::AppServices(const QSqlDatabase &database,
 {
     QObject *parentObject = serviceParent();
 
-    // ===== 基础设施层：daemon IPC 客户端与 API =====
+    // ===== daemon IPC 客户端与 API =====
     m_daemonClient = new DaemonClient(parentObject);
     if (daemonConnectionMode == ConnectToDaemon)
         m_daemonClient->connectToDaemon(QStringLiteral("qtet-daemon.sock"));
@@ -67,9 +65,8 @@ AppServices::AppServices(const QSqlDatabase &database,
     // ===== 应用基础服务：状态、设置、字体 =====
     m_appState = new AppState(parentObject);
     m_updateCheckService = new UpdateCheckService(parentObject);
-    // 设置后端服务：桥接 daemon 自动回连与版本更新检查，UI 层不直接接触这两类基础服务
-    m_settingsBackendService = new SettingsBackendService(m_daemonApi, m_updateCheckService, parentObject);
-    m_settingsViewModel = new SettingsViewModel(m_settingsBackendService, parentObject);
+    // 设置 ViewModel：直接协调本地设置、daemon 自动回连与版本更新检查
+    m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。
@@ -87,7 +84,7 @@ AppServices::AppServices(const QSqlDatabase &database,
     QObject::connect(m_systemTrayManager, &SystemTrayManager::quitRequestedByUser,
                      this, &AppServices::handleUserQuitRequest);
 
-    // ===== 数据层与 ViewModel 层（依赖有效数据库连接） =====
+    // ===== 应用核心服务与 ViewModel（依赖有效数据库连接） =====
     if (database.isValid()) {
         m_configRepository = new NetworkConfigRepository(database, parentObject);
         m_favoriteNodeRepository = new FavoriteNodeRepository(database, parentObject);
@@ -103,23 +100,22 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_logViewModel = new LogViewModel(m_logRepository, parentObject);
         m_repositoryLogSink = new RepositoryLogSink(m_logRepository, parentObject);
         m_statusMonitor = new StatusMonitor(parentObject);
-        m_vpnManager = new VpnManager(m_daemonClient, m_daemonApi, m_configRepository, m_statusMonitor, parentObject);
-        // VPN 运行服务：桥接 VpnManager 与 UI 层，暴露运行状态展示模型
-        m_vpnRuntimeService = new VpnRuntimeService(m_vpnManager, parentObject);
+        // VPN 运行服务：应用级 runtime 协调器，暴露运行状态展示模型并管理实例生命周期
+        m_vpnRuntimeService = new VpnRuntimeService(m_daemonClient, m_daemonApi,
+                                                    m_configRepository, m_statusMonitor,
+                                                    parentObject);
         // 临时凭证服务：签发安全模式临时节点密钥（经 DaemonApi::callJsonRpc 调 daemon）
         m_credentialService = new CredentialService(m_daemonApi, parentObject);
         m_credentialViewModel = new CredentialViewModel(m_credentialService, parentObject);
         // 危险操作服务：编排后端安装/卸载与全量数据清空的跨基础服务流程
-        m_dangerousOperationService = new DangerousOperationService(m_vpnManager,
+        m_dangerousOperationService = new DangerousOperationService(m_vpnRuntimeService,
                                                                     m_configRepository,
                                                                     m_favoriteNodeRepository,
                                                                     m_logRepository,
-                                                                    QString(),
-                                                                    parentObject);
-        m_dangerousOperationViewModel = new DangerousOperationViewModel(m_dangerousOperationService,
-                                                                        parentObject);
+                                                                     QString(),
+                                                                     parentObject);
         // 清空全部数据成功后退出应用（信号方式便于测试）
-        QObject::connect(m_dangerousOperationViewModel, &DangerousOperationViewModel::quitRequested,
+        QObject::connect(m_dangerousOperationService, &DangerousOperationService::quitRequested,
                          this, []() {
                              QCoreApplication::quit();
                          });
@@ -134,6 +130,7 @@ AppServices::AppServices(const QSqlDatabase &database,
         // 连线日志和运行时信号
         wireLogging();
         wireRuntime();
+        wireConfigCoordination();
     }
 
     if (daemonConnectionMode == ConnectToDaemon)
@@ -150,11 +147,10 @@ ConfigEditorViewModel *AppServices::configEditorViewModel() const { return m_con
 NetworkPageViewModel *AppServices::networkPageViewModel() const { return m_networkPageViewModel; }
 BackendStatusViewModel *AppServices::backendStatusViewModel() const { return m_backendStatusViewModel; }
 ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_importNodesViewModel; }
-VpnManager *AppServices::vpnManager() const { return m_vpnManager; }
 VpnRuntimeService *AppServices::vpnRuntimeService() const { return m_vpnRuntimeService; }
 CredentialService *AppServices::credentialService() const { return m_credentialService; }
 CredentialViewModel *AppServices::credentialViewModel() const { return m_credentialViewModel; }
-DangerousOperationViewModel *AppServices::dangerousOperationViewModel() const { return m_dangerousOperationViewModel; }
+DangerousOperationService *AppServices::dangerousOperationService() const { return m_dangerousOperationService; }
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }
 SystemTrayManager *AppServices::systemTrayManager() const { return m_systemTrayManager; }
@@ -219,7 +215,7 @@ void AppServices::wireFavoriteNodeNotifications()
 
 void AppServices::wireRuntime()
 {
-    if (!m_vpnManager || !m_vpnRuntimeService || !m_appState || !m_configListModel)
+    if (!m_vpnRuntimeService || !m_appState || !m_configListModel || !m_networkPageViewModel)
         return;
 
     // 设置页的服务节点隐藏开关只影响运行状态 UI 展示，作用于 VPN 运行服务的节点信息模型。
@@ -251,9 +247,48 @@ void AppServices::wireRuntime()
     // 配置被删除 → 经 VPN 运行服务通知清理对应的 controller
     QObject::connect(m_configListModel, &ConfigListModel::configDeleted,
                      m_vpnRuntimeService, &VpnRuntimeService::cleanupController);
+    // 配置被创建/导入 → 经 VPN 运行服务同步本地 controller（与数据库配置集合保持一致）
+    QObject::connect(m_configListModel, &ConfigListModel::configCreated,
+                     m_vpnRuntimeService, &VpnRuntimeService::ensureLocalController);
     // VPN 状态变更 → 同步更新配置列表的显示状态
     QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_configListModel, &ConfigListModel::onRunningStateChanged);
+    // VPN 状态变更 → 页面 ViewModel 刷新当前实例状态。
+    // 连接顺序保证在 onRunningStateChanged 之后，确保读取到已更新的状态缓存。
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
+                     m_networkPageViewModel, &NetworkPageViewModel::refreshRunning);
+    // 外部实例集合变化 → 配置列表末尾追加/移除外部实例条目
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::externalInstancesChanged,
+                     m_configListModel, &ConfigListModel::onExternalInstancesChanged);
+    // 外部实例从 daemon 消失时，若恰为当前选中实例则清空选中，避免右侧残留失效实例
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::externalInstancesChanged,
+                     this, [this](const QStringList &instanceNames) {
+                         const QString current = m_networkPageViewModel->currentInstanceName();
+                         if (current.isEmpty())
+                             return;
+                         // 本地配置不受外部实例集合变化影响
+                         if (m_configListModel->isLocalInstance(current))
+                             return;
+                         // 既非本地配置又不在新的外部实例列表中 → 当前选中的外部实例已消失，清空选中
+                         if (!instanceNames.contains(current))
+                             m_networkPageViewModel->clearSelection();
+                     });
+}
+
+void AppServices::wireConfigCoordination()
+{
+    if (!m_configListModel || !m_configEditorViewModel || !m_networkPageViewModel)
+        return;
+
+    // 配置重命名成功后：同步编辑器共享快照的显示名称，
+    // 避免用户随后修改其他字段触发完整保存时，把旧显示名覆盖回去。
+    QObject::connect(m_configListModel, &ConfigListModel::configRenamed,
+                     m_configEditorViewModel, &ConfigEditorViewModel::syncDisplayName);
+
+    // 配置真正从仓库删除成功后（含运行中先停止后删除）：再清空页面选择。
+    // 编辑器使用"丢弃式清空"，不刷写待保存修改，避免把已删除配置重新保存回仓库。
+    QObject::connect(m_configListModel, &ConfigListModel::configDeleted,
+                     m_networkPageViewModel, &NetworkPageViewModel::handleConfigDeleted);
 }
 
 void AppServices::ensureDaemonServiceOnce()

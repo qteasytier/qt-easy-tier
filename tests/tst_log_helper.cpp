@@ -6,13 +6,13 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include "core/repository/DatabaseConnection.h"
-#include "app_service/logging/RepositoryLogSink.h"
-#include "core/log/LogDispatcher.h"
-#include "core/log/LogSink.h"
-#include "core/repository/LogRepository.h"
-#include "core/log/LogHelper.h"
-#include "viewmodels/SettingsViewModel.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "core/logging/RepositoryLogSink.h"
+#include "log/LogDispatcher.h"
+#include "log/LogSink.h"
+#include "sqlite_repository/LogRepository.h"
+#include "log/LogHelper.h"
+#include "core/viewmodels/SettingsViewModel.h"
 
 class CapturingSink final : public LogSink
 {
@@ -84,7 +84,7 @@ void TestLogHelper::testFiltering()
     QVERIFY(db->open());
     auto *repo = new LogRepository(db->database(), this);
     repo->clearAll();
-    auto *settings = new SettingsViewModel(nullptr, this);
+    auto *settings = new SettingsViewModel(nullptr, nullptr, this);
     settings->setLogLevel(static_cast<int>(LogLevel::Info));
     settings->setMaxLogEntries(100);
     auto *sink = new RepositoryLogSink(repo, this);

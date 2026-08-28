@@ -25,7 +25,7 @@ ctest --test-dir build --output-on-failure
 
 ## OpenSSL (Static)
 
-- The app uses a **static OpenSSL** for X25519 secure-mode key pairs (`src/core/config/X25519KeyHelper.*`, linked via `qtet_config` → `OpenSSL::Crypto`).
+- The app uses a **static OpenSSL** for X25519 secure-mode key pairs (`src/config/X25519KeyHelper.*`, linked via `qtet_config` → `OpenSSL::Crypto`).
 - The static OpenSSL path is **not hardcoded** in CMake. Root `CMakeLists.txt` sets `OPENSSL_USE_STATIC_LIBS TRUE` and calls `find_package(OpenSSL REQUIRED)`; the static prefix is supplied at configure time via `CMAKE_PREFIX_PATH`:
   ```bash
   cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_WITH_DAEMON=OFF \
@@ -37,7 +37,7 @@ ctest --test-dir build --output-on-failure
 ## CMake And Files
 
 - Root `CMakeLists.txt` defines app target, `QTET_QML_FILES`, Qt components, output dirs, and daemon options; production modules each have their own `src/**/CMakeLists.txt`.
-- `appQtEasyTier` only compiles `src/main.cpp`, `assets/resources.qrc`, and generated Windows rc; production `.cpp` files belong in module targets such as `qtet_config`, `qtet_repository`, `qtet_viewmodel`, or `qtet_appsupport`.
+- `appQtEasyTier` only compiles `src/main.cpp`, `assets/resources.qrc`, and generated Windows rc; production `.cpp` files belong in module targets such as `qtet_config`, `qtet_sqlite_repository`, `qtet_appcore`, or `qtet_appsupport`.
 - New C++ files go into the owning module target. Tests use `add_core_test(name file.cpp)` in `tests/CMakeLists.txt` and link the relevant `qtet_*` target; do not duplicate production `.cpp` files in tests.
 - New QML files must be added to root `QTET_QML_FILES`; new non-QML resources must be added to `assets/resources.qrc`.
 - If `importedcontent/CMakeLists.txt` exists, root CMake automatically adds it; this is the optional Figma/Qt import hook.
@@ -45,14 +45,13 @@ ctest --test-dir build --output-on-failure
 ## Architecture Boundaries
 
 - `src/app`: composition and startup support. `AppServices` owns long-lived services/ViewModels; `QmlSingletonRegistrar` is the only place for QML singleton registration.
-- `src/core/config`: `NetworkConf`, TOML import/export, validation, URL codec, `ConfigPayloadBuilder` (daemon `cfg_str` payload), and the shared `ConfigRunState` enum. Keep DHCP/static IP semantics here: when `dhcp` is true, TOML export must omit `ipv4` even if the in-memory value is retained.
-- `src/core/repository`: SQLite repositories; `DatabaseConnection::open()` is responsible for idempotent schema creation/migration. `NetworkConfigRepository::generateUniqueInstanceName()` owns the `QtET-<UUID>` naming rule.
-- `src/core/service`: `qtet-daemon` local-socket IPC, JSON-RPC framing, and `DaemonApi`.
-- `src/app_service`: app-service layer bridging UI and basic services: config commands/import-export, `VpnRuntimeService` (owns `NodeInfoModel`/`RuntimeLogModel`, which live in `app_service/runtime/`), settings (`SettingsStore`/`AutoStartService`/`SettingsBackendService`), autostart, logs, `DangerousOperationService`, favorite import/export. Links `qtet_vpn`; basic services must NOT include `app_service` or `viewmodels` headers.
-- `src/viewmodels`: QML-facing facades and Qt models. QML and ViewModels should call application services, not repositories/daemon clients/VpnManager directly (known exceptions: `LogViewModel`→`LogRepository`, `FavoriteNodeViewModel`→`FavoriteNodeRepository`, `BackendStatusViewModel`→`DaemonClient`, `ImportNodesViewModel`→`FavoriteNodeJsonCodec` — historical thin-shell debt, don't expand).
-- `src/core/vpn_manager`: VPN lifecycle state machine (`VpnManager`/`VpnController`/`StatusMonitor`). `VpnManager` does not own UI models; it reports runtime info via `instanceInfoUpdated` signal and exposes `nodeInfosFor`/`logEntriesFor` queries. `VpnRuntimeService` (application layer) fills the display models; QML binds `VpnRuntimeService`, never `VpnManager`.
-- `src/core/system_tray`: tray manager and message dispatcher. `SystemTrayManager` is bound to the main window in `main.cpp`; it is not a QML singleton.
-- `src/platform`: platform helpers (`AutoStartHelper`, `DaemonRegisterHelper`, `FontHelper`) live here, built into the `qtet_platform` target. There is no `src/core/platform/` directory.
+- `src/config`: `NetworkConf`, TOML import/export, validation, URL codec, `ConfigPayloadBuilder` (daemon `cfg_str` payload), and the shared `ConfigRunState` enum. Keep DHCP/static IP semantics here: when `dhcp` is true, TOML export must omit `ipv4` even if the in-memory value is retained.
+- `src/sqlite_repository`: SQLite repositories (target `qtet_sqlite_repository`); `DatabaseConnection::open()` is responsible for idempotent schema creation/migration. `NetworkConfigRepository::generateUniqueInstanceName()` owns the `QtET-<UUID>` naming rule. The `FavoriteNode` value type lives here as the favorite-nodes table record; the JSON codec lives in `core/favorite/`.
+- `src/daemon_service`: `qtet-daemon` local-socket IPC, JSON-RPC framing, and `DaemonApi` (target `qtet_daemon_service`).
+- `src/core`: the application core layer bridging UI and basic services: config commands/import-export, `VpnRuntimeService` (the application-level VPN runtime coordinator owning instance lifecycle, heartbeat sync, and `NodeInfoModel`/`RuntimeLogModel`/`VpnController`/`StatusMonitor`, which live in `core/runtime/`), settings (`SettingsStore`/`UpdateCheckService`/`DangerousOperationService`), autostart, logs, favorite import/export (incl. `FavoriteNodeJsonCodec`). `DangerousOperationService` is a QML-facing service registered under the compatibility name `DangerousOperationViewModel`. `qtet_appcore` also depends on `qtet_config`, `qtet_sqlite_repository`, `qtet_daemon_service`, `qtet_platform`, `qtet_log`; basic services must NOT include `core/` or `core/viewmodels/` headers.
+- `src/core/viewmodels`: QML-facing facades and Qt models. `src/core` and its `viewmodels/` subdirectory are compiled into the single `qtet_appcore` target. QML and ViewModels should call application services, not repositories/daemon clients/`VpnRuntimeService` internals directly (known exceptions: `LogViewModel`→`LogRepository`, `FavoriteNodeViewModel`→`FavoriteNodeRepository`, `BackendStatusViewModel`→`DaemonClient`, `ImportNodesViewModel`→`FavoriteNodeJsonCodec`, `SettingsViewModel`→`AutoStartHelper` for system autostart state — historical thin-shell debt, don't expand). `SettingsViewModel` directly owns auto-reconnect and update-check async state, using injected `DaemonApi`/`UpdateCheckService` (non-owning) and `AutoStartHelper`.
+- `src/system_tray`: tray manager and message dispatcher. `SystemTrayManager` is bound to the main window in `main.cpp`; it is not a QML singleton.
+- `src/platform`: platform helpers (`AutoStartHelper`, `DaemonRegisterHelper`, `FontHelper`) live here, built into the `qtet_platform` target. System autostart state (Windows registry / XDG Autostart) is the single source of truth; `settings3.json` does NOT persist `autoStart`. There is no `src/core/platform/` directory.
 
 ## QML And Lifetime
 

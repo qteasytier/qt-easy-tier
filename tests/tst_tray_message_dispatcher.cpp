@@ -1,8 +1,8 @@
 #include <QTest>
 
-#include "core/system_tray/TrayMessageDispatcher.h"
-#include "core/system_tray/TrayMessageHelper.h"
-#include "core/system_tray/TrayMessageSink.h"
+#include "system_tray/TrayMessageDispatcher.h"
+#include "system_tray/TrayMessageHelper.h"
+#include "system_tray/TrayMessageSink.h"
 
 class RecordingTrayMessageSink final : public TrayMessageSink {
 public:

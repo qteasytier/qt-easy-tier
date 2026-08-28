@@ -9,11 +9,10 @@
  * - 通过访问器方法供 QmlSingletonRegistrar 注册到 QML 上下文
  *
  * ## 创建的服务对象分类
- * - 基础设施层：DaemonClient、DaemonApi、StatusMonitor、FontHelper
- * - 数据层：NetworkConfigRepository、LogRepository、收藏节点模型
- * - ViewModel 层：各种 ViewModel 和 Model（供 QML 绑定）
- * - VPN 管理层：VpnManager（启停控制器）
- * - 配置管理层：ConfigCommandService、ConfigImportExportService
+ * - 基础模块：DaemonClient、DaemonApi、各 Repository、SystemTrayManager、FontHelper
+ * - 应用核心服务：VpnRuntimeService、ConfigCommandService、ConfigImportExportService、CredentialService、DangerousOperationService 等
+ * - ViewModel / Model：各种 ViewModel 和 Model（供 QML 绑定）
+ * - 运行状态：StatusMonitor、NodeInfoModel、RuntimeLogModel
  *
  * @see QmlSingletonRegistrar
  */
@@ -35,7 +34,6 @@ class CredentialViewModel;
 class DaemonApi;
 class DaemonClient;
 class DangerousOperationService;
-class DangerousOperationViewModel;
 class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;
 class FavoriteNodeViewModel;
@@ -47,12 +45,10 @@ class NetworkConfigRepository;
 class NetworkPageViewModel;
 class QQmlApplicationEngine;
 class RepositoryLogSink;
-class SettingsBackendService;
 class SettingsViewModel;
 class StatusMonitor;
 class SystemTrayManager;
 class UpdateCheckService;
-class VpnManager;
 class VpnRuntimeService;
 
 /** @brief 应用服务装配容器，负责所有核心服务对象的创建、连线与生命周期管理 */
@@ -110,16 +106,14 @@ public:
     BackendStatusViewModel *backendStatusViewModel() const;
     /// 获取导入节点 ViewModel（从公共服务器导入配置）
     ImportNodesViewModel *importNodesViewModel() const;
-    /// 获取 VPN 管理器（启停控制、运行状态、心跳同步；基础服务层，仅供装配与危险操作编排使用）
-    VpnManager *vpnManager() const;
-    /// 获取 VPN 运行服务（应用服务层，UI 层访问 VPN 运行能力的唯一入口）
+    /// 获取 VPN 运行服务（应用级 runtime 协调器，UI 层访问 VPN 运行能力的唯一入口）
     VpnRuntimeService *vpnRuntimeService() const;
-    /// 获取临时凭证服务（应用服务层，签发安全模式临时节点密钥）
+    /// 获取临时凭证服务（应用核心层，签发安全模式临时节点密钥）
     CredentialService *credentialService() const;
     /// 获取临时凭证 ViewModel（运行状态页"添加临时节点密钥"入口）
     CredentialViewModel *credentialViewModel() const;
-    /// 获取危险操作 ViewModel（后端安装/卸载、清空全部数据）
-    DangerousOperationViewModel *dangerousOperationViewModel() const;
+    /// 获取危险操作服务（后端安装/卸载、清空全部数据；QML 注册名 DangerousOperationViewModel）
+    DangerousOperationService *dangerousOperationService() const;
     /// 获取 daemon IPC 客户端
     DaemonClient *daemonClient() const;
     /// 获取 daemon API（JSON-RPC 调用封装）
@@ -139,8 +133,10 @@ private:
     void wireNotifications();
     /// 连线收藏节点批量操作通知（FavoriteNodeViewModel ↔ 系统托盘消息分发器）
     void wireFavoriteNodeNotifications();
-    /// 连线运行时信号与槽（VpnManager ↔ AppState ↔ ConfigListModel）
+    /// 连线运行时信号与槽（VpnRuntimeService ↔ AppState ↔ ConfigListModel）
     void wireRuntime();
+    /// 连线配置协调信号与槽（ConfigListModel ↔ ConfigEditorViewModel / NetworkPageViewModel）
+    void wireConfigCoordination();
     /// daemon 断开时尝试确保系统服务已注册并启动（每次应用生命周期最多一次）
     void ensureDaemonServiceOnce();
 
@@ -158,7 +154,6 @@ private:
     DaemonApi *m_daemonApi = nullptr;
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;
     AppState *m_appState = nullptr;
-    SettingsBackendService *m_settingsBackendService = nullptr;
     SettingsViewModel *m_settingsViewModel = nullptr;
     FavoriteNodeImportExportService *m_favoriteNodeImportExportService = nullptr;
     FavoriteNodeViewModel *m_favoriteNodeViewModel = nullptr;
@@ -166,12 +161,10 @@ private:
     LogViewModel *m_logViewModel = nullptr;
     RepositoryLogSink *m_repositoryLogSink = nullptr;
     StatusMonitor *m_statusMonitor = nullptr;
-    VpnManager *m_vpnManager = nullptr;
     VpnRuntimeService *m_vpnRuntimeService = nullptr;
     CredentialService *m_credentialService = nullptr;
     CredentialViewModel *m_credentialViewModel = nullptr;
     DangerousOperationService *m_dangerousOperationService = nullptr;
-    DangerousOperationViewModel *m_dangerousOperationViewModel = nullptr;
     ConfigCommandService *m_configCommandService = nullptr;
     ConfigImportExportService *m_configImportExportService = nullptr;
     ConfigListModel *m_configListModel = nullptr;

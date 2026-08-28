@@ -3,8 +3,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
-#include "core/config/ConfigUrlCodec.h"
-#include "core/config/NetworkConfToml.h"
+#include "config/ConfigUrlCodec.h"
+#include "config/NetworkConfToml.h"
 
 static const char *kFieldMappingJson = R"({
   "version": 1,

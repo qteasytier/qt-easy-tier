@@ -8,19 +8,19 @@
 #include "QmlSingletonRegistrar.h"
 
 #include "AppServices.h"
-#include "app_service/runtime/VpnRuntimeService.h"
+#include "core/settings/DangerousOperationService.h"
+#include "core/runtime/VpnRuntimeService.h"
 #include "platform/FontHelper.h"
-#include "viewmodels/AppState.h"
-#include "viewmodels/ConfigEditorViewModel.h"
-#include "viewmodels/ConfigListModel.h"
-#include "viewmodels/credential/CredentialViewModel.h"
-#include "viewmodels/DangerousOperationViewModel.h"
-#include "viewmodels/FavoriteNodeViewModel.h"
-#include "viewmodels/LogViewModel.h"
-#include "viewmodels/SettingsViewModel.h"
-#include "viewmodels/nodes/ImportNodesViewModel.h"
-#include "viewmodels/runtime/BackendStatusViewModel.h"
-#include "viewmodels/runtime/NetworkPageViewModel.h"
+#include "core/viewmodels/AppState.h"
+#include "core/viewmodels/ConfigEditorViewModel.h"
+#include "core/viewmodels/ConfigListModel.h"
+#include "core/viewmodels/credential/CredentialViewModel.h"
+#include "core/viewmodels/FavoriteNodeViewModel.h"
+#include "core/viewmodels/LogViewModel.h"
+#include "core/viewmodels/SettingsViewModel.h"
+#include "core/viewmodels/nodes/ImportNodesViewModel.h"
+#include "core/viewmodels/runtime/BackendStatusViewModel.h"
+#include "core/viewmodels/runtime/NetworkPageViewModel.h"
 
 #include <QJSEngine>
 #include <QQmlApplicationEngine>
@@ -75,8 +75,8 @@ void registerQmlSingletons(QQmlApplicationEngine &, AppServices &services)
     registerPrecreatedSingleton("VpnRuntimeService", services.vpnRuntimeService());
     // 临时节点密钥（签发安全模式临时凭证）
     registerPrecreatedSingleton("CredentialViewModel", services.credentialViewModel());
-    // 危险操作（后端安装/卸载、清空全部数据）
-    registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationViewModel());
+    // 危险操作（后端安装/卸载、清空全部数据）：为兼容既有 QML 保持注册名 DangerousOperationViewModel
+    registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationService());
     // 中文字体辅助
     registerPrecreatedSingleton("FontHelper", services.fontHelper());
 }

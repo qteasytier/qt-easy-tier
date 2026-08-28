@@ -185,6 +185,11 @@ Rectangle {
                 property string instanceName: model.instanceName
                 property string labelText: model.displayName || model.instanceName
                 property bool isRunning: model.running || false
+                property int runState: model.runState || 0
+                // 启动/停止过渡期间禁止重复启停操作（ConfigRunState: Starting=1, Stopping=3）
+                property bool isBusy: runState === 1 || runState === 3
+                // 外部实例：daemon 中存在但本地配置列表中没有的实例
+                property bool isExternal: model.isExternal || false
                 // 判断是否与 ViewModel 当前编辑的配置一致
                 readonly property bool isSelected:
                     NetworkPageViewModel.currentInstanceName === instanceName
@@ -210,7 +215,9 @@ Rectangle {
                             root.selectInstance(instanceName)
                         } else if (mouse.button === Qt.RightButton) {
                             root.selectInstance(instanceName)
-                            contextMenu.popup()
+                            // 外部实例无右键菜单（重命名/删除对无本地配置的实例无意义）
+                            if (!isExternal)
+                                contextMenu.popup()
                         }
                     }
 
@@ -228,7 +235,8 @@ Rectangle {
 
                     onPressAndHold: {
                         root.selectInstance(instanceName)
-                        contextMenu.popup()
+                        if (!isExternal)
+                            contextMenu.popup()
                     }
                 }
 
@@ -246,25 +254,40 @@ Rectangle {
                         Label {
                             text: labelText
                             font.bold: true
-                            color: palette.windowText
+                            // 外部实例名称用高亮色突出显示，本地实例用常规文字色
+                            color: isExternal ? palette.highlight : palette.windowText
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
 
-                        // 运行/未运行状态
+                        // 运行状态文案（完整状态，区分启动/停止过渡与错误）
                         Label {
-                            text: isRunning ? qsTr("运行中") : qsTr("未运行")
+                            text: {
+                                if (isExternal)
+                                    return qsTr("运行中 · 外部实例")
+                                if (runState === 1)
+                                    return qsTr("启动中")
+                                if (runState === 2)
+                                    return qsTr("运行中")
+                                if (runState === 3)
+                                    return qsTr("停止中")
+                                if (runState === 4)
+                                    return qsTr("运行错误")
+                                return qsTr("未运行")
+                            }
                             font: FontHelper.smallFont
-                            color: isRunning ? palette.highlight : palette.placeholderText
+                            color: (isRunning || isBusy || runState === 4) ? palette.highlight : palette.placeholderText
                         }
                     }
 
-                    // 启动/停止按钮，图标根据运行状态切换
+                    // 启动/停止按钮，图标根据运行状态切换；过渡期间禁用防止重复操作
                     IconToolButton {
                         iconSource: isRunning ? "qrc:/icons/stop.svg" : "qrc:/icons/play.svg"
                         iconSize: 24
                         buttonSize: 36
                         flat: true
+                        enabled: !isBusy
+                        opacity: enabled ? 1.0 : 0.4
                         Layout.alignment: Qt.AlignVCenter
                         onClicked: {
                             root.selectInstance(instanceName)

@@ -6,7 +6,7 @@
  * 使用匿名命名空间存放常量，避免全局符号污染。
  */
 #include "AutoStartHelper.h"
-#include "core/log/LogHelper.h"
+#include "log/LogHelper.h"
 
 #include <QCoreApplication>
 #include <QDir>

@@ -15,8 +15,8 @@
 #include <QTest>
 #include <QDir>
 #include <QUuid>
-#include "core/repository/DatabaseConnection.h"
-#include "core/repository/FavoriteNodeRepository.h"
+#include "sqlite_repository/DatabaseConnection.h"
+#include "sqlite_repository/FavoriteNodeRepository.h"
 
 class TestFavoriteNodeRepository : public QObject {
     Q_OBJECT
