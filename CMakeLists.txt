@@ -27,6 +27,9 @@ option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
 set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHUB or CNB")
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
 
+# DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面（依赖系统 Chameleon/org.deepin.dtk QML 模块）
+option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" OFF)
+
 include(cmake/QtEasyTierDaemon.cmake)
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS
@@ -115,6 +118,10 @@ target_link_libraries(appQtEasyTier PRIVATE
     qtet_appsupport
 )
 
+if(BUILD_WITH_DDE)
+    target_compile_definitions(appQtEasyTier PRIVATE QTET_WITH_DDE)
+endif()
+
 set(QTET_QML_FILES
     src/qml/Main.qml
     src/qml/components/Sidebar.qml
@@ -139,6 +146,10 @@ set(QTET_QML_FILES
     src/qml/pages/FavoriteNodesPage.qml
     src/qml/pages/LogPage.qml
 )
+
+if(BUILD_WITH_DDE)
+    list(APPEND QTET_QML_FILES src/qml/dde/DdeMain.qml)
+endif()
 
 foreach(qml_file IN LISTS QTET_QML_FILES)
     file(RELATIVE_PATH qml_resource_alias "${CMAKE_CURRENT_SOURCE_DIR}/src/qml" "${CMAKE_CURRENT_SOURCE_DIR}/${qml_file}")
