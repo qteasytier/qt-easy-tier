@@ -52,14 +52,19 @@ ctest --test-dir build -R tst_network_conf --output-on-failure
 src/
 ├── main.cpp                         应用入口
 ├── app/                             应用装配层
-├── app_service/                     应用业务服务层
-│   └── viewmodels/                  暴露给 QML 的 ViewModel / Model（同属 qtet_application target）
-├── core/                            基础服务层
-│   ├── config/                      配置数据结构、TOML 序列化、校验、URL 编解码
-│   ├── sqlite_repository/           SQLite 持久化
-│   ├── daemon_service/              daemon IPC 与 daemon API 封装
-│   ├── system_tray/                 系统托盘与托盘消息
-│   └── log/                         日志基础设施
+├── core/                            应用核心业务层
+│   ├── config/                      配置命令、导入导出
+│   ├── credential/
+│   ├── favorite/                    收藏节点导入导出
+│   ├── logging/                     日志落库 sink
+│   ├── runtime/                     VPN 运行服务与运行状态展示模型
+│   ├── settings/                    设置持久化、更新检查、危险操作编排
+│   └── viewmodels/                  暴露给 QML 的 ViewModel / Model（同属 qtet_appcore target）
+├── config/                          配置数据结构、TOML 序列化、校验、URL 编解码（基础能力）
+├── sqlite_repository/               SQLite 持久化
+├── daemon_service/                  daemon IPC 与 daemon API 封装
+├── system_tray/                     系统托盘与托盘消息
+├── log/                             日志基础设施
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
 └── qml/                             QML UI
 ```
@@ -71,14 +76,14 @@ UI 层
     QML + ViewModel
     负责界面、交互、绑定，为 QML 提供稳定的 C++ facade 和 Qt Model
 
-应用服务层
-    src/app_service/
+应用核心层
+    src/core/
     承接应用业务规则和跨模块协调，是 UI 层访问基础服务层的桥接点；
     其中 VpnRuntimeService 是应用级 VPN runtime 协调器，统一管理实例
     生命周期、心跳同步与运行状态展示模型
 
 基础服务层
-    src/core/config/、sqlite_repository/、daemon_service/、system_tray/、platform/、log/
+    src/config/、sqlite_repository/、daemon_service/、system_tray/、platform/、log/
     提供 SQLite、daemon IPC、平台能力、日志、配置序列化等基础设施
 
 应用装配层
@@ -92,7 +97,7 @@ UI 层
 - UI 层（QML + ViewModel）与基础服务层之间通过应用服务层桥接：
   应用服务从基础服务层获取信息并暴露给 UI 层，ViewModel 的构造依赖中不应
   出现 repository / DaemonClient / 平台工具等基础服务类型。
-- 基础服务层不得 include `app_service` 或 `viewmodels` 的头文件。
+- 基础服务层不得 include `core/` 或 `core/viewmodels/` 的头文件。
 - 跨层信号连线统一放在 `AppServices::wireRuntime()` 等装配函数中。
 - 允许的例外：纯数据模型与工具类（如 `NetworkConf`、`ConfigRunState`、
   `FontHelper`）不强制过桥；日志/收藏/后端状态等薄壳 ViewModel 的历史直连
@@ -246,11 +251,11 @@ QML 通过 QmlSingletonRegistrar 注册的 singleton 访问能力。`VpnRuntimeS
 ViewModel 位于：
 
 ```text
-src/app_service/viewmodels/
+src/core/viewmodels/
 ```
 
-ViewModel 是 `src/app_service/` 应用业务服务的一部分，一起编译进同一个构建目标
-`qtet_application`（不拆分为独立物理 target）。
+ViewModel 是 `src/core/` 应用核心的一部分，一起编译进同一个构建目标
+`qtet_appcore`（不拆分为独立物理 target）。
 
 它们是 QML 和 C++ 后端之间的主要 facade。ViewModel 应负责：
 
@@ -283,7 +288,7 @@ ImportNodesViewModel
 说明：
 
 - `NodeInfoModel` / `RuntimeLogModel` 属于运行状态展示模型，位于应用服务层
-  （`src/app_service/runtime/`），由 `VpnRuntimeService` 持有并填充，不属于 ViewModel 层。
+  （`src/core/runtime/`），由 `VpnRuntimeService` 持有并填充，不属于 ViewModel 层。
 - QML singleton `DangerousOperationViewModel` 是兼容注册名称，实际注册的是应用服务
   `DangerousOperationService`，不再对应独立的 C++ ViewModel 类型（见下文危险操作章节）。
 
@@ -435,7 +440,7 @@ VpnRuntimeService / 各 Repository / DaemonRegisterHelper
 
 `NodeInfoModel` 和 `RuntimeLogModel` 分别将 VPN 运行时节点信息和运行日志暴露为 `QAbstractListModel`。
 
-它们位于应用服务层 `src/app_service/runtime/`，由 `VpnRuntimeService` 持有并填充：
+它们位于应用服务层 `src/core/runtime/`，由 `VpnRuntimeService` 持有并填充：
 `VpnRuntimeService` 将 StatusMonitor 解析的节点/日志数据写入对应 `VpnController` 缓存，
 再填充当前查看实例的展示模型，基础服务层不接触任何 UI 类型。
 
@@ -453,7 +458,7 @@ VpnRuntimeService.runtimeLogModel
 应用服务位于：
 
 ```text
-src/app_service/
+src/core/
 ```
 
 这一层承接应用业务规则和跨模块协调，是 UI 层（QML + ViewModel）与基础服务层之间的桥接点。
@@ -461,8 +466,9 @@ src/app_service/
 目录结构：
 
 ```text
-src/app_service/
+src/core/
 ├── config/        配置读写、导入导出、命令服务
+├── credential/    凭据服务与列表模型
 ├── favorite/      收藏节点导入导出
 ├── logging/       日志落库 sink
 ├── runtime/       VPN 运行服务与运行状态展示模型
@@ -474,7 +480,7 @@ src/app_service/
 路径：
 
 ```text
-src/app_service/config/
+src/core/config/
 ```
 
 主要类型：
@@ -491,14 +497,14 @@ ConfigOperationResult
 - `ConfigImportExportService`：配置的文件/URL 导入导出与 daemon 校验。
 - `ConfigOperationResult`：统一表达配置操作结果。
 
-daemon 载荷构建（`ConfigPayloadBuilder`）位于基础服务层 `src/core/config/`。
+daemon 载荷构建（`ConfigPayloadBuilder`）位于基础服务层 `src/config/`。
 
 ### runtime
 
 路径：
 
 ```text
-src/app_service/runtime/
+src/core/runtime/
 ```
 
 主要类型：
@@ -521,7 +527,7 @@ RuntimeLogModel
 路径：
 
 ```text
-src/app_service/settings/
+src/core/settings/
 ```
 
 主要类型：
@@ -541,7 +547,7 @@ DangerousOperationService
   设置文件重置 → 关闭系统自启动）流程，直接以 QML 注册名 `DangerousOperationViewModel`
   暴露给设置页。
 
-自动回连与更新检查的异步状态由 `SettingsViewModel`（`app_service/viewmodels`）直接持有和协调：
+自动回连与更新检查的异步状态由 `SettingsViewModel`（`core/viewmodels`）直接持有和协调：
 它经注入的 `DaemonApi` 发起自动回连 RPC，并监听 `UpdateCheckService` 终态信号收敛忙状态。
 
 开机自启动不在此目录：`SettingsViewModel` 直接调用平台层 `AutoStartHelper`，
@@ -558,7 +564,7 @@ DangerousOperationService
 路径：
 
 ```text
-src/app_service/favorite/
+src/core/favorite/
 ```
 
 主要类型：
@@ -571,7 +577,7 @@ FavoriteNodeJsonCodec
 收藏节点值类型 `FavoriteNode` 作为 SQLite repository 的记录类型位于：
 
 ```text
-src/core/sqlite_repository/FavoriteNode.h
+src/sqlite_repository/FavoriteNode.h
 ```
 
 `FavoriteNodeJsonCodec` 负责读取和写出收藏节点 JSON 格式。内置公开服务器列表默认读取 Qt resource：
@@ -591,7 +597,7 @@ assets/resources.qrc
 路径：
 
 ```text
-src/app_service/logging/
+src/core/logging/
 ```
 
 主要类型：
@@ -621,7 +627,7 @@ SQLite
 路径：
 
 ```text
-src/core/config/
+src/config/
 ```
 
 职责：
@@ -642,7 +648,7 @@ src/core/config/
 路径：
 
 ```text
-src/core/sqlite_repository/
+src/sqlite_repository/
 ```
 
 职责：
@@ -668,7 +674,7 @@ repository 层不应依赖 QML，也不应包含页面逻辑。
 路径：
 
 ```text
-src/core/daemon_service/
+src/daemon_service/
 ```
 
 职责：
@@ -711,7 +717,7 @@ UI 层通过应用服务层访问 daemon 能力（如 `SettingsViewModel` 经注
 `VpnController`、`StatusMonitor` 与 `VpnRuntimeService` 一起位于：
 
 ```text
-src/app_service/runtime/
+src/core/runtime/
 ```
 
 职责：
@@ -729,7 +735,7 @@ StatusMonitor
 VpnRuntimeService
 ```
 
-`VpnController` 和 `StatusMonitor` 不再是独立物理 target，作为 `qtet_application`
+`VpnController` 和 `StatusMonitor` 不再是独立物理 target，作为 `qtet_appcore`
 内部协作者与应用 runtime 服务编译在一起。
 
 ### VpnController
@@ -757,7 +763,7 @@ QML
 路径：
 
 ```text
-src/core/system_tray/
+src/system_tray/
 ```
 
 职责：
@@ -782,7 +788,7 @@ TrayMessageSink
 路径：
 
 ```text
-src/core/log/
+src/log/
 ```
 
 主要类型：
@@ -835,7 +841,7 @@ FontHelper
 直接调用 `AutoStartHelper` 读取/写入，这是明确且有限的例外；除自启动外，其余平台能力
 仍应通过 application service 暴露，QML 不应直接依赖具体平台实现。
 
-`LogHelper`（日志工具入口）位于 `src/core/log/`，见上文「log 基础模块」一节。
+`LogHelper`（日志工具入口）位于 `src/log/`，见上文「log 基础模块」一节。
 
 ## 资源文件
 
@@ -870,7 +876,7 @@ qtet_sqlite_repository
 qtet_daemon_service
 qtet_platform
 qtet_system_tray
-qtet_application
+qtet_appcore
 qtet_appsupport
 ```
 
@@ -881,7 +887,7 @@ appQtEasyTier
     ↓
 qtet_appsupport
     ↓
-qtet_application（应用业务服务 + ViewModel，依赖全部基础服务）
+qtet_appcore（应用核心 + ViewModel，依赖全部基础服务）
     ↓
 qtet_sqlite_repository / qtet_daemon_service / qtet_platform / qtet_system_tray
     ↓
@@ -892,14 +898,14 @@ qtet_config / qtet_log
 
 - 基础服务层只保留 `qtet_config` / `qtet_log` / `qtet_sqlite_repository` /
   `qtet_daemon_service` / `qtet_system_tray` / `qtet_platform`；其余能力（收藏、
-  VPN 状态机、应用业务、ViewModel）全部收敛进 `qtet_application`。
-- `qtet_application` 同时包含 `src/app_service/` 的业务服务与 `src/app_service/viewmodels/` 的
+  VPN 状态机、应用业务、ViewModel）全部收敛进 `qtet_appcore`。
+- `qtet_appcore` 同时包含 `src/core/` 的业务服务与 `src/core/viewmodels/` 的
   ViewModel / Model，并编译 `FavoriteNodeJsonCodec`、`VpnController`、`StatusMonitor`；
   它依赖 `qtet_sqlite_repository`、`qtet_daemon_service` 及各基础服务。
 - `FavoriteNode` 值类型属于 `qtet_sqlite_repository`（SQLite 记录），
-  `qtet_application` 不得反向依赖 repository。
+  `qtet_appcore` 不得反向依赖 repository。
 - 历史薄壳 ViewModel 对 `qtet_sqlite_repository` / `qtet_daemon_service` /
-  `qtet_platform` 的直连已成为 `qtet_application` 内部实现依赖，
+  `qtet_platform` 的直连已成为 `qtet_appcore` 内部实现依赖，
   不应再作为消费者可见的公共依赖扩散。
 
 `qtet_system_tray` 由 `qtet_appsupport` 直接链接，依赖 `qtet_daemon_service`、`qtet_config` 和 `qtet_log`。
@@ -908,9 +914,9 @@ qtet_config / qtet_log
 
 - 上层可以依赖下层。
 - 下层不要反向依赖上层。
-- 基础服务不得 include `app_service` 或 `viewmodels` 头文件。
+- 基础服务不得 include `core/` 或 `core/viewmodels/` 头文件。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
-- 新 C++ 源文件应加入所属模块 target；`src/app_service` 与其 `viewmodels` 子目录的新文件都加入 `qtet_application`。
+- 新 C++ 源文件应加入所属模块 target；`src/core` 与其 `viewmodels` 子目录的新文件都加入 `qtet_appcore`。
 - 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；`-DCLONE_DAEMON_FROM=GITEE`（或 `CNB`）时从对应来源克隆后端源码，默认 `GITHUB`。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
 - Windows 当前只构建前端：即使 `BUILD_WITH_DAEMON=ON`，CMake 也会跳过 `qtet-daemon` 构建和收集。Windows 开发仅按 MinGW64 工具链适配，不为 MSVC 添加专用配置或兼容代码。
 
@@ -924,7 +930,7 @@ qtet_config / qtet_log
 | `qtet_daemon_service` | daemon IPC 和 daemon API |
 | `qtet_platform` | 平台相关实现（源码在 `src/platform/`） |
 | `qtet_system_tray` | 系统托盘、托盘消息、真实通知输出 |
-| `qtet_application` | 应用业务服务层 + 暴露给 QML 的 ViewModel / Model + 收藏编解码 + VPN 状态机（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
+| `qtet_appcore` | 应用业务服务层 + 暴露给 QML 的 ViewModel / Model + 收藏编解码 + VPN 状态机（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
 | `qtet_appsupport` | AppServices 和 QML singleton 注册 |
 
 ## 测试组织
@@ -972,10 +978,10 @@ tst_app_launch_manager
 通常需要检查或修改：
 
 ```text
-src/core/config/
-src/app_service/viewmodels/ConfigEditorViewModel.*
-src/core/config/ConfigPayloadBuilder.*
-src/core/sqlite_repository/
+src/config/
+src/core/viewmodels/ConfigEditorViewModel.*
+src/config/ConfigPayloadBuilder.*
+src/sqlite_repository/
 tests/
 ```
 
@@ -986,7 +992,7 @@ tests/
 优先修改：
 
 ```text
-src/core/daemon_service/DaemonApi.*
+src/daemon_service/DaemonApi.*
 ```
 
 调用方应通过 `DaemonApi` 使用，不要在 ViewModel 或 QML-facing 类中散落 method name 和 JSON params。
@@ -996,7 +1002,7 @@ src/core/daemon_service/DaemonApi.*
 优先放在：
 
 ```text
-src/app_service/
+src/core/
 ```
 
 如果该操作需要暴露给 QML，再由对应 ViewModel 包一层 QML-friendly API。
@@ -1006,7 +1012,7 @@ src/app_service/
 优先使用 `QAbstractListModel` 风格的 model，放在：
 
 ```text
-src/app_service/viewmodels/
+src/core/viewmodels/
 ```
 
 避免直接暴露复杂 `QVariantList` 作为长期 API。
@@ -1016,7 +1022,7 @@ src/app_service/viewmodels/
 优先放在页面级 ViewModel，例如：
 
 ```text
-src/app_service/viewmodels/runtime/NetworkPageViewModel.*
+src/core/viewmodels/runtime/NetworkPageViewModel.*
 ```
 
 不要把复杂协调逻辑堆在 QML 文件中。
@@ -1048,16 +1054,16 @@ src/qml/pages/
 
 | 要新增的内容 | 推荐目录 | CMake target |
 | --- | --- | --- |
-| 配置结构、TOML、校验、URL 编解码 | `src/core/config/` | `qtet_config` |
-| 日志基础设施 | `src/core/log/` | `qtet_log` |
-| SQLite repository | `src/core/sqlite_repository/` | `qtet_sqlite_repository` |
-| daemon IPC / API | `src/core/daemon_service/` | `qtet_daemon_service` |
+| 配置结构、TOML、校验、URL 编解码 | `src/config/` | `qtet_config` |
+| 日志基础设施 | `src/log/` | `qtet_log` |
+| SQLite repository | `src/sqlite_repository/` | `qtet_sqlite_repository` |
+| daemon IPC / API | `src/daemon_service/` | `qtet_daemon_service` |
 | 平台相关实现 | `src/platform/` | `qtet_platform` |
-| 应用业务服务 | `src/app_service/` | `qtet_application` |
-| 收藏节点编解码 | `src/app_service/favorite/` | `qtet_application` |
-| VPN 状态机 / 运行状态 | `src/app_service/runtime/` | `qtet_application` |
-| 系统托盘 / 托盘消息 | `src/core/system_tray/` | `qtet_system_tray` |
-| QML ViewModel / Model | `src/app_service/viewmodels/` | `qtet_application` |
+| 应用核心业务 | `src/core/` | `qtet_appcore` |
+| 收藏节点编解码 | `src/core/favorite/` | `qtet_appcore` |
+| VPN 状态机 / 运行状态 | `src/core/runtime/` | `qtet_appcore` |
+| 系统托盘 / 托盘消息 | `src/system_tray/` | `qtet_system_tray` |
+| QML ViewModel / Model | `src/core/viewmodels/` | `qtet_appcore` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
 | QML 页面 / 组件 | `src/qml/` | `qt_add_qml_module` 的 `QML_FILES` |
 | Qt resource | `assets/` | `assets/resources.qrc` |
@@ -1083,9 +1089,9 @@ src/qml/pages/
 - 不要重新添加 `LogHelper::init(...)`。
 - 不要在测试 target 中重复编译大量生产 `.cpp`，应链接模块 target。
 - 不要让基础服务层（`config` / `log` / `sqlite_repository` / `daemon_service` / `system_tray` / `platform`）
-  依赖 ViewModel、QML 或 `app_service`。
+  依赖 ViewModel、QML 或 `core`。
 - 不要绕过 `DaemonApi` 在上层散落 daemon method name。
-- 新增跨模块业务操作时，优先放入 `src/app_service/`，再由 ViewModel 做 QML 友好的薄壳转发。
+- 新增跨模块业务操作时，优先放入 `src/core/`，再由 ViewModel 做 QML 友好的薄壳转发。
 
 ### 已知技术债务（暂不处理）
 

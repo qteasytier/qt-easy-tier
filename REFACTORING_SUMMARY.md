@@ -105,21 +105,25 @@ qtet_daemon_service       daemon IPC、帧协议、DaemonApi
 qtet_platform             自启动、daemon 注册、字体
 qtet_system_tray          系统托盘、托盘消息
 
-qtet_application          app_service + viewmodels + 收藏编解码 + VPN 状态机
+qtet_appcore               src/core + viewmodels + 收藏编解码 + VPN 状态机
   ├── VpnRuntimeService / VpnController / StatusMonitor（VPN runtime 协调）
   ├── FavoriteNodeJsonCodec（收藏导入导出）
   ├── ConfigListModel / ConfigEditorViewModel
   ├── SettingsViewModel（设置状态唯一所有者）
   ├── DangerousOperationService（QML 注册名 DangerousOperationViewModel）
-  └── 其他应用服务与 ViewModel
+  └── 其他应用核心服务与 ViewModel
 
 qtet_appsupport           AppServices、QmlSingletonRegistrar、AppLaunchManager
 
 appQtEasyTier             仅链接 qtet_appsupport
 ```
 
+目录结构随最新调整：`src/app_service` 更名为 `src/core`（应用核心），原基础模块
+`config`/`log`/`sqlite_repository`/`daemon_service`/`system_tray` 提升到 `src/` 顶层；
+应用核心 target 名从 `qtet_application` 更新为 `qtet_appcore`。
+
 已删除的物理 target：`qtet_favorite`（值类型归 `qtet_sqlite_repository`、
-codec 归 `qtet_application`）、`qtet_vpn`（并入 `qtet_application`）。
+codec 归 `qtet_appcore`）、`qtet_vpn`（并入 `qtet_appcore`）。
 
 ## 行为保持
 
