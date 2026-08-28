@@ -7,8 +7,9 @@
  *  - 页面容器、侧边栏、底部状态栏、错误弹窗逻辑与 Main.qml 逐条等价。
  */
 import QtQuick
-// QtQuick.Controls 以 QQC 别名引入，仅用 Dialog / Overlay；
-// 避免与 org.deepin.dtk 的 ApplicationWindow 产生同名类型歧义。
+// QtQuick.Controls 以 QQC 别名引入，仅用 QQC.Label / QQC.Dialog / QQC.Overlay；
+// 避免与 org.deepin.dtk 的 ApplicationWindow 产生同名类型歧义，
+// 同时避免裸 Label 隐式依赖 dtk 的导出（无 dtk 的静态检查环境不可解析）。
 import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
@@ -99,7 +100,7 @@ ApplicationWindow {
                          : theme.statusRed
                 }
 
-                Label {
+                QQC.Label {
                     text: BackendStatusViewModel.statusText
                     font.pixelSize: 11
                     color: palette.windowText
@@ -124,7 +125,7 @@ ApplicationWindow {
 
         property string text: ""
 
-        Label {
+        QQC.Label {
             text: errorDialog.text
             wrapMode: Text.WordWrap
             width: parent ? parent.width : 360
