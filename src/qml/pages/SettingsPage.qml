@@ -47,11 +47,12 @@ Rectangle {
                     Layout.bottomMargin: 4
                 }
 
-                // 开机自启开关：操作失败时恢复到 ViewModel 状态
+                // 开机自启开关：操作失败时恢复到系统真实状态（settings3.json 不再持久化该字段）
                 Switch {
                     id: autoStartSwitch
                     text: qsTr("开机自启")
                     checked: SettingsViewModel.autoStart
+                    Component.onCompleted: SettingsViewModel.refreshAutoStart()
                     onToggled: {
                         if (!SettingsViewModel.setAutoStart(checked)) {
                             // 设置失败：恢复开关，重建到 ViewModel 的声明式绑定

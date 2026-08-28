@@ -32,9 +32,10 @@ SettingsStore::Settings SettingsStore::load(const Settings &defaults) const
         return defaults;
 
     // 逐字段读取，缺失项使用默认值填充
+    // 注意：旧版 settings3.json 可能包含 autoStart 字段，自启动状态现由系统权威，
+    // 该字段被忽略；下次保存时会被新 JSON 覆盖并移除。
     const QJsonObject obj = doc.object();
     Settings settings = defaults;
-    settings.autoStart = obj.value(QLatin1String("autoStart")).toBool(settings.autoStart);
     settings.autoCheckUpdates = obj.value(QLatin1String("autoCheckUpdates")).toBool(settings.autoCheckUpdates);
     settings.showExitPrompt = obj.value(QLatin1String("showExitPrompt")).toBool(settings.showExitPrompt);
     settings.hideServerNodes = obj.value(QLatin1String("hideServerNodes")).toBool(settings.hideServerNodes);
@@ -47,9 +48,9 @@ SettingsStore::Settings SettingsStore::load(const Settings &defaults) const
 bool SettingsStore::save(const Settings &settings) const
 {
     // 先规范化再序列化，确保写入的数据在合法范围内
+    // 不再写出 autoStart：自启动状态由系统权威，settings3.json 不持久化该字段
     const Settings normalizedSettings = normalized(settings);
     QJsonObject obj;
-    obj[QStringLiteral("autoStart")] = normalizedSettings.autoStart;
     obj[QStringLiteral("autoCheckUpdates")] = normalizedSettings.autoCheckUpdates;
     obj[QStringLiteral("showExitPrompt")] = normalizedSettings.showExitPrompt;
     obj[QStringLiteral("hideServerNodes")] = normalizedSettings.hideServerNodes;

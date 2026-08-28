@@ -14,6 +14,7 @@
 #include "core/repository/FavoriteNodeRepository.h"
 #include "core/repository/LogRepository.h"
 #include "core/repository/NetworkConfigRepository.h"
+#include "platform/AutoStartHelper.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "core/log/LogHelper.h"
 #include "app_service/runtime/VpnRuntimeService.h"
@@ -121,8 +122,10 @@ void DangerousOperationService::performClear()
     const bool logsOk = m_logRepository->clearAll();
     // 设置文件写回默认值（不更新内存状态，应用即将退出）
     const bool settingsOk = m_store.save(SettingsStore::Settings{});
+    // 清空全部数据时同时关闭系统开机自启动，避免残留自启动项
+    const bool autoStartOk = AutoStartHelper::setAutoStart(false);
 
-    if (!configsOk || !favoritesOk || !logsOk || !settingsOk) {
+    if (!configsOk || !favoritesOk || !logsOk || !settingsOk || !autoStartOk) {
         LogHelper::logError("危险操作: 清空数据失败", "DangerousOperation");
         setBusy(false);
         emit operationFinished(false, QStringLiteral("清空数据失败，请检查存储权限后重试"));

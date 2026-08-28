@@ -2,12 +2,14 @@
  * @file SettingsViewModel.cpp
  * @brief SettingsViewModel 实现
  *
- * 本地设置（settings3.json）与开机自启由本类直接管理；
+ * 本地设置（settings3.json）由本类直接管理；开机自启以系统实际状态为唯一权威源，
+ * 直接通过 AutoStartHelper 读写，不持久化到 JSON。
  * 自动回连与版本更新检查委托 SettingsBackendService，
  * 本类仅负责将后端服务的信号转发为 QML 可绑定的属性通知。
  */
 #include "SettingsViewModel.h"
 #include "AppVersion.h"
+#include "platform/AutoStartHelper.h"
 #include "core/log/LogHelper.h"
 
 SettingsViewModel::SettingsViewModel(SettingsBackendService *backend, QObject *parent)
@@ -31,7 +33,8 @@ SettingsViewModel::SettingsViewModel(SettingsBackendService *backend, QObject *p
 
 bool SettingsViewModel::autoStart() const
 {
-    return m_autoStart;
+    // 以系统实际自启动状态为唯一权威源，每次读取实时查询
+    return AutoStartHelper::isAutoStartEnabled();
 }
 
 bool SettingsViewModel::autoReconnect() const
@@ -150,28 +153,35 @@ void SettingsViewModel::checkForUpdatesOnStartup()
 
 bool SettingsViewModel::setAutoStart(bool enabled)
 {
-    if (m_autoStart == enabled)
+    // 以系统实际状态为准：已处于目标状态则直接成功，不产生多余系统调用
+    const bool before = AutoStartHelper::isAutoStartEnabled();
+    if (before == enabled)
         return true;
 
-    if (!m_autoStartService.setEnabled(enabled)) {
+    const bool operationOk = AutoStartHelper::setAutoStart(enabled);
+    const bool after = AutoStartHelper::isAutoStartEnabled();
+
+    // 系统实际状态发生变化时通知 QML 刷新
+    if (after != before)
+        emit autoStartChanged();
+
+    // 操作失败或系统最终未达到目标状态，保持警告并返回失败
+    if (!operationOk || after != enabled) {
         LogHelper::logWarning(QStringLiteral("开机自启动状态%1失败，保持原状态")
                                   .arg(enabled ? QStringLiteral("开启") : QStringLiteral("关闭")),
                               "Settings");
         return false;
     }
 
-    m_autoStart = enabled;
-    emit autoStartChanged();
-    save();
-
     LogHelper::logInfo(QStringLiteral("开机自启动已%1")
         .arg(enabled ? QStringLiteral("开启") : QStringLiteral("关闭")), "Settings");
     return true;
 }
 
-bool SettingsViewModel::isAutoStartEnabled() const
+void SettingsViewModel::refreshAutoStart()
 {
-    return m_autoStartService.isEnabled();
+    // 重新发射属性通知，使 QML 读取系统真实自启动状态
+    emit autoStartChanged();
 }
 
 int SettingsViewModel::logLevel() const
@@ -221,7 +231,6 @@ QString SettingsViewModel::easyTierVersion() const
 SettingsStore::Settings SettingsViewModel::settings() const
 {
     SettingsStore::Settings settings;
-    settings.autoStart = m_autoStart;
     settings.autoCheckUpdates = m_autoCheckUpdates;
     settings.showExitPrompt = m_showExitPrompt;
     settings.hideServerNodes = m_hideServerNodes;
@@ -233,7 +242,6 @@ SettingsStore::Settings SettingsViewModel::settings() const
 void SettingsViewModel::applySettings(const SettingsStore::Settings &settings)
 {
     const SettingsStore::Settings normalizedSettings = SettingsStore::normalized(settings);
-    m_autoStart = normalizedSettings.autoStart;
     m_autoCheckUpdates = normalizedSettings.autoCheckUpdates;
     m_showExitPrompt = normalizedSettings.showExitPrompt;
     m_hideServerNodes = normalizedSettings.hideServerNodes;

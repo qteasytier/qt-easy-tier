@@ -60,8 +60,8 @@ target_link_libraries(tst_daemon_register_helper PRIVATE qtet_platform)
 add_core_test(tst_settings_store tst_settings_store.cpp)
 target_link_libraries(tst_settings_store PRIVATE qtet_application)
 
-add_core_test(tst_autostart_service tst_autostart_service.cpp)
-target_link_libraries(tst_autostart_service PRIVATE qtet_application)
+add_core_test(tst_settings_viewmodel tst_settings_viewmodel.cpp)
+target_link_libraries(tst_settings_viewmodel PRIVATE qtet_viewmodel qtet_platform)
 
 add_core_test(tst_favorite_node_json_codec tst_favorite_node_json_codec.cpp)
 target_link_libraries(tst_favorite_node_json_codec PRIVATE qtet_favorite)

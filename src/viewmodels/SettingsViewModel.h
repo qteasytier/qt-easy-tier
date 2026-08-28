@@ -4,15 +4,17 @@
  *
  * 管理开机自启、本地设置和日志配置。
  * autoReconnect 不再本地持久化，改为通过 SettingsBackendService 读写后端状态。
+ * autoStart 不再由 settings3.json 持久化，改为直接以系统实际状态为唯一权威源
+ * （Windows 注册表 / Linux XDG Autostart），通过 AutoStartHelper 读写。
  * 本地设置持久化到系统标准配置路径下的 settings3.json，
  * 不走 SQLite（app_settings 表已删除）。
  *
  * 作为 QML 单例注入，所有所有权归属于 QQmlApplicationEngine。
  * 分层约束：与 daemon / 更新检查的交互全部委托应用服务层
  * SettingsBackendService，本类不直接接触 DaemonApi / UpdateCheckService。
+ * 例外：autoStart 直接调用平台 AutoStartHelper，属于获取系统自启动状态的明确例外。
  */
 #pragma once
-#include "app_service/settings/AutoStartService.h"
 #include "app_service/settings/SettingsBackendService.h"
 #include "app_service/settings/SettingsStore.h"
 
@@ -24,10 +26,10 @@
  * @brief 应用设置数据模型与持久化管理器
  *
  * 职责：
- *   - 管理 autoStart（开机自启）本地开关
+ *   - 管理 autoStart（开机自启）：直接读写系统自启动状态，不持久化到 JSON
  *   - 管理 autoReconnect（自动回连）后端开关（通过 SettingsBackendService）
  *   - 提供 load() / save() 对 settings3.json 的读写
- *   - setAutoStart() 委托 AutoStartService 管理系统级自启动项
+ *   - setAutoStart() 委托 AutoStartHelper 管理系统级自启动项
  *   - Q_INVOKABLE 方法直接暴露给 QML 绑定和调用
  */
 class SettingsViewModel : public QObject {
@@ -121,21 +123,29 @@ public:
     /**
      * @brief 设置或取消开机自启动
      *
-     * 流程：
-     *   1. 状态未变则直接返回 true
-     *   2. 调用 AutoStartService 系统级接口
-     *   3. 成功则更新内存状态 + 发射信号 + 持久化
-     *   4. 失败则保持原状态，输出警告日志
+     * 以系统实际自启动状态为唯一权威源：
+     *   1. 操作前查询系统状态，若已处于目标状态则直接返回 true
+     *   2. 调用 AutoStartHelper 系统级接口
+     *   3. 操作后再查询系统状态，若实际状态发生改变则发射 autoStartChanged
+     *   4. 若操作失败或系统最终未达到目标状态，输出警告日志并返回 false
+     *
+     * 不再持久化到 settings3.json。
      *
      * @param enabled true 为开启，false 为取消
-     * @return 操作是否成功
+     * @return 是否成功且系统最终达到目标状态
      */
     Q_INVOKABLE bool setAutoStart(bool enabled);
 
+    /**
+     * @brief 刷新自启动开关显示状态
+     *
+     * 重新发射 autoStartChanged，使 QML 重新读取系统真实自启动状态
+     * （用户可能在应用外修改了注册表或 autostart 文件）。
+     */
+    Q_INVOKABLE void refreshAutoStart();
+
     Q_INVOKABLE void checkForUpdates();
     void checkForUpdatesOnStartup();
-
-    Q_INVOKABLE bool isAutoStartEnabled() const;
 
     int logLevel() const;
     void setLogLevel(int value);
@@ -161,9 +171,7 @@ private:
     void applySettings(const SettingsStore::Settings &settings);
 
     SettingsBackendService *m_backend = nullptr; ///< 设置后端服务（非所有权）
-    AutoStartService m_autoStartService;
     SettingsStore m_store;
-    bool m_autoStart = false;
     bool m_autoCheckUpdates = true;
     bool m_hideServerNodes = false;
     bool m_showExitPrompt = true;

@@ -25,6 +25,7 @@
 #include "core/service/DaemonClient.h"
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
+#include "platform/AutoStartHelper.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "app_service/runtime/VpnRuntimeService.h"
 
@@ -112,10 +113,18 @@ private slots:
             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
         SettingsStore store(settingsPath);
         SettingsStore::Settings nonDefault;
-        nonDefault.autoStart = true;
         nonDefault.logLevel = 3;
         nonDefault.maxLogEntries = 500;
         QVERIFY(store.save(nonDefault));
+
+        // 在隔离的临时路径下启用系统自启动，验证清空全部数据会同时关闭它
+#if defined(Q_OS_LINUX)
+        QTemporaryDir autostartDir;
+        QVERIFY(autostartDir.isValid());
+        const QString desktopPath = QDir(autostartDir.path()).filePath(QStringLiteral("QtEasyTier.desktop"));
+        AutoStartHelper::setDesktopFilePathOverrideForTesting(desktopPath);
+        QVERIFY(AutoStartHelper::setAutoStart(true));
+#endif
 
         DaemonClient client;
         DaemonApi api(&client);
@@ -142,9 +151,14 @@ private slots:
 
         // 验证设置文件已恢复默认值
         const SettingsStore::Settings loaded = SettingsStore(settingsPath).load();
-        QCOMPARE(loaded.autoStart, false);
         QCOMPARE(loaded.logLevel, 1);
         QCOMPARE(loaded.maxLogEntries, 100);
+
+#if defined(Q_OS_LINUX)
+        // 验证系统自启动项已随清空全部数据被关闭
+        QVERIFY(!AutoStartHelper::isAutoStartEnabled());
+        AutoStartHelper::setDesktopFilePathOverrideForTesting(QString());
+#endif
 
         QFile::remove(settingsPath);
     }

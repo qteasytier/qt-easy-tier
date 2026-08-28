@@ -25,7 +25,6 @@ private slots:
 
         SettingsStore store(path);
         SettingsStore::Settings settings;
-        settings.autoStart = true;
         settings.showExitPrompt = false;
         settings.hideServerNodes = true;
         settings.logLevel = 2;
@@ -35,7 +34,6 @@ private slots:
 
         const SettingsStore::Settings loaded = store.load();
         // 验证结果：加载回来的字段值与保存时一致
-        QCOMPARE(loaded.autoStart, true);
         QCOMPARE(loaded.showExitPrompt, false);
         QCOMPARE(loaded.hideServerNodes, true);
         QCOMPARE(loaded.logLevel, 2);
@@ -54,7 +52,7 @@ private slots:
         QFile file(path);
         QVERIFY(file.open(QIODevice::WriteOnly));
         QJsonObject obj;
-        obj[QStringLiteral("autoStart")] = true;
+        obj[QStringLiteral("autoStart")] = true; // 旧字段：自启动状态现由系统权威，应被忽略
         obj[QStringLiteral("autoReconnect")] = true;
         obj[QStringLiteral("showExitPrompt")] = false;
         obj[QStringLiteral("hideServerNodes")] = true;
@@ -66,7 +64,6 @@ private slots:
         SettingsStore store(path);
         const SettingsStore::Settings loaded = store.load();
         // 检查布尔字段值正常
-        QCOMPARE(loaded.autoStart, true);
         QCOMPARE(loaded.showExitPrompt, false);
         QCOMPARE(loaded.hideServerNodes, true);
         // 检查非法数值已被钳位
@@ -95,6 +92,36 @@ private slots:
         const SettingsStore::Settings loaded = store.load();
 
         QCOMPARE(loaded.showExitPrompt, true);
+    }
+
+    /// 目标：旧版 JSON 中的 autoStart 字段被安全忽略，且再次保存后不再写出该字段
+    void save_omitsLegacyAutoStartField()
+    {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString path = QDir(tempDir.path()).filePath(QStringLiteral("settings3.json"));
+
+        // 写入包含旧 autoStart 字段的 JSON
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QJsonObject obj;
+        obj[QStringLiteral("autoStart")] = true;
+        obj[QStringLiteral("showExitPrompt")] = true;
+        obj[QStringLiteral("logLevel")] = 1;
+        obj[QStringLiteral("maxLogEntries")] = 100;
+        file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        file.close();
+
+        SettingsStore store(path);
+        // 旧字段不影响其他字段加载
+        QCOMPARE(store.load().showExitPrompt, true);
+
+        // 保存后新 JSON 不再包含 autoStart
+        QVERIFY(store.save(store.load()));
+        QFile readBack(path);
+        QVERIFY(readBack.open(QIODevice::ReadOnly));
+        const QJsonObject saved = QJsonDocument::fromJson(readBack.readAll()).object();
+        QVERIFY(!saved.contains(QStringLiteral("autoStart")));
     }
 };
 
