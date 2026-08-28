@@ -5,7 +5,7 @@
  * 作为 QML ListView / GridView 的数据源，提供网络配置的增删改查、
  * 导入导出、运行状态展示等功能。每个配置项通过 role 映射到 QML 属性。
  *
- * 模型不直接访问数据存储——所有数据读写均通过应用服务层
+ * 模型不直接访问数据存储——所有数据读写均通过应用核心层
  * （ConfigCommandService / ConfigImportExportService）完成。
  * 与 VpnRuntimeService 平权解耦，通过信号/槽通信，互不持有对方指针。
  */

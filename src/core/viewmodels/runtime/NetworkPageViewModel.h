@@ -46,7 +46,7 @@ public:
      * @brief 构造网络页面 ViewModel
      * @param configListModel 配置列表模型
      * @param configEditorViewModel 配置编辑器 ViewModel
-     * @param vpnRuntimeService VPN 运行服务（应用服务层，启动/停止/状态查询的唯一入口）
+     * @param vpnRuntimeService VPN 运行服务（应用核心层，启动/停止/状态查询的唯一入口）
      * @param backendStatusViewModel 后端状态 ViewModel
      * @param parent 父 QObject
      */
@@ -110,7 +110,7 @@ private:
 
     ConfigListModel *m_configListModel = nullptr;              ///< 配置列表模型（非所有权）
     ConfigEditorViewModel *m_configEditorViewModel = nullptr;  ///< 配置编辑器（非所有权）
-    VpnRuntimeService *m_vpnRuntimeService = nullptr;          ///< VPN 运行服务（非所有权，应用服务层）
+    VpnRuntimeService *m_vpnRuntimeService = nullptr;          ///< VPN 运行服务（非所有权，应用核心层）
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;///< 后端状态（非所有权）
     QString m_currentInstanceName;                             ///< 当前选中实例名缓存
     bool m_currentInstanceRunning = false;                     ///< 当前实例运行状态缓存

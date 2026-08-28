@@ -9,11 +9,10 @@
  * - 通过访问器方法供 QmlSingletonRegistrar 注册到 QML 上下文
  *
  * ## 创建的服务对象分类
- * - 基础设施层：DaemonClient、DaemonApi、StatusMonitor、FontHelper
- * - 数据层：NetworkConfigRepository、LogRepository、收藏节点模型
- * - ViewModel 层：各种 ViewModel 和 Model（供 QML 绑定）
- * - VPN 运行层：VpnRuntimeService（应用级 runtime 协调器，启停控制、心跳同步与展示模型）
- * - 配置管理层：ConfigCommandService、ConfigImportExportService
+ * - 基础模块：DaemonClient、DaemonApi、各 Repository、SystemTrayManager、FontHelper
+ * - 应用核心服务：VpnRuntimeService、ConfigCommandService、ConfigImportExportService、CredentialService、DangerousOperationService 等
+ * - ViewModel / Model：各种 ViewModel 和 Model（供 QML 绑定）
+ * - 运行状态：StatusMonitor、NodeInfoModel、RuntimeLogModel
  *
  * @see QmlSingletonRegistrar
  */
@@ -109,7 +108,7 @@ public:
     ImportNodesViewModel *importNodesViewModel() const;
     /// 获取 VPN 运行服务（应用级 runtime 协调器，UI 层访问 VPN 运行能力的唯一入口）
     VpnRuntimeService *vpnRuntimeService() const;
-    /// 获取临时凭证服务（应用服务层，签发安全模式临时节点密钥）
+    /// 获取临时凭证服务（应用核心层，签发安全模式临时节点密钥）
     CredentialService *credentialService() const;
     /// 获取临时凭证 ViewModel（运行状态页"添加临时节点密钥"入口）
     CredentialViewModel *credentialViewModel() const;

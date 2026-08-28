@@ -1,6 +1,6 @@
 /**
  * @file VpnRuntimeService.h
- * @brief VPN 运行服务（应用服务层）
+ * @brief VPN 运行服务（应用核心层）
  *
  * 应用级 VPN runtime 协调器，统一管理：
  * - 所有网络配置实例的生命周期（本地 / 外部 controller 集合）

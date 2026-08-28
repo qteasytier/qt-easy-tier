@@ -49,10 +49,6 @@ src/
 └── qml/                             QML UI（UI 层）
 ```
 
-架构上按四层理解：`src/app`（装配层）→ `src/core`（应用核心层，桥接与编排，
-含 `viewmodels`）→ 基础服务层（`config`/`sqlite_repository`/`daemon_service`/`system_tray`/`platform`/`log`）→
-UI 层（`qml`）。UI 层通过应用核心层访问基础服务能力，基础服务层不反向依赖 UI。
-
 更完整的开发说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 构建要求

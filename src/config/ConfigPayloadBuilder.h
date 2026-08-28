@@ -2,7 +2,7 @@
  * @file ConfigPayloadBuilder.h
  * @brief 配置载荷构建器，将 NetworkConf 序列化为 daemon 可识别的 JSON 载荷
  *
- * 位于 core/config 基础服务层，供 VPN 运行（VpnController）与配置导入（ConfigImportExportService）
+ * 位于 src/config 基础模块（target `qtet_config`），供 VPN 运行（VpnController）与配置导入（ConfigImportExportService）
  * 等调用方统一构建运行时的 TOML / Base64 / JSON 载荷，避免各层各自实现序列化。
  */
 #pragma once

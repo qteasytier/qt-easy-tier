@@ -3,7 +3,7 @@
  * @brief AppServices 实现
  *
  * 实现应用启动时的服务对象装配：
- * - 按依赖顺序创建基础设施 → 数据层 → ViewModel 层的服务对象
+ * - 创建并持有基础模块、应用核心服务、ViewModel 与平台/托盘协作者
  * - wireLogging() 连线日志分发器、存储槽和设置 ViewModel
  * - wireRuntime() 连线 VPN 运行服务、应用状态和配置列表之间的信号
  */
@@ -55,7 +55,7 @@ AppServices::AppServices(const QSqlDatabase &database,
 {
     QObject *parentObject = serviceParent();
 
-    // ===== 基础设施层：daemon IPC 客户端与 API =====
+    // ===== daemon IPC 客户端与 API =====
     m_daemonClient = new DaemonClient(parentObject);
     if (daemonConnectionMode == ConnectToDaemon)
         m_daemonClient->connectToDaemon(QStringLiteral("qtet-daemon.sock"));
@@ -84,7 +84,7 @@ AppServices::AppServices(const QSqlDatabase &database,
     QObject::connect(m_systemTrayManager, &SystemTrayManager::quitRequestedByUser,
                      this, &AppServices::handleUserQuitRequest);
 
-    // ===== 数据层与 ViewModel 层（依赖有效数据库连接） =====
+    // ===== 应用核心服务与 ViewModel（依赖有效数据库连接） =====
     if (database.isValid()) {
         m_configRepository = new NetworkConfigRepository(database, parentObject);
         m_favoriteNodeRepository = new FavoriteNodeRepository(database, parentObject);

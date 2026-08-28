@@ -3,7 +3,7 @@
  * @brief 临时节点密钥 ViewModel（运行状态页，薄壳）
  *
  * 为运行状态页"添加临时节点密钥 / 管理临时节点密钥"功能提供 QML 入口，
- * 全部业务逻辑委托应用服务层 CredentialService 执行，本类只做转发。
+ * 全部业务逻辑委托应用核心层 CredentialService 执行，本类只做转发。
  */
 #pragma once
 
@@ -37,7 +37,7 @@ class CredentialViewModel : public QObject {
 public:
     /**
      * @brief 构造临时凭证 ViewModel
-     * @param service 临时凭证服务（应用服务层，非所有权）
+     * @param service 临时凭证服务（应用核心层，非所有权）
      * @param parent  父对象
      */
     explicit CredentialViewModel(CredentialService *service, QObject *parent = nullptr);

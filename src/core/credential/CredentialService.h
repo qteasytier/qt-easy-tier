@@ -1,6 +1,6 @@
 /**
  * @file CredentialService.h
- * @brief 临时节点密钥（安全模式临时凭证）管理服务（应用服务层）
+ * @brief 临时节点密钥（安全模式临时凭证）管理服务（应用核心层）
  *
  * 桥接 UI 层与 daemon 的 CredentialManageRpcService：
  * - generateCredential：签发安全模式临时凭证（generate_credential），

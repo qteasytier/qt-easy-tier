@@ -1,6 +1,6 @@
 /**
  * @file DangerousOperationService.h
- * @brief 危险操作服务（应用服务层）
+ * @brief 危险操作服务（应用核心层）
  *
  * 编排设置页「危险操作」相关的跨基础服务流程：
  * - 后端安装/卸载（DaemonRegisterHelper，UAC / pkexec 提权）

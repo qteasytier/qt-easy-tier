@@ -4,7 +4,7 @@
  *
  * 通过网络页面协调器，接收配置编辑器的实例变更和 VPN 运行服务的状态变更信号，
  * 自动维护 currentInstanceName、currentInstanceRunning 和页面切换状态。
- * 所有 VPN 操作均通过应用服务层 VpnRuntimeService 完成。
+ * 所有 VPN 操作均通过应用核心层 VpnRuntimeService 完成。
  */
 #include "NetworkPageViewModel.h"
 
