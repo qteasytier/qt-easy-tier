@@ -7,8 +7,8 @@
  */
 #pragma once
 
-#include "core/favorite/FavoriteNode.h"
-#include "core/favorite/FavoriteNodeJsonCodec.h"
+#include "core/repository/FavoriteNode.h"
+#include "FavoriteNodeJsonCodec.h"
 
 #include <QList>
 #include <QObject>

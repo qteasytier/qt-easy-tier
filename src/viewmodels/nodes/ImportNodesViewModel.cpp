@@ -7,7 +7,7 @@
  */
 #include "ImportNodesViewModel.h"
 
-#include "core/favorite/FavoriteNodeJsonCodec.h"
+#include "app_service/favorite/FavoriteNodeJsonCodec.h"
 #include "viewmodels/FavoriteNodeViewModel.h"
 
 #include <utility>

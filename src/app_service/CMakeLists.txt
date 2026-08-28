@@ -13,6 +13,8 @@ add_qtet_library(qtet_application
     dangerous/DangerousOperationService.h
     favorite/FavoriteNodeImportExportService.cpp
     favorite/FavoriteNodeImportExportService.h
+    favorite/FavoriteNodeJsonCodec.cpp
+    favorite/FavoriteNodeJsonCodec.h
     logging/RepositoryLogSink.cpp
     logging/RepositoryLogSink.h
     runtime/NodeInfoModel.cpp
@@ -47,4 +49,4 @@ add_qtet_library(qtet_application
     ../viewmodels/runtime/NetworkPageViewModel.cpp
     ../viewmodels/runtime/NetworkPageViewModel.h
 )
-target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql qtet_config qtet_repository qtet_service qtet_platform qtet_favorite qtet_log qtet_vpn)
+target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql qtet_config qtet_repository qtet_service qtet_platform qtet_log qtet_vpn)

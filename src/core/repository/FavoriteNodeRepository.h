@@ -10,7 +10,7 @@
 #include <QList>
 #include <QSqlDatabase>
 #include <optional>
-#include "core/favorite/FavoriteNode.h"
+#include "FavoriteNode.h"
 
 /**
  * @class FavoriteNodeRepository

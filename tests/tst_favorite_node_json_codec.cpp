@@ -7,7 +7,7 @@
 #include <QJsonObject>
 #include <QTest>
 
-#include "core/favorite/FavoriteNodeJsonCodec.h"
+#include "app_service/favorite/FavoriteNodeJsonCodec.h"
 
 class TestFavoriteNodeJsonCodec : public QObject {
     Q_OBJECT
