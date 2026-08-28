@@ -277,11 +277,14 @@ LogViewModel
 BackendStatusViewModel
 NetworkPageViewModel
 ImportNodesViewModel
-DangerousOperationViewModel
 ```
 
-说明：`NodeInfoModel` / `RuntimeLogModel` 属于运行状态展示模型，位于应用服务层
-（`src/app_service/runtime/`），由 `VpnRuntimeService` 持有并填充，不属于 ViewModel 层。
+说明：
+
+- `NodeInfoModel` / `RuntimeLogModel` 属于运行状态展示模型，位于应用服务层
+  （`src/app_service/runtime/`），由 `VpnRuntimeService` 持有并填充，不属于 ViewModel 层。
+- QML singleton `DangerousOperationViewModel` 是兼容注册名称，实际注册的是应用服务
+  `DangerousOperationService`，不再对应独立的 C++ ViewModel 类型（见下文危险操作章节）。
 
 ### AppState
 
@@ -291,16 +294,19 @@ DangerousOperationViewModel
 
 `SettingsViewModel` 向 QML 暴露设置项，并协调设置修改、自启动状态等能力。
 
-设置持久化和自启动细节不直接放在 `SettingsViewModel` 中，而是通过：
+设置持久化和自动回连细节委托：
 
 ```text
 src/app_service/settings/SettingsStore.*
-src/app_service/settings/AutoStartService.*
 src/app_service/settings/SettingsBackendService.*
 ```
 
 其中 `SettingsBackendService` 负责桥接 daemon 自动回连（`DaemonApi`）与版本更新检查
 （`UpdateCheckService`），`SettingsViewModel` 不再直接接触这两个基础服务。
+
+开机自启动以系统实际状态为唯一权威源：`SettingsViewModel` 直接调用平台层
+`AutoStartHelper` 读写 Windows 注册表 / XDG Autostart 条目，
+`settings3.json` 不持久化 `autoStart` 字段。这是有意的架构例外。
 
 典型关系：
 
@@ -309,7 +315,7 @@ QML
     ↓
 SettingsViewModel
     ↓
-SettingsStore / AutoStartService / SettingsBackendService
+SettingsStore / SettingsBackendService / AutoStartHelper（仅自启动）
 ```
 
 ### ConfigListModel
@@ -404,18 +410,18 @@ NetworkPageViewModel
 ConfigListModel / ConfigEditorViewModel / VpnRuntimeService
 ```
 
-### DangerousOperationViewModel
+### DangerousOperationService
 
-`DangerousOperationViewModel` 为设置页「危险操作」卡片提供 QML 入口，是薄壳：
-全部编排逻辑（后端安装/卸载、清空全部数据）位于应用服务层
-`DangerousOperationService`，本类只做属性/方法/信号转发。
+`DangerousOperationService` 是设置页「危险操作」卡片的 QML-facing 应用服务，
+提供后端安装/卸载与清空全部数据的完整编排，并直接以 QML 属性、方法、信号暴露。
+
+QML singleton 名称为 `DangerousOperationViewModel`，这只是为兼容既有 QML 保留的
+注册名称，实际注册对象是 `DangerousOperationService`，不存在独立的 C++ ViewModel 类型。
 
 典型关系：
 
 ```text
-SettingsPage.qml
-    ↓
-DangerousOperationViewModel
+SettingsPage.qml（QML 名称 DangerousOperationViewModel）
     ↓
 DangerousOperationService
     ↓
@@ -520,16 +526,17 @@ src/app_service/settings/
 
 ```text
 SettingsStore
-AutoStartService
 SettingsBackendService
 ```
 
 职责划分：
 
-- `SettingsStore`：读写全局设置文件 `settings3.json`。
-- `AutoStartService`：封装自启动启用、禁用、查询。
+- `SettingsStore`：读写全局设置文件 `settings3.json`（不含自启动字段）。
 - `SettingsBackendService`：桥接 daemon 自动回连（`DaemonApi`）与版本更新检查（`UpdateCheckService`），
   持有异步请求的忙状态。
+
+开机自启动不在此目录：`SettingsViewModel` 直接调用平台层 `AutoStartHelper`，
+以系统实际状态为唯一权威源，`settings3.json` 不持久化该字段。
 
 全局设置不走 SQLite，默认位于：
 
@@ -552,7 +559,8 @@ DangerousOperationService
 ```
 
 `DangerousOperationService` 编排后端安装/卸载（`DaemonRegisterHelper`）与清空全部数据
-（`VpnRuntimeService.stopAll` → 各仓库清库 → 设置文件重置）流程，供 `DangerousOperationViewModel` 薄壳转发。
+（`VpnRuntimeService.stopAll` → 各仓库清库 → 设置文件重置 → 关闭系统自启动）流程，
+直接以 QML 注册名 `DangerousOperationViewModel` 暴露给设置页。
 
 ### favorite
 
@@ -824,7 +832,9 @@ FontHelper
 - `DaemonRegisterHelper`：daemon 系统服务注册/启动（UAC / pkexec 提权），被 `AppServices` 在 daemon 断连时调用。
 - `FontHelper`：由 `AppServices` 显式构造并注册给 QML，不应恢复为静态 singleton。
 
-职责是封装平台相关能力。上层通常应通过 application service 使用这些能力，例如通过 `AutoStartService` 使用自启动能力，而不是让 QML 或 ViewModel 直接依赖具体平台实现。
+职责是封装平台相关能力。自启动状态以系统实际状态为唯一权威源：`SettingsViewModel`
+直接调用 `AutoStartHelper` 读取/写入，这是明确且有限的例外；除自启动外，其余平台能力
+仍应通过 application service 暴露，QML 不应直接依赖具体平台实现。
 
 `LogHelper`（日志工具入口）位于 `src/core/log/`，见上文「log 基础模块」一节。
 
@@ -941,11 +951,13 @@ tst_daemon_client
 tst_daemon_register_helper
 tst_autostart_helper
 tst_settings_store
-tst_autostart_service
+tst_settings_viewmodel
 tst_favorite_node_json_codec
 tst_favorite_node_viewmodel
 tst_import_nodes_viewmodel
 tst_app_services
+tst_vpn_runtime_service
+tst_dangerous_operation_service
 tst_log_repository
 tst_log_helper
 tst_tray_message_dispatcher
