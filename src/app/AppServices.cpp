@@ -12,7 +12,7 @@
 #include "app_service/config/ConfigCommandService.h"
 #include "app_service/config/ConfigImportExportService.h"
 #include "app_service/credential/CredentialService.h"
-#include "app_service/dangerous/DangerousOperationService.h"
+#include "app_service/settings/DangerousOperationService.h"
 #include "app_service/favorite/FavoriteNodeImportExportService.h"
 #include "app_service/logging/RepositoryLogSink.h"
 #include "app_service/runtime/VpnRuntimeService.h"

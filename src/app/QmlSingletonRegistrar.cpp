@@ -8,7 +8,7 @@
 #include "QmlSingletonRegistrar.h"
 
 #include "AppServices.h"
-#include "app_service/dangerous/DangerousOperationService.h"
+#include "app_service/settings/DangerousOperationService.h"
 #include "app_service/runtime/VpnRuntimeService.h"
 #include "platform/FontHelper.h"
 #include "viewmodels/AppState.h"

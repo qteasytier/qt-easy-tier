@@ -463,11 +463,10 @@ src/app_service/
 ```text
 src/app_service/
 ├── config/        配置读写、导入导出、命令服务
-├── dangerous/     危险操作编排（后端安装/卸载、清空数据）
 ├── favorite/      收藏节点导入导出
 ├── logging/       日志落库 sink
 ├── runtime/       VPN 运行服务与运行状态展示模型
-└── settings/      设置持久化、自启动、后端设置桥接
+└── settings/      设置持久化、更新检查、危险操作编排、后端设置桥接
 ```
 
 ### config
@@ -530,12 +529,17 @@ src/app_service/settings/
 ```text
 SettingsStore
 UpdateCheckService
+DangerousOperationService
 ```
 
 职责划分：
 
 - `SettingsStore`：读写全局设置文件 `settings3.json`（不含自启动字段）。
 - `UpdateCheckService`：执行版本更新检查（HTTP、版本比较与更新对话框）。
+- `DangerousOperationService`：设置页「危险操作」卡片的应用服务，编排后端安装/卸载
+  （`DaemonRegisterHelper`）与清空全部数据（`VpnRuntimeService.stopAll` → 各仓库清库 →
+  设置文件重置 → 关闭系统自启动）流程，直接以 QML 注册名 `DangerousOperationViewModel`
+  暴露给设置页。
 
 自动回连与更新检查的异步状态由 `SettingsViewModel`（`src/viewmodels`）直接持有和协调：
 它经注入的 `DaemonApi` 发起自动回连 RPC，并监听 `UpdateCheckService` 终态信号收敛忙状态。
@@ -548,24 +552,6 @@ UpdateCheckService
 ```text
 ~/.config/qteasytier/QtEasyTier/settings3.json
 ```
-
-### dangerous
-
-路径：
-
-```text
-src/app_service/dangerous/
-```
-
-主要类型：
-
-```text
-DangerousOperationService
-```
-
-`DangerousOperationService` 编排后端安装/卸载（`DaemonRegisterHelper`）与清空全部数据
-（`VpnRuntimeService.stopAll` → 各仓库清库 → 设置文件重置 → 关闭系统自启动）流程，
-直接以 QML 注册名 `DangerousOperationViewModel` 暴露给设置页。
 
 ### favorite
 

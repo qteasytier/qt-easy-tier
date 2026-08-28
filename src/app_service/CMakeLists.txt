@@ -9,8 +9,6 @@ add_qtet_library(qtet_application
     credential/CredentialListModel.h
     credential/CredentialService.cpp
     credential/CredentialService.h
-    dangerous/DangerousOperationService.cpp
-    dangerous/DangerousOperationService.h
     favorite/FavoriteNodeImportExportService.cpp
     favorite/FavoriteNodeImportExportService.h
     favorite/FavoriteNodeJsonCodec.cpp
@@ -27,6 +25,8 @@ add_qtet_library(qtet_application
     runtime/VpnController.h
     runtime/VpnRuntimeService.cpp
     runtime/VpnRuntimeService.h
+    settings/DangerousOperationService.cpp
+    settings/DangerousOperationService.h
     settings/SettingsStore.cpp
     settings/SettingsStore.h
     settings/UpdateCheckService.cpp
