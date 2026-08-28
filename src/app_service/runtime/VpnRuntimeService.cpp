@@ -14,7 +14,7 @@
 #include "VpnRuntimeService.h"
 #include "StatusMonitor.h"
 #include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "core/service/DaemonApi.h"
+#include "core/daemon_service/DaemonApi.h"
 #include "core/log/LogHelper.h"
 #include <QFutureWatcher>
 #include <QJsonObject>

@@ -53,4 +53,4 @@ add_qtet_library(qtet_application
     ../viewmodels/runtime/NetworkPageViewModel.cpp
     ../viewmodels/runtime/NetworkPageViewModel.h
 )
-target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent qtet_config qtet_sqlite_repository qtet_service qtet_platform qtet_log)
+target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent qtet_config qtet_sqlite_repository qtet_daemon_service qtet_platform qtet_log)

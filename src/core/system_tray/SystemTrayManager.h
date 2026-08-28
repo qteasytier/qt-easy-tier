@@ -8,7 +8,7 @@
 #pragma once
 
 #include "core/config/ConfigRunState.h"
-#include "core/service/DaemonClient.h"
+#include "core/daemon_service/DaemonClient.h"
 #include "core/system_tray/TrayMessageSink.h"
 
 #include <QObject>

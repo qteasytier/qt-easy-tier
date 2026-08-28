@@ -2,7 +2,7 @@
 #include <QWindow>
 
 #include "core/config/ConfigRunState.h"
-#include "core/service/DaemonClient.h"
+#include "core/daemon_service/DaemonClient.h"
 #include "core/system_tray/SystemTrayManager.h"
 
 class TestSystemTrayManager : public QObject {

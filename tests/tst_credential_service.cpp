@@ -25,10 +25,10 @@
 #include <QFile>
 #include <QSignalSpy>
 
-#include "core/service/DaemonClient.h"
-#include "core/service/DaemonApi.h"
-#include "core/service/FrameProtocol.h"
-#include "core/service/IpcMessage.h"
+#include "core/daemon_service/DaemonClient.h"
+#include "core/daemon_service/DaemonApi.h"
+#include "core/daemon_service/FrameProtocol.h"
+#include "core/daemon_service/IpcMessage.h"
 #include "app_service/credential/CredentialListModel.h"
 #include "app_service/credential/CredentialService.h"
 #include "viewmodels/credential/CredentialViewModel.h"

@@ -16,7 +16,7 @@
 #include "app_service/runtime/NodeInfoModel.h"
 #include "app_service/runtime/RuntimeLogModel.h"
 #include "core/config/ConfigRunState.h"
-#include "core/service/DaemonClient.h"
+#include "core/daemon_service/DaemonClient.h"
 #include "VpnController.h"
 
 #include <QHash>

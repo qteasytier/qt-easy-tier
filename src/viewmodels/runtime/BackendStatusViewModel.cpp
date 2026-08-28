@@ -7,7 +7,7 @@
  */
 #include "BackendStatusViewModel.h"
 
-#include "core/service/DaemonClient.h"
+#include "core/daemon_service/DaemonClient.h"
 
 BackendStatusViewModel::BackendStatusViewModel(DaemonClient *client, QObject *parent)
     : QObject(parent)

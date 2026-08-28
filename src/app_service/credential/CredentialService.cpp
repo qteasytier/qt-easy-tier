@@ -11,7 +11,7 @@
 #include "CredentialService.h"
 
 #include "app_service/credential/CredentialListModel.h"
-#include "core/service/DaemonApi.h"
+#include "core/daemon_service/DaemonApi.h"
 
 #include <QDateTime>
 #include <QException>

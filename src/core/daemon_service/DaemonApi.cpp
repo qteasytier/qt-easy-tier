@@ -8,7 +8,7 @@
  */
 #include "DaemonApi.h"
 
-#include "core/service/DaemonClient.h"
+#include "DaemonClient.h"
 
 #include <QJsonArray>
 

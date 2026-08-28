@@ -5,7 +5,7 @@
 #include "core/config/ConfigValidator.h"
 #include "core/config/NetworkConfToml.h"
 #include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "core/service/DaemonApi.h"
+#include "core/daemon_service/DaemonApi.h"
 
 #include <QFile>
 #include <QFileInfo>

@@ -12,7 +12,7 @@
 #include "platform/AutoStartHelper.h"
 #include "app_service/settings/UpdateCheckService.h"
 #include "core/log/LogHelper.h"
-#include "core/service/DaemonApi.h"
+#include "core/daemon_service/DaemonApi.h"
 
 #include <QFutureWatcher>
 #include <QJsonObject>

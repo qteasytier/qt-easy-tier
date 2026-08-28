@@ -43,7 +43,7 @@ add_core_test(tst_favorite_node_repository tst_favorite_node_repository.cpp)
 target_link_libraries(tst_favorite_node_repository PRIVATE qtet_sqlite_repository)
 
 add_core_test(tst_daemon_client tst_daemon_client.cpp)
-# 同时覆盖 DaemonClient（qtet_service）与 BackendStatusViewModel（qtet_application）的历史混合测试
+# 同时覆盖 DaemonClient（qtet_daemon_service）与 BackendStatusViewModel（qtet_application）的历史混合测试
 target_link_libraries(tst_daemon_client PRIVATE qtet_application)
 
 add_core_test(tst_credential_service tst_credential_service.cpp)

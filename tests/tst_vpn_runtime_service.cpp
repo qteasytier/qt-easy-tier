@@ -22,10 +22,10 @@
 
 #include "core/sqlite_repository/DatabaseConnection.h"
 #include "core/sqlite_repository/NetworkConfigRepository.h"
-#include "core/service/DaemonApi.h"
-#include "core/service/DaemonClient.h"
-#include "core/service/FrameProtocol.h"
-#include "core/service/IpcMessage.h"
+#include "core/daemon_service/DaemonApi.h"
+#include "core/daemon_service/DaemonClient.h"
+#include "core/daemon_service/FrameProtocol.h"
+#include "core/daemon_service/IpcMessage.h"
 #include "app_service/runtime/StatusMonitor.h"
 #include "app_service/runtime/VpnRuntimeService.h"
 
