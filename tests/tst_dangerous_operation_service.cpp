@@ -29,7 +29,7 @@
 #include "platform/DaemonRegisterHelper.h"
 #include "app_service/runtime/VpnRuntimeService.h"
 
-#include "core/vpn_manager/StatusMonitor.h"
+#include "app_service/runtime/StatusMonitor.h"
 
 
 /// 内存模拟 daemon：list_instances 返回固定实例列表，delete_network_instance 总是失败

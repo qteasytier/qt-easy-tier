@@ -12,7 +12,7 @@
  * 单实例状态机由 VpnController 承担，daemon 数据异步解析由 StatusMonitor 承担。
  */
 #include "VpnRuntimeService.h"
-#include "core/vpn_manager/StatusMonitor.h"
+#include "StatusMonitor.h"
 #include "core/repository/NetworkConfigRepository.h"
 #include "core/service/DaemonApi.h"
 #include "core/log/LogHelper.h"

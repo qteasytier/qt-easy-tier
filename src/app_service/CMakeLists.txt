@@ -21,6 +21,10 @@ add_qtet_library(qtet_application
     runtime/NodeInfoModel.h
     runtime/RuntimeLogModel.cpp
     runtime/RuntimeLogModel.h
+    runtime/StatusMonitor.cpp
+    runtime/StatusMonitor.h
+    runtime/VpnController.cpp
+    runtime/VpnController.h
     runtime/VpnRuntimeService.cpp
     runtime/VpnRuntimeService.h
     settings/SettingsStore.cpp
@@ -49,4 +53,4 @@ add_qtet_library(qtet_application
     ../viewmodels/runtime/NetworkPageViewModel.cpp
     ../viewmodels/runtime/NetworkPageViewModel.h
 )
-target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql qtet_config qtet_repository qtet_service qtet_platform qtet_log qtet_vpn)
+target_link_libraries(qtet_application PUBLIC Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent qtet_config qtet_repository qtet_service qtet_platform qtet_log)

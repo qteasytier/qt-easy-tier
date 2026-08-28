@@ -67,7 +67,6 @@ add_subdirectory(src/core/repository)
 add_subdirectory(src/core/service)
 add_subdirectory(src/platform)
 add_subdirectory(src/core/system_tray)
-add_subdirectory(src/core/vpn_manager)
 add_subdirectory(src/app_service)
 add_subdirectory(src/app)
 

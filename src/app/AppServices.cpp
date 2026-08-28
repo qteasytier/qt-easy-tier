@@ -38,7 +38,7 @@
 #include "viewmodels/nodes/ImportNodesViewModel.h"
 #include "viewmodels/runtime/BackendStatusViewModel.h"
 #include "viewmodels/runtime/NetworkPageViewModel.h"
-#include "core/vpn_manager/StatusMonitor.h"
+#include "app_service/runtime/StatusMonitor.h"
 
 #include <QCoreApplication>
 #include <QCheckBox>

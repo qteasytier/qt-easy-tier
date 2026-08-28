@@ -32,8 +32,8 @@
 #include "viewmodels/runtime/NetworkPageViewModel.h"
 #include "core/service/DaemonApi.h"
 #include "core/service/DaemonClient.h"
-#include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnController.h"
+#include "app_service/runtime/StatusMonitor.h"
+#include "app_service/runtime/VpnController.h"
 #include "core/config/NetworkConf.h"
 
 static_assert(configRunStateCanDelete(ConfigRunState::Stopped));

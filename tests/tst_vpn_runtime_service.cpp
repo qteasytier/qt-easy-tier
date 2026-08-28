@@ -26,7 +26,7 @@
 #include "core/service/DaemonClient.h"
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
-#include "core/vpn_manager/StatusMonitor.h"
+#include "app_service/runtime/StatusMonitor.h"
 #include "app_service/runtime/VpnRuntimeService.h"
 
 /// 内存模拟 daemon：响应 run/delete/list 三类请求

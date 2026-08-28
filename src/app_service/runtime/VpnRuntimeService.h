@@ -17,7 +17,7 @@
 #include "app_service/runtime/RuntimeLogModel.h"
 #include "core/config/ConfigRunState.h"
 #include "core/service/DaemonClient.h"
-#include "core/vpn_manager/VpnController.h"
+#include "VpnController.h"
 
 #include <QHash>
 #include <QObject>
