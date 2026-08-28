@@ -101,6 +101,30 @@ def git_tag_commit(base_dir, tag):
         return ""
 
 
+def git_branch_head(base_dir, branch):
+    """查询本地仓库中指定分支最新一次提交的哈希；失败时返回空串。
+
+    仅调用本地 git，不产生网络请求；当待同步的 tag 在本地不存在时，
+    以该分支最新提交作为 target_commitish，让 CNB 在此提交上新建 tag，
+    而不是因缺少提交目标而失败。
+    """
+    cmd = ["git", "-C", base_dir, "rev-parse", "--verify", "--quiet",
+           "refs/remotes/origin/%s^{commit}" % branch]
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        return out.decode("utf-8").strip()
+    except (subprocess.CalledProcessError, OSError):
+        pass
+    # 远端跟踪分支不存在时（如浅克隆变体），退回本地分支
+    cmd = ["git", "-C", base_dir, "rev-parse", "--verify", "--quiet",
+           "refs/heads/%s^{commit}" % branch]
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        return out.decode("utf-8").strip()
+    except (subprocess.CalledProcessError, OSError):
+        return ""
+
+
 def http_json(url, headers=None, method="GET", payload=None, retries=4, timeout=120):
     """发送 JSON 请求并解析响应。payload 为 dict 时以 JSON 编码。"""
     hdrs = dict(headers or {})
@@ -349,7 +373,8 @@ def main():
     parser.add_argument("--wait-interval", type=float, default=2,
                         help="轮询间隔分钟数，默认 2（配合 --wait-tag 使用）")
     parser.add_argument("--cnb-branch-fallback", default="master",
-                        help="target_commitish 兜底分支名：本地不存在待同步 tag 时使用，"
+                        help="target_commitish 兜底分支：本地不存在待同步 tag 时，"
+                             "以该分支最新提交作为目标（CNB 在其上新建 tag），"
                              "默认 master")
     parser.add_argument("--dry-run", action="store_true", help="仅对比版本，不下载不上传")
     args = parser.parse_args()
@@ -442,9 +467,12 @@ def main():
                     "> 源发布: %s\n\n%s" % (html_url, body)
                 ).strip()
                 # target_commitish 为 CNB 创建 release 的必填字段：
-                # 优先用本地 tag 精确指向的提交哈希；tag 不存在时退回分支名兜底。
+                # 优先用本地 tag 精确指向的提交哈希；tag 不存在时改用兜底分支
+                # 最新的提交哈希（CNB 将在该提交上新建 tag），而非直接失败。
                 # 缺失该字段时 API 返回 HTTP 400："target_commitish is required"
-                target_commitish = git_tag_commit(repo_root, tag) or args.cnb_branch_fallback
+                target_commitish = git_tag_commit(repo_root, tag) \
+                    or git_branch_head(repo_root, args.cnb_branch_fallback) \
+                    or args.cnb_branch_fallback
                 payload = {
                     "tag_name": tag,
                     "target_commitish": target_commitish,
