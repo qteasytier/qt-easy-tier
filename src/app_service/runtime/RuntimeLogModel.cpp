@@ -2,7 +2,7 @@
  * @file RuntimeLogModel.cpp
  * @brief RuntimeLogModel 实现
  *
- * setFromVariantList 将 VpnManager 传入的原始 QVariantList 反序列化为
+ * setFromVariantList 将 VpnRuntimeService 传入的原始 QVariantList 反序列化为
  * RuntimeLogItem 列表。
  * plainText 将所有日志格式化为换行分隔的纯文本，用于复制或导出。
  */

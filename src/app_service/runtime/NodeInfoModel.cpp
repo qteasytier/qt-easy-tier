@@ -4,7 +4,7 @@
  *
  * 包含匿名命名空间中的工具函数，用于将原始连接类型和延迟毫秒数
  * 转换为 QML 显示所需的文本和等级标签。
- * setFromVariantList 将 VpnManager 传入的 QVariantList 反序列化为 NodeInfoItem 列表。
+ * setFromVariantList 将 VpnRuntimeService 传入的 QVariantList 反序列化为 NodeInfoItem 列表。
  */
 #include "NodeInfoModel.h"
 

@@ -58,7 +58,7 @@ src/
 │   ├── favorite/                    收藏节点数据结构与 JSON 编解码
 │   ├── repository/                  SQLite 持久化
 │   ├── service/                     daemon IPC 与 daemon API 封装
-│   ├── vpn_manager/                 VPN 生命周期状态机
+│   ├── vpn_manager/                 单实例生命周期状态机与 daemon 状态解析
 │   ├── system_tray/                 系统托盘与托盘消息
 │   └── log/                         日志基础设施
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
@@ -75,11 +75,13 @@ UI 层
 
 应用服务层
     src/app_service/
-    承接应用业务规则和跨模块协调，是 UI 层访问基础服务层的桥接点
+    承接应用业务规则和跨模块协调，是 UI 层访问基础服务层的桥接点；
+    其中 VpnRuntimeService 是应用级 VPN runtime 协调器，统一管理实例
+    生命周期、心跳同步与运行状态展示模型
 
 基础服务层
     src/core/config/、repository/、service/、vpn_manager/、system_tray/、platform/、favorite/、log/
-    提供 SQLite、daemon IPC、平台能力、日志、配置序列化、VPN 状态机等基础设施
+    提供 SQLite、daemon IPC、平台能力、日志、配置序列化、单实例状态机等基础设施
 
 应用装配层
     src/app/
@@ -91,7 +93,7 @@ UI 层
 - QML 不直接依赖底层 daemon、repository 或平台实现。
 - UI 层（QML + ViewModel）与基础服务层之间通过应用服务层桥接：
   应用服务从基础服务层获取信息并暴露给 UI 层，ViewModel 的构造依赖中不应
-  出现 repository / DaemonClient / VpnManager / 平台工具等基础服务类型。
+  出现 repository / DaemonClient / 平台工具等基础服务类型。
 - 基础服务层不得 include `app_service` 或 `viewmodels` 的头文件。
 - 跨层信号连线统一放在 `AppServices::wireRuntime()` 等装配函数中。
 - 允许的例外：纯数据模型与工具类（如 `NetworkConf`、`ConfigRunState`、
@@ -159,7 +161,7 @@ src/app/
 - daemon client / daemon API
 - application service
 - ViewModel
-- `VpnManager`
+- `VpnRuntimeService`
 - 日志 sink
 - `FontHelper`
 - `AppState`
@@ -174,7 +176,7 @@ main.cpp
     ↓
 AppServices
     ↓
-Repository / Service / Application Service / ViewModel / VpnManager / SystemTrayManager
+Repository / Service / Application Service / ViewModel / VpnRuntimeService / SystemTrayManager
 ```
 
 新增应用级对象时，优先判断它是否应该由 `AppServices` 创建和持有。一般来说，需要贯穿整个应用生命周期、需要暴露给 QML，或需要在多个服务之间共享的对象，适合放入 `AppServices`。
@@ -235,8 +237,9 @@ QML 应通过 ViewModel 和 Model 访问后端能力，不应直接依赖底层 
 - `NetworkRuningStatus.qml` 使用 `VpnRuntimeService.nodeInfoModel` 和 `VpnRuntimeService.runtimeLogModel`。
 - `ImportNodesDialog.qml` 使用 `ImportNodesViewModel`。
 
-QML 通过 QmlSingletonRegistrar 注册的 singleton 访问能力。注意 `VpnRuntimeService`
-（应用服务层）是 QML 访问 VPN 运行能力的唯一入口，`VpnManager` 不注册为 QML singleton。
+QML 通过 QmlSingletonRegistrar 注册的 singleton 访问能力。`VpnRuntimeService`
+（应用服务层）是 QML 访问 VPN 运行能力的唯一入口；单实例状态机
+`VpnController` 不注册为 QML singleton。
 
 新增 QML 文件时，需要加入根 `CMakeLists.txt` 中 `qt_add_qml_module(... QML_FILES ...)`。
 
@@ -416,7 +419,7 @@ DangerousOperationViewModel
     ↓
 DangerousOperationService
     ↓
-VpnManager / 各 Repository / DaemonRegisterHelper
+VpnRuntimeService / 各 Repository / DaemonRegisterHelper
 ```
 
 ### NodeInfoModel 与 RuntimeLogModel
@@ -424,8 +427,8 @@ VpnManager / 各 Repository / DaemonRegisterHelper
 `NodeInfoModel` 和 `RuntimeLogModel` 分别将 VPN 运行时节点信息和运行日志暴露为 `QAbstractListModel`。
 
 它们位于应用服务层 `src/app_service/runtime/`，由 `VpnRuntimeService` 持有并填充：
-`VpnManager` 只发射原始数据信号（`instanceInfoUpdated` / `activeInstanceNameChanged`），
-展示模型的数据注入由 `VpnRuntimeService` 完成，基础服务层不接触任何 UI 类型。
+`VpnRuntimeService` 将 StatusMonitor 解析的节点/日志数据写入对应 `VpnController` 缓存，
+再填充当前查看实例的展示模型，基础服务层不接触任何 UI 类型。
 
 QML 应使用：
 
@@ -434,7 +437,7 @@ VpnRuntimeService.nodeInfoModel
 VpnRuntimeService.runtimeLogModel
 ```
 
-不要重新引入裸 `QVariantList` 风格的 QML API，也不要让 QML 直接绑定 `VpnManager`。
+不要重新引入裸 `QVariantList` 风格的 QML API，也不要让 QML 直接绑定 `VpnController`。
 
 ## Application Service 层
 
@@ -500,7 +503,8 @@ RuntimeLogModel
 
 职责划分：
 
-- `VpnRuntimeService`：桥接 `VpnManager` 与 UI 层，持有并填充节点信息/运行日志展示模型，
+- `VpnRuntimeService`：应用级 VPN runtime 协调器，统一管理实例生命周期、心跳同步、
+  外部实例发现、stopAll 收敛与当前查看实例；持有并填充节点信息/运行日志展示模型，
   转发启停、状态查询、日志导出等操作。QML 通过它访问 VPN 运行能力。
 - `NodeInfoModel` / `RuntimeLogModel`：运行状态展示模型，数据由 `VpnRuntimeService` 注入。
 
@@ -548,7 +552,7 @@ DangerousOperationService
 ```
 
 `DangerousOperationService` 编排后端安装/卸载（`DaemonRegisterHelper`）与清空全部数据
-（`VpnManager.stopAll` → 各仓库清库 → 设置文件重置）流程，供 `DangerousOperationViewModel` 薄壳转发。
+（`VpnRuntimeService.stopAll` → 各仓库清库 → 设置文件重置）流程，供 `DangerousOperationViewModel` 薄壳转发。
 
 ### favorite
 
@@ -683,7 +687,7 @@ DaemonApi
 典型关系：
 
 ```text
-ConfigCommandService / VpnManager
+ConfigCommandService / VpnRuntimeService
     ↓
 DaemonApi 或 DaemonClient
     ↓
@@ -707,40 +711,34 @@ src/core/vpn_manager/
 
 职责：
 
-- VPN 生命周期状态机。
-- 启动和停止流程协调。
-- 心跳驱动的运行状态同步。
-- 节点信息与运行日志的缓存与原始数据信号上报。
+- 单实例生命周期状态机（`VpnController`）。
+- 启动和停止流程协调（单实例）。
+- daemon 状态数据异步解析（`StatusMonitor`）。
+
+多实例协调、心跳同步、外部实例发现与展示模型填充均位于应用服务层
+`VpnRuntimeService`（见 `src/app_service/runtime/`），不在本层实现。
 
 主要对象：
 
 ```text
-VpnManager
 VpnController
 StatusMonitor
 ```
 
-### VpnManager
-
-`VpnManager` 是基础服务层的 VPN 运行控制器，不接触任何 UI 类型：
-
-- 不持有展示模型（`NodeInfoModel` / `RuntimeLogModel` 位于应用服务层）。
-- 运行状态数据通过 `instanceInfoUpdated` 信号上报，由 `VpnRuntimeService` 填充展示模型。
-- 选中实例名（`activeInstanceName`）仅记录，展示刷新由上层服务完成。
-
-不要重新给 `VpnManager` 添加模型成员或 QML 属性；QML 应绑定 `VpnRuntimeService`。
-
 ### VpnController
 
-`VpnController` 偏内部状态机和运行时数据缓存。它可以保留内部 `nodeInfos()` / `logEntries()`
-缓存，供 `VpnManager` 的 `nodeInfosFor()` / `logEntriesFor()` 查询或导出日志使用，但不应直接暴露给 QML。
+`VpnController` 是单实例状态机与运行时数据缓存，不接触任何 UI 类型：
+它保留内部 `nodeInfos()` / `logEntries()` 缓存，供 `VpnRuntimeService` 查询或导出日志使用，但不应直接暴露给 QML。
+
+### StatusMonitor
+
+`StatusMonitor` 将 daemon `collect_network_infos` 返回的 JSON 在后台线程解码解析，
+通过 `instanceInfoParsed` 信号通知 `VpnRuntimeService` 写入对应 controller 缓存。
 
 典型关系：
 
 ```text
 VpnController 内部运行时缓存
-    ↓
-VpnManager（instanceInfoUpdated 信号）
     ↓
 VpnRuntimeService（填充 NodeInfoModel / RuntimeLogModel）
     ↓
@@ -1068,9 +1066,9 @@ src/qml/pages/
 - 不要把业务对象创建逻辑重新堆回 `main.cpp`。
 - 不要给 ViewModel 或 `FontHelper` 重新添加静态 singleton。
 - 不要把 QML singleton 注册散落到多个位置。
-- 不要让 QML 直接依赖 `DaemonClient` / `DaemonApi` / `VpnManager`。
+- 不要让 QML 直接依赖 `DaemonClient` / `DaemonApi` / `VpnController`。
 - 不要把 `SystemTrayManager` 注册为 QML singleton；托盘行为由 `AppServices` 和 `main.cpp` 协作完成。
-- 不要重新添加 `VpnManager.nodeInfos` / `VpnManager.logEntries` 或 `VpnManager.nodeInfoModel` 这类 QML 兼容属性。
+- 不要重新引入裸 `QVariantList` 风格的 QML API 或让 QML 直接绑定 `VpnController`。
 - 不要重新添加 `LogHelper::init(...)`。
 - 不要在测试 target 中重复编译大量生产 `.cpp`，应链接模块 target。
 - 不要让基础服务层（`config` / `repository` / `service` / `vpn_manager` / `system_tray` / `platform` / `favorite` / `log`）

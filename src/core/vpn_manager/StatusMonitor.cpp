@@ -4,7 +4,7 @@
  *
  * 实现运行中实例状态异步解析的核心逻辑：
  * - 构造函数：连接 onProcessRequested 信号到 QtConcurrent 异步解析
- * - processNetworkInfos：入口方法，由 VpnManager 心跳回调调用
+ * - processNetworkInfos：入口方法，由 VpnRuntimeService 心跳回调调用
  * - parseNodeInfos：解析本机和远端节点信息（IP、延迟、连接方式等）
  * - parseLogs：解析 Base64 编码的事件日志
  * - formatLogEntry：将各类事件格式化为中文可读日志
@@ -24,7 +24,7 @@
 StatusMonitor::StatusMonitor(QObject *parent)
     : QObject(parent)
 {
-    // 连接内部信号：当 VpnManager 调用 processNetworkInfos 后，
+    // 连接内部信号：当 VpnRuntimeService 调用 processNetworkInfos 后，
     // 通过 emit onProcessRequested 触发后台线程异步解析
     connect(this, &StatusMonitor::onProcessRequested, this,
             [this](const QJsonArray &instances) {

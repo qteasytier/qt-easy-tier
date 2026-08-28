@@ -26,9 +26,10 @@
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
 #include "platform/DaemonRegisterHelper.h"
+#include "app_service/runtime/VpnRuntimeService.h"
 #include "viewmodels/DangerousOperationViewModel.h"
 #include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnManager.h"
+
 
 /// 内存模拟 daemon：list_instances 返回固定实例列表，delete_network_instance 总是失败
 class FakeDaemon : public QObject {
@@ -119,8 +120,8 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &configRepo, &monitor);
-        DangerousOperationService service(&vpn, &configRepo, &favoriteRepo, &logRepo, settingsPath);
+        VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
+        DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, settingsPath);
         DangerousOperationViewModel vm(&service);
 
         QSignalSpy finishedSpy(&vm, &DangerousOperationViewModel::operationFinished);
@@ -170,13 +171,13 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &configRepo, &monitor);
-        DangerousOperationService service(&vpn, &configRepo, &favoriteRepo, &logRepo, QString());
+        VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
+        DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, QString());
         DangerousOperationViewModel vm(&service);
 
         // 让实例进入 Running（FakeDaemon 对 run 请求返回成功）
-        vpn.startConfig(QStringLiteral("net-a"));
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("net-a")), 3000);
+        runtime.startConfig(QStringLiteral("net-a"));
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("net-a")), 3000);
 
         QSignalSpy finishedSpy(&vm, &DangerousOperationViewModel::operationFinished);
         QSignalSpy quitSpy(&vm, &DangerousOperationViewModel::quitRequested);
@@ -210,8 +211,8 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &configRepo, &monitor);
-        DangerousOperationService service(&vpn, &configRepo, &favoriteRepo, &logRepo, QString());
+        VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
+        DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, QString());
         DangerousOperationViewModel vm(&service);
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_WIN)

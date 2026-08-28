@@ -5,7 +5,7 @@
  * 实现应用启动时的服务对象装配：
  * - 按依赖顺序创建基础设施 → 数据层 → ViewModel 层的服务对象
  * - wireLogging() 连线日志分发器、存储槽和设置 ViewModel
- * - wireRuntime() 连线 VPN 管理器、应用状态和配置列表之间的信号
+ * - wireRuntime() 连线 VPN 运行服务、应用状态和配置列表之间的信号
  */
 #include "AppServices.h"
 
@@ -40,7 +40,6 @@
 #include "viewmodels/runtime/BackendStatusViewModel.h"
 #include "viewmodels/runtime/NetworkPageViewModel.h"
 #include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnManager.h"
 
 #include <QCoreApplication>
 #include <QCheckBox>
@@ -103,14 +102,15 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_logViewModel = new LogViewModel(m_logRepository, parentObject);
         m_repositoryLogSink = new RepositoryLogSink(m_logRepository, parentObject);
         m_statusMonitor = new StatusMonitor(parentObject);
-        m_vpnManager = new VpnManager(m_daemonClient, m_daemonApi, m_configRepository, m_statusMonitor, parentObject);
-        // VPN 运行服务：桥接 VpnManager 与 UI 层，暴露运行状态展示模型
-        m_vpnRuntimeService = new VpnRuntimeService(m_vpnManager, parentObject);
+        // VPN 运行服务：应用级 runtime 协调器，暴露运行状态展示模型并管理实例生命周期
+        m_vpnRuntimeService = new VpnRuntimeService(m_daemonClient, m_daemonApi,
+                                                    m_configRepository, m_statusMonitor,
+                                                    parentObject);
         // 临时凭证服务：签发安全模式临时节点密钥（经 DaemonApi::callJsonRpc 调 daemon）
         m_credentialService = new CredentialService(m_daemonApi, parentObject);
         m_credentialViewModel = new CredentialViewModel(m_credentialService, parentObject);
         // 危险操作服务：编排后端安装/卸载与全量数据清空的跨基础服务流程
-        m_dangerousOperationService = new DangerousOperationService(m_vpnManager,
+        m_dangerousOperationService = new DangerousOperationService(m_vpnRuntimeService,
                                                                     m_configRepository,
                                                                     m_favoriteNodeRepository,
                                                                     m_logRepository,
@@ -150,7 +150,6 @@ ConfigEditorViewModel *AppServices::configEditorViewModel() const { return m_con
 NetworkPageViewModel *AppServices::networkPageViewModel() const { return m_networkPageViewModel; }
 BackendStatusViewModel *AppServices::backendStatusViewModel() const { return m_backendStatusViewModel; }
 ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_importNodesViewModel; }
-VpnManager *AppServices::vpnManager() const { return m_vpnManager; }
 VpnRuntimeService *AppServices::vpnRuntimeService() const { return m_vpnRuntimeService; }
 CredentialService *AppServices::credentialService() const { return m_credentialService; }
 CredentialViewModel *AppServices::credentialViewModel() const { return m_credentialViewModel; }
@@ -219,7 +218,7 @@ void AppServices::wireFavoriteNodeNotifications()
 
 void AppServices::wireRuntime()
 {
-    if (!m_vpnManager || !m_vpnRuntimeService || !m_appState || !m_configListModel)
+    if (!m_vpnRuntimeService || !m_appState || !m_configListModel)
         return;
 
     // 设置页的服务节点隐藏开关只影响运行状态 UI 展示，作用于 VPN 运行服务的节点信息模型。
@@ -258,10 +257,10 @@ void AppServices::wireRuntime()
     QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::configStateChanged,
                      m_configListModel, &ConfigListModel::onRunningStateChanged);
     // 外部实例集合变化 → 配置列表末尾追加/移除外部实例条目
-    QObject::connect(m_vpnManager, &VpnManager::externalInstancesChanged,
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::externalInstancesChanged,
                      m_configListModel, &ConfigListModel::onExternalInstancesChanged);
     // 外部实例从 daemon 消失时，若恰为当前选中实例则清空选中，避免右侧残留失效实例
-    QObject::connect(m_vpnManager, &VpnManager::externalInstancesChanged,
+    QObject::connect(m_vpnRuntimeService, &VpnRuntimeService::externalInstancesChanged,
                      this, [this](const QStringList &instanceNames) {
                          const QString current = m_networkPageViewModel->currentInstanceName();
                          if (current.isEmpty())

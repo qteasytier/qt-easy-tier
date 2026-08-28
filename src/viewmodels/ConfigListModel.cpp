@@ -2,7 +2,7 @@
  * @file ConfigListModel.cpp
  * @brief ConfigListModel 实现
  *
- * 与 VpnManager 平权解耦，通过信号/槽通信：
+ * 与 VpnRuntimeService 平权解耦，通过信号/槽通信：
  * - deleteConfig → emit requestStopConfig → 外部决定是否停止
  * - deleteConfig → emit configDeleted → 外部清理资源
  * - 外部 → onRunningStateChanged → 更新 m_runningInstances 缓存

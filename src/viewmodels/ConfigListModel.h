@@ -105,7 +105,7 @@ public slots:
     void onRunningStateChanged(const QString &instanceName, ConfigRunState state);
 
     /**
-     * @brief 响应外部实例集合变更（VpnManager 心跳同步发现）
+     * @brief 响应外部实例集合变更（VpnRuntimeService 心跳同步发现）
      * @param instanceNames 当前全部外部实例名列表（按 daemon 返回顺序）
      *
      * 外部实例指 daemon 中存在但本地配置列表中不存在的运行中实例，

@@ -16,16 +16,16 @@
 #include "core/repository/NetworkConfigRepository.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "core/log/LogHelper.h"
-#include "core/vpn_manager/VpnManager.h"
+#include "app_service/runtime/VpnRuntimeService.h"
 
-DangerousOperationService::DangerousOperationService(VpnManager *vpnManager,
+DangerousOperationService::DangerousOperationService(VpnRuntimeService *vpnRuntimeService,
                                                      NetworkConfigRepository *configRepository,
                                                      FavoriteNodeRepository *favoriteRepository,
                                                      LogRepository *logRepository,
                                                      const QString &settingsFilePath,
                                                      QObject *parent)
     : QObject(parent)
-    , m_vpnManager(vpnManager)
+    , m_vpnRuntimeService(vpnRuntimeService)
     , m_configRepository(configRepository)
     , m_favoriteRepository(favoriteRepository)
     , m_logRepository(logRepository)
@@ -97,9 +97,9 @@ void DangerousOperationService::clearAllData()
     setBusy(true);
 
     // 先停止所有正在运行的网络服务，全部成功收敛后才允许清空
-    connect(m_vpnManager, &VpnManager::allStopped,
+    connect(m_vpnRuntimeService, &VpnRuntimeService::allStopped,
             this, &DangerousOperationService::onAllStopped, Qt::UniqueConnection);
-    m_vpnManager->stopAll();
+    m_vpnRuntimeService->stopAll();
 }
 
 void DangerousOperationService::onAllStopped(bool success)

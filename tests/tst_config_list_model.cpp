@@ -34,7 +34,6 @@
 #include "core/service/DaemonClient.h"
 #include "core/vpn_manager/StatusMonitor.h"
 #include "core/vpn_manager/VpnController.h"
-#include "core/vpn_manager/VpnManager.h"
 #include "core/config/NetworkConf.h"
 
 static_assert(configRunStateCanDelete(ConfigRunState::Stopped));
@@ -362,8 +361,7 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client, this);
         StatusMonitor monitor(this);
-        VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
-        VpnRuntimeService service(&manager, this);
+        VpnRuntimeService service(&client, &api, m_repo.get(), &monitor, this);
         service.setActiveInstanceName(QStringLiteral("inst-logs"));
 
         // 准备测试数据：构造不同批次的日志
@@ -382,9 +380,9 @@ private slots:
         third[QStringLiteral("timestamp")] = QStringLiteral("07-12 12:00:02");
         third[QStringLiteral("message")] = QStringLiteral("third event");
 
-        // 分两次推送，第二次与第一次有重叠；服务监听 instanceInfoUpdated 刷新展示模型
-        manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
-        manager.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
+        // 分两次推送，第二次与第一次有重叠；服务缓存累计日志并刷新展示模型
+        service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
+        service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
 
         // 检查 RuntimeLogModel 包含全部 3 条日志（不重复）
         QCOMPARE(service.runtimeLogModel()->rowCount(), 3);
@@ -404,8 +402,7 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client, this);
         StatusMonitor monitor(this);
-        VpnManager manager(&client, &api, m_repo.get(), &monitor, this);
-        VpnRuntimeService service(&manager, this);
+        VpnRuntimeService service(&client, &api, m_repo.get(), &monitor, this);
 
         // QML 可调用方法必须出现在 metaobject 中（Q_INVOKABLE 或 slot）
         const int methodIndex = service.metaObject()->indexOfMethod("exportLog(QString)");
@@ -604,7 +601,7 @@ private slots:
         ConfigListModel model(&commandService, nullptr, this);
         QCOMPARE(model.rowCount(), 1);
 
-        // 追加两个外部实例（模拟 VpnManager 心跳发现 daemon 中存在本地没有的实例）
+        // 追加两个外部实例（模拟 VpnRuntimeService 心跳发现 daemon 中存在本地没有的实例）
         model.onExternalInstancesChanged(QStringList{QStringLiteral("ext-a"), QStringLiteral("ext-b")});
 
         // 总数 = 本地 + 外部，本地在前、外部在后

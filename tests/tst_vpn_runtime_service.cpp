@@ -1,6 +1,6 @@
 ﻿/**
- * @file tst_vpn_manager.cpp
- * @brief VpnManager stopAll 与外部实例同步单元测试。
+ * @file tst_vpn_runtime_service.cpp
+ * @brief VpnRuntimeService stopAll 与外部实例同步单元测试。
  *
  * 使用内存 QLocalServer 模拟 daemon，覆盖：
  * - 无运行实例时 stopAll() 立即以成功收敛
@@ -27,7 +27,7 @@
 #include "core/service/FrameProtocol.h"
 #include "core/service/IpcMessage.h"
 #include "core/vpn_manager/StatusMonitor.h"
-#include "core/vpn_manager/VpnManager.h"
+#include "app_service/runtime/VpnRuntimeService.h"
 
 /// 内存模拟 daemon：响应 run/delete/list 三类请求
 /// delete_network_instance 成功后会同步移除对应实例（与真实 daemon 行为一致）
@@ -96,7 +96,7 @@ private:
     QByteArray m_buffer;
 };
 
-class TestVpnManager : public QObject {
+class TestVpnRuntimeService : public QObject {
     Q_OBJECT
 
 private slots:
@@ -110,10 +110,10 @@ private slots:
         DaemonClient client;
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
-        QSignalSpy spy(&vpn, &VpnManager::allStopped);
-        vpn.stopAll();
+        QSignalSpy spy(&runtime, &VpnRuntimeService::allStopped);
+        runtime.stopAll();
 
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.takeFirst().at(0).toBool(), true);
@@ -138,18 +138,18 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
         // 启动实例并等待其进入 Running
-        vpn.startConfig(QStringLiteral("inst-a"));
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("inst-a")), 3000);
+        runtime.startConfig(QStringLiteral("inst-a"));
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("inst-a")), 3000);
 
-        QSignalSpy spy(&vpn, &VpnManager::allStopped);
-        vpn.stopAll();
+        QSignalSpy spy(&runtime, &VpnRuntimeService::allStopped);
+        runtime.stopAll();
 
         QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 3000);
         QCOMPARE(spy.takeFirst().at(0).toBool(), true);
-        QVERIFY(!vpn.isRunning(QStringLiteral("inst-a")));
+        QVERIFY(!runtime.isRunning(QStringLiteral("inst-a")));
 
         client.disconnectFromDaemon();
         QFile::remove(daemon.socketPath());
@@ -175,18 +175,18 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
-        vpn.startConfig(QStringLiteral("inst-a"));
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("inst-a")), 3000);
+        runtime.startConfig(QStringLiteral("inst-a"));
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("inst-a")), 3000);
 
-        QSignalSpy spy(&vpn, &VpnManager::allStopped);
-        vpn.stopAll();
+        QSignalSpy spy(&runtime, &VpnRuntimeService::allStopped);
+        runtime.stopAll();
 
         QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 3000);
         QCOMPARE(spy.takeFirst().at(0).toBool(), false);
         // 停止失败后实例仍保持运行
-        QVERIFY(vpn.isRunning(QStringLiteral("inst-a")));
+        QVERIFY(runtime.isRunning(QStringLiteral("inst-a")));
 
         client.disconnectFromDaemon();
         QFile::remove(daemon.socketPath());
@@ -209,13 +209,13 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
-        QSignalSpy spy(&vpn, &VpnManager::externalInstancesChanged);
+        QSignalSpy spy(&runtime, &VpnRuntimeService::externalInstancesChanged);
         // 等待心跳完成外部实例同步（心跳间隔 3s，超时放宽到 4s）
         QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 4000);
-        QVERIFY(vpn.isRunning(QStringLiteral("ext-inst")));
-        QCOMPARE(vpn.externalInstances(), QStringList{QStringLiteral("ext-inst")});
+        QVERIFY(runtime.isRunning(QStringLiteral("ext-inst")));
+        QCOMPARE(runtime.externalInstances(), QStringList{QStringLiteral("ext-inst")});
         QCOMPARE(spy.first().at(0).toStringList(), QStringList{QStringLiteral("ext-inst")});
 
         client.disconnectFromDaemon();
@@ -238,15 +238,15 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("ext-inst")), 4000);
-        QCOMPARE(vpn.externalInstances(), QStringList{QStringLiteral("ext-inst")});
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("ext-inst")), 4000);
+        QCOMPARE(runtime.externalInstances(), QStringList{QStringLiteral("ext-inst")});
 
         // daemon 中移除该实例，等待下一轮心跳清理
         daemon.runningKeys.clear();
-        QTRY_VERIFY_WITH_TIMEOUT(!vpn.isRunning(QStringLiteral("ext-inst")), 4000);
-        QVERIFY(vpn.externalInstances().isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!runtime.isRunning(QStringLiteral("ext-inst")), 4000);
+        QVERIFY(runtime.externalInstances().isEmpty());
 
         client.disconnectFromDaemon();
         QFile::remove(daemon.socketPath());
@@ -268,15 +268,15 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("ext-inst")), 4000);
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("ext-inst")), 4000);
 
         // 外部实例可停止：发送 delete_network_instance，daemon 移除 runningKeys，
         // 下一轮心跳将外部实例从集合中清理
-        vpn.stopConfig(QStringLiteral("ext-inst"));
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.externalInstances().isEmpty(), 4000);
-        QVERIFY(!vpn.isRunning(QStringLiteral("ext-inst")));
+        runtime.stopConfig(QStringLiteral("ext-inst"));
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.externalInstances().isEmpty(), 4000);
+        QVERIFY(!runtime.isRunning(QStringLiteral("ext-inst")));
 
         client.disconnectFromDaemon();
         QFile::remove(daemon.socketPath());
@@ -299,19 +299,19 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
         // 先被心跳识别为外部实例
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("ext-inst")), 4000);
-        QCOMPARE(vpn.externalInstances(), QStringList{QStringLiteral("ext-inst")});
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("ext-inst")), 4000);
+        QCOMPARE(runtime.externalInstances(), QStringList{QStringLiteral("ext-inst")});
 
         // 该实例名成为本地配置：外部临时 controller 立即移除，列表不再有外部项
-        vpn.ensureLocalController(QStringLiteral("ext-inst"));
-        QVERIFY(vpn.externalInstances().isEmpty());
+        runtime.ensureLocalController(QStringLiteral("ext-inst"));
+        QVERIFY(runtime.externalInstances().isEmpty());
 
         // daemon 仍运行该实例：下一轮心跳把本地 controller 纠正为 Running
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("ext-inst")), 4000);
-        QVERIFY(vpn.externalInstances().isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("ext-inst")), 4000);
+        QVERIFY(runtime.externalInstances().isEmpty());
 
         client.disconnectFromDaemon();
         QFile::remove(daemon.socketPath());
@@ -333,16 +333,16 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(client.connectionState() == DaemonClient::ConnectionState::Connected, 3000);
         DaemonApi api(&client);
         StatusMonitor monitor;
-        VpnManager vpn(&client, &api, &repo, &monitor);
+        VpnRuntimeService runtime(&client, &api, &repo, &monitor);
 
         // 先被心跳识别为外部实例
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.isRunning(QStringLiteral("ext-inst")), 4000);
-        QCOMPARE(vpn.externalInstances(), QStringList{QStringLiteral("ext-inst")});
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("ext-inst")), 4000);
+        QCOMPARE(runtime.externalInstances(), QStringList{QStringLiteral("ext-inst")});
 
-        QSignalSpy spy(&vpn, &VpnManager::externalInstancesChanged);
+        QSignalSpy spy(&runtime, &VpnRuntimeService::externalInstancesChanged);
         // 断开 daemon：外部临时 controller 全部清除并通知列表清空
         client.disconnectFromDaemon();
-        QTRY_VERIFY_WITH_TIMEOUT(vpn.externalInstances().isEmpty(), 4000);
+        QTRY_VERIFY_WITH_TIMEOUT(runtime.externalInstances().isEmpty(), 4000);
         QVERIFY(spy.count() >= 1);
         QVERIFY(spy.last().at(0).toStringList().isEmpty());
 
@@ -360,5 +360,5 @@ private:
     }
 };
 
-QTEST_MAIN(TestVpnManager)
-#include "tst_vpn_manager.moc"
+QTEST_MAIN(TestVpnRuntimeService)
+#include "tst_vpn_runtime_service.moc"

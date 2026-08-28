@@ -16,7 +16,7 @@
  *       ◀──────────── IPC ok/err ─────────────────┘
  *
  * - reset() 可以从任何非 Unstarted 状态强制回到 Unstarted（daemon 断线场景）
- * - setState() 是公开的，供 VpnManager 心跳同步时直接设置状态（跳过状态机校验）
+ * - setState() 是公开的，供 VpnRuntimeService 心跳同步时直接设置状态（跳过状态机校验）
  *
  * ## 异步操作
  *
@@ -28,7 +28,7 @@
  * ## RunningStatus 缓存
  *
  * RunningStatus 存储节点信息和事件日志，由 StatusMonitor 异步解析后
- * 通过 VpnManager 回调 setRunningStatus() 写入，供 QML 显示。
+ * 通过 VpnRuntimeService 回调 setRunningStatus() 写入，供 QML 显示。
  */
 #pragma once
 #include "core/config/ConfigRunState.h"
@@ -40,7 +40,7 @@ class DaemonApi;
 class NetworkConfigRepository;
 
 /// @brief 运行状态快照：缓存当前运行实例的节点信息与事件日志
-/// 由 StatusMonitor 解析后写入，VpnManager 通过 QML 属性暴露
+/// 由 StatusMonitor 解析后写入，VpnRuntimeService 通过 QML 属性暴露
 struct RunningStatus {
     QVariantList nodeInfos;   ///< 节点信息列表（每个节点为 QVariantMap）
     QVariantList logEntries;  ///< 事件日志列表（每条为 {timestamp, message}）
@@ -80,7 +80,7 @@ public:
      * @param instanceName 对应的配置 instance_name（唯一标识）
      * @param daemonApi    daemon API
      * @param repo         配置仓库（启动时读取 TOML 配置）
-     * @param parent       父对象（为 VpnManager，由其管理生命周期）
+     * @param parent       父对象（为 VpnRuntimeService，由其管理生命周期）
      */
     VpnController(const QString &instanceName, DaemonApi *daemonApi,
                   NetworkConfigRepository *repo, QObject *parent = nullptr);
@@ -97,7 +97,7 @@ public:
     /// 会清除运行状态缓存并重置状态机
     void reset();
 
-    /// 公开 setState 供 VpnManager 心跳同步使用
+    /// 公开 setState 供 VpnRuntimeService 心跳同步使用
     /// 注意：此方法不校验状态转换合法性，调用方需确保合理性
     void setState(State state);
 
@@ -124,10 +124,10 @@ public:
     bool hasRunningStatus() const;
 
 signals:
-    /// 状态变更通知（携带实例名和新状态，转发给 VpnManager → QML）
+    /// 状态变更通知（携带实例名和新状态，转发给 VpnRuntimeService → QML）
     void stateChanged(const QString &instanceName, VpnController::State state);
 
-    /// 停止失败通知（携带实例名和错误描述，转发给 VpnManager → QML）
+    /// 停止失败通知（携带实例名和错误描述，转发给 VpnRuntimeService → QML）
     void stopFailed(const QString &instanceName, const QString &error);
 
 private:

@@ -4,11 +4,11 @@
  *
  * 接收 daemon collect_network_infos 返回的原始 JSON，
  * 通过 QtConcurrent 在后台线程异步解码 Base64、解析节点信息与事件日志，
- * 解析完成后通过 signal 通知 VpnManager 缓存到对应 VpnController。
+ * 解析完成后通过 signal 通知 VpnRuntimeService 缓存到对应 VpnController。
  *
  * ## 设计原则
  *
- * - 自身不持有 DaemonClient，由 VpnManager 在心跳回调中喂入数据
+ * - 自身不持有 DaemonClient，由 VpnRuntimeService 在心跳回调中喂入数据
  * - 解析逻辑为纯函数（静态方法），天然线程安全，可在 QtConcurrent 线程中并行执行
  * - 解析完成后通过 QueuedConnection 将结果抛回主线程
  *
@@ -30,12 +30,12 @@ class StatusMonitor : public QObject {
 public:
     explicit StatusMonitor(QObject *parent = nullptr);
 
-    /// 由 VpnManager 在 collect_network_infos 回调中调用
+    /// 由 VpnRuntimeService 在 collect_network_infos 回调中调用
     /// 提取 JSON 中的 instances 数组，通过 onProcessRequested 信号触发异步解析
     void processNetworkInfos(const QJsonObject &result);
 
 signals:
-    /// 异步解码 + 解析完成后发射，通知 VpnManager 缓存到对应 VpnController
+    /// 异步解码 + 解析完成后发射，通知 VpnRuntimeService 缓存到对应 VpnController
     /// @param instName   实例名称
     /// @param nodeInfos  解析后的节点信息列表（每个节点为 QVariantMap）
     /// @param logEntries 解析后的事件日志列表（每条为 {timestamp, message}）

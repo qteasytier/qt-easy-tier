@@ -4,10 +4,10 @@
  *
  * 编排设置页「危险操作」相关的跨基础服务流程：
  * - 后端安装/卸载（DaemonRegisterHelper，UAC / pkexec 提权）
- * - 清空全部数据（VpnManager.stopAll → 各仓库清库 → 设置文件重置）
+ * - 清空全部数据（VpnRuntimeService.stopAll → 各仓库清库 → 设置文件重置）
  *
  * 本服务是编排型应用服务：UI 层（DangerousOperationViewModel）只做薄壳转发，
- * 不直接接触 VpnManager / 仓库 / 平台工具。
+ * 不直接接触 VpnRuntimeService / 仓库 / 平台工具。
  */
 #pragma once
 
@@ -19,7 +19,7 @@
 class FavoriteNodeRepository;
 class LogRepository;
 class NetworkConfigRepository;
-class VpnManager;
+class VpnRuntimeService;
 
 /** @brief 危险操作服务，编排后端安装/卸载与全量数据清空流程 */
 class DangerousOperationService : public QObject {
@@ -28,14 +28,14 @@ class DangerousOperationService : public QObject {
 public:
     /**
      * @brief 构造函数
-     * @param vpnManager          VPN 管理器（停止所有网络服务）
+     * @param vpnRuntimeService  VPN 运行服务（停止所有网络服务）
      * @param configRepository    网络配置仓库（清空配置表）
      * @param favoriteRepository  收藏节点仓库（清空收藏表）
      * @param logRepository       日志仓库（清空日志表）
      * @param settingsFilePath    设置文件路径（空则使用默认路径，测试可注入临时路径）
      * @param parent              父对象
      */
-    explicit DangerousOperationService(VpnManager *vpnManager,
+    explicit DangerousOperationService(VpnRuntimeService *vpnRuntimeService,
                                        NetworkConfigRepository *configRepository,
                                        FavoriteNodeRepository *favoriteRepository,
                                        LogRepository *logRepository,
@@ -71,7 +71,7 @@ public:
      * @brief 清空全部数据（异步流程）
      *
      * 流程：
-     * 1. 请求 VpnManager 停止所有正在运行的网络服务
+     * 1. 请求 VpnRuntimeService 停止所有正在运行的网络服务
      * 2. 全部成功收敛后清空磁盘数据（配置表/收藏表/日志表/设置文件）
      * 3. 清空成功 → 发射 quitRequested() 请求退出应用
      *
@@ -97,7 +97,7 @@ private:
     /// 执行磁盘数据清空，成功后请求退出
     void performClear();
 
-    VpnManager *m_vpnManager;                 ///< VPN 管理器（非所有权）
+    VpnRuntimeService *m_vpnRuntimeService;      ///< VPN 运行服务（非所有权）
     NetworkConfigRepository *m_configRepository; ///< 网络配置仓库（非所有权）
     FavoriteNodeRepository *m_favoriteRepository; ///< 收藏节点仓库（非所有权）
     LogRepository *m_logRepository;           ///< 日志仓库（非所有权）
