@@ -6,8 +6,9 @@
  * - 后端安装/卸载（DaemonRegisterHelper，UAC / pkexec 提权）
  * - 清空全部数据（VpnRuntimeService.stopAll → 各仓库清库 → 设置文件重置）
  *
- * 本服务是编排型应用服务：UI 层（DangerousOperationViewModel）只做薄壳转发，
- * 不直接接触 VpnRuntimeService / 仓库 / 平台工具。
+ * 本服务是编排型应用服务，也是设置页危险操作卡片的 QML-facing 入口：
+ * 通过 QmlSingletonRegistrar 以兼容名称 "DangerousOperationViewModel" 注册，
+ * 不依赖额外的 ViewModel 薄壳转发。
  */
 #pragma once
 
@@ -21,9 +22,16 @@ class LogRepository;
 class NetworkConfigRepository;
 class VpnRuntimeService;
 
-/** @brief 危险操作服务，编排后端安装/卸载与全量数据清空流程 */
+/** @brief 危险操作服务，编排后端安装/卸载与全量数据清空流程（直接暴露给 QML） */
 class DangerousOperationService : public QObject {
     Q_OBJECT
+
+    /// 操作是否进行中（进行中时禁用全部按钮）
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
+    /// 后端是否已注册且运行中（true 时按钮显示"卸载后端"，否则显示"安装后端"）
+    Q_PROPERTY(bool daemonInstalled READ daemonInstalled NOTIFY daemonStatusChanged FINAL)
+    /// 后端操作是否可用（daemon 二进制存在且平台支持）
+    Q_PROPERTY(bool daemonOperationEnabled READ daemonOperationEnabled NOTIFY daemonStatusChanged FINAL)
 
 public:
     /**
@@ -55,7 +63,7 @@ public:
      * 内部通过 DaemonRegisterHelper::requiredAction() 检测后端状态，
      * 结果缓存到成员变量并发射 daemonStatusChanged 供 QML 刷新。
      */
-    void refreshDaemonStatus();
+    Q_INVOKABLE void refreshDaemonStatus();
 
     /**
      * @brief 执行后端安装或卸载（按当前状态自动路由）
@@ -65,7 +73,7 @@ public:
      *
      * 操作同步执行（UAC / pkexec 提权），完成后刷新状态并发射 operationFinished。
      */
-    void performDaemonOperation();
+    Q_INVOKABLE void performDaemonOperation();
 
     /**
      * @brief 清空全部数据（异步流程）
@@ -77,7 +85,7 @@ public:
      *
      * 任一步失败则中止并发射 operationFinished(false, message)。
      */
-    void clearAllData();
+    Q_INVOKABLE void clearAllData();
 
 signals:
     /// 操作进行中状态变化

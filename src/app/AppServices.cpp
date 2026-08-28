@@ -32,7 +32,6 @@
 #include "viewmodels/ConfigEditorViewModel.h"
 #include "viewmodels/ConfigListModel.h"
 #include "viewmodels/credential/CredentialViewModel.h"
-#include "viewmodels/DangerousOperationViewModel.h"
 #include "viewmodels/FavoriteNodeViewModel.h"
 #include "viewmodels/LogViewModel.h"
 #include "viewmodels/SettingsViewModel.h"
@@ -114,12 +113,10 @@ AppServices::AppServices(const QSqlDatabase &database,
                                                                     m_configRepository,
                                                                     m_favoriteNodeRepository,
                                                                     m_logRepository,
-                                                                    QString(),
-                                                                    parentObject);
-        m_dangerousOperationViewModel = new DangerousOperationViewModel(m_dangerousOperationService,
-                                                                        parentObject);
+                                                                     QString(),
+                                                                     parentObject);
         // 清空全部数据成功后退出应用（信号方式便于测试）
-        QObject::connect(m_dangerousOperationViewModel, &DangerousOperationViewModel::quitRequested,
+        QObject::connect(m_dangerousOperationService, &DangerousOperationService::quitRequested,
                          this, []() {
                              QCoreApplication::quit();
                          });
@@ -153,7 +150,7 @@ ImportNodesViewModel *AppServices::importNodesViewModel() const { return m_impor
 VpnRuntimeService *AppServices::vpnRuntimeService() const { return m_vpnRuntimeService; }
 CredentialService *AppServices::credentialService() const { return m_credentialService; }
 CredentialViewModel *AppServices::credentialViewModel() const { return m_credentialViewModel; }
-DangerousOperationViewModel *AppServices::dangerousOperationViewModel() const { return m_dangerousOperationViewModel; }
+DangerousOperationService *AppServices::dangerousOperationService() const { return m_dangerousOperationService; }
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }
 SystemTrayManager *AppServices::systemTrayManager() const { return m_systemTrayManager; }

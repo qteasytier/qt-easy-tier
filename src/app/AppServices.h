@@ -35,7 +35,6 @@ class CredentialViewModel;
 class DaemonApi;
 class DaemonClient;
 class DangerousOperationService;
-class DangerousOperationViewModel;
 class FavoriteNodeImportExportService;
 class FavoriteNodeRepository;
 class FavoriteNodeViewModel;
@@ -115,8 +114,8 @@ public:
     CredentialService *credentialService() const;
     /// 获取临时凭证 ViewModel（运行状态页"添加临时节点密钥"入口）
     CredentialViewModel *credentialViewModel() const;
-    /// 获取危险操作 ViewModel（后端安装/卸载、清空全部数据）
-    DangerousOperationViewModel *dangerousOperationViewModel() const;
+    /// 获取危险操作服务（后端安装/卸载、清空全部数据；QML 注册名 DangerousOperationViewModel）
+    DangerousOperationService *dangerousOperationService() const;
     /// 获取 daemon IPC 客户端
     DaemonClient *daemonClient() const;
     /// 获取 daemon API（JSON-RPC 调用封装）
@@ -167,7 +166,6 @@ private:
     CredentialService *m_credentialService = nullptr;
     CredentialViewModel *m_credentialViewModel = nullptr;
     DangerousOperationService *m_dangerousOperationService = nullptr;
-    DangerousOperationViewModel *m_dangerousOperationViewModel = nullptr;
     ConfigCommandService *m_configCommandService = nullptr;
     ConfigImportExportService *m_configImportExportService = nullptr;
     ConfigListModel *m_configListModel = nullptr;

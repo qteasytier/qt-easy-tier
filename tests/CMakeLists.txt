@@ -81,8 +81,8 @@ target_link_libraries(tst_app_services PRIVATE qtet_appsupport)
 add_core_test(tst_vpn_runtime_service tst_vpn_runtime_service.cpp)
 target_link_libraries(tst_vpn_runtime_service PRIVATE qtet_application)
 
-add_core_test(tst_dangerous_operation_viewmodel tst_dangerous_operation_viewmodel.cpp)
-target_link_libraries(tst_dangerous_operation_viewmodel PRIVATE qtet_viewmodel)
+add_core_test(tst_dangerous_operation_service tst_dangerous_operation_service.cpp)
+target_link_libraries(tst_dangerous_operation_service PRIVATE qtet_application)
 
 add_core_test(tst_log_repository tst_log_repository.cpp)
 target_link_libraries(tst_log_repository PRIVATE qtet_repository)

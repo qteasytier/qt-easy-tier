@@ -1,6 +1,6 @@
 /**
- * @file tst_dangerous_operation_viewmodel.cpp
- * @brief 危险操作 ViewModel 单元测试。
+ * @file tst_dangerous_operation_service.cpp
+ * @brief 危险操作服务单元测试。
  *
  * 覆盖：
  * - clearAllData() 全链路：停止所有服务后清空各表与设置文件，并请求退出应用
@@ -27,7 +27,7 @@
 #include "core/service/IpcMessage.h"
 #include "platform/DaemonRegisterHelper.h"
 #include "app_service/runtime/VpnRuntimeService.h"
-#include "viewmodels/DangerousOperationViewModel.h"
+
 #include "core/vpn_manager/StatusMonitor.h"
 
 
@@ -85,7 +85,7 @@ private:
     QByteArray m_buffer;
 };
 
-class TestDangerousOperationViewModel : public QObject {
+class TestDangerousOperationService : public QObject {
     Q_OBJECT
 
 private slots:
@@ -122,18 +122,18 @@ private slots:
         StatusMonitor monitor;
         VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
         DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, settingsPath);
-        DangerousOperationViewModel vm(&service);
 
-        QSignalSpy finishedSpy(&vm, &DangerousOperationViewModel::operationFinished);
-        QSignalSpy quitSpy(&vm, &DangerousOperationViewModel::quitRequested);
 
-        vm.clearAllData();
+        QSignalSpy finishedSpy(&service, &DangerousOperationService::operationFinished);
+        QSignalSpy quitSpy(&service, &DangerousOperationService::quitRequested);
+
+        service.clearAllData();
 
         // 无运行实例 → stopAll 同步收敛成功 → 清空流程同步完成
         QCOMPARE(finishedSpy.count(), 1);
         QVERIFY(finishedSpy.takeFirst().at(0).toBool());
         QCOMPARE(quitSpy.count(), 1);
-        QVERIFY(!vm.busy());
+        QVERIFY(!service.busy());
 
         // 验证各业务表已清空
         QVERIFY(configRepo.loadAll().isEmpty());
@@ -173,22 +173,22 @@ private slots:
         StatusMonitor monitor;
         VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
         DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, QString());
-        DangerousOperationViewModel vm(&service);
+
 
         // 让实例进入 Running（FakeDaemon 对 run 请求返回成功）
         runtime.startConfig(QStringLiteral("net-a"));
         QTRY_VERIFY_WITH_TIMEOUT(runtime.isRunning(QStringLiteral("net-a")), 3000);
 
-        QSignalSpy finishedSpy(&vm, &DangerousOperationViewModel::operationFinished);
-        QSignalSpy quitSpy(&vm, &DangerousOperationViewModel::quitRequested);
+        QSignalSpy finishedSpy(&service, &DangerousOperationService::operationFinished);
+        QSignalSpy quitSpy(&service, &DangerousOperationService::quitRequested);
 
-        vm.clearAllData();
+        service.clearAllData();
 
         // 停止失败 → 清空中止，不请求退出
         QTRY_COMPARE_WITH_TIMEOUT(finishedSpy.count(), 1, 3000);
         QVERIFY(!finishedSpy.takeFirst().at(0).toBool());
         QCOMPARE(quitSpy.count(), 0);
-        QVERIFY(!vm.busy());
+        QVERIFY(!service.busy());
 
         // 数据未被清空
         QCOMPARE(configRepo.loadAll().size(), 1);
@@ -213,7 +213,7 @@ private slots:
         StatusMonitor monitor;
         VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
         DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, QString());
-        DangerousOperationViewModel vm(&service);
+
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 #if defined(Q_OS_WIN)
@@ -239,9 +239,9 @@ private slots:
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, false);
 #endif
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(true, false);
-        vm.refreshDaemonStatus();
-        QVERIFY(!vm.daemonInstalled());
-        QVERIFY(vm.daemonOperationEnabled());
+        service.refreshDaemonStatus();
+        QVERIFY(!service.daemonInstalled());
+        QVERIFY(service.daemonOperationEnabled());
 
         // 已注册且运行中 → 按钮切换为卸载且可用
 #if defined(Q_OS_LINUX)
@@ -254,9 +254,9 @@ private slots:
         DaemonRegisterHelper::setServiceRegisteredOverrideForTesting(true, true);
 #endif
         DaemonRegisterHelper::setDaemonProcessRunningOverrideForTesting(true, true);
-        vm.refreshDaemonStatus();
-        QVERIFY(vm.daemonInstalled());
-        QVERIFY(vm.daemonOperationEnabled());
+        service.refreshDaemonStatus();
+        QVERIFY(service.daemonInstalled());
+        QVERIFY(service.daemonOperationEnabled());
 
         // 清理 override
         DaemonRegisterHelper::setDaemonBinaryPathOverrideForTesting(QString());
@@ -269,9 +269,53 @@ private slots:
 #endif
 #else
         // 其他平台不支持后端管理，操作不可用
-        vm.refreshDaemonStatus();
-        QVERIFY(!vm.daemonOperationEnabled());
+        service.refreshDaemonStatus();
+        QVERIFY(!service.daemonOperationEnabled());
 #endif
+    }
+
+    /// 目标：直接暴露 DangerousOperationService 后，QML 需要的属性/方法/信号仍在元对象中
+    void exposesExpectedQmlApi()
+    {
+        auto conn = makeTempDb();
+        QVERIFY(conn.open());
+        NetworkConfigRepository configRepo(conn.database());
+        FavoriteNodeRepository favoriteRepo(conn.database());
+        LogRepository logRepo(conn.database());
+        DaemonClient client;
+        DaemonApi api(&client);
+        StatusMonitor monitor;
+        VpnRuntimeService runtime(&client, &api, &configRepo, &monitor);
+        DangerousOperationService service(&runtime, &configRepo, &favoriteRepo, &logRepo, QString());
+
+        // QML 可绑定属性必须出现在元对象中
+        QVERIFY(service.metaObject()->indexOfProperty("busy") >= 0);
+        QVERIFY(service.metaObject()->indexOfProperty("daemonInstalled") >= 0);
+        QVERIFY(service.metaObject()->indexOfProperty("daemonOperationEnabled") >= 0);
+
+        // QML 可调用方法必须出现在元对象中（Q_INVOKABLE）
+        const QStringList methods = {
+            QStringLiteral("refreshDaemonStatus()"),
+            QStringLiteral("performDaemonOperation()"),
+            QStringLiteral("clearAllData()"),
+        };
+        for (const QString &signature : methods) {
+            const int index = service.metaObject()->indexOfMethod(qPrintable(signature));
+            QVERIFY2(index >= 0, qPrintable(QStringLiteral("缺少方法: %1").arg(signature)));
+            QVERIFY(service.metaObject()->method(index).methodType() == QMetaMethod::Method);
+        }
+
+        // QML 可绑定信号必须出现在元对象中
+        const QStringList signalSignatures = {
+            QStringLiteral("busyChanged()"),
+            QStringLiteral("daemonStatusChanged()"),
+            QStringLiteral("operationFinished(bool,QString)"),
+            QStringLiteral("quitRequested()"),
+        };
+        for (const QString &signature : signalSignatures) {
+            const int index = service.metaObject()->indexOfSignal(qPrintable(signature));
+            QVERIFY2(index >= 0, qPrintable(QStringLiteral("缺少信号: %1").arg(signature)));
+        }
     }
 
 private:
@@ -285,5 +329,5 @@ private:
     }
 };
 
-QTEST_MAIN(TestDangerousOperationViewModel)
-#include "tst_dangerous_operation_viewmodel.moc"
+QTEST_MAIN(TestDangerousOperationService)
+#include "tst_dangerous_operation_service.moc"
