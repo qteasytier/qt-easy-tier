@@ -62,7 +62,7 @@ src/
 │   ├── system_tray/                 系统托盘与托盘消息
 │   └── log/                         日志基础设施
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
-├── viewmodels/                      暴露给 QML 的 ViewModel / Model
+├── viewmodels/                      暴露给 QML 的 ViewModel / Model（与 app_service 同属 qtet_application target）
 └── qml/                             QML UI
 ```
 
@@ -250,6 +250,9 @@ ViewModel 位于：
 ```text
 src/viewmodels/
 ```
+
+ViewModel 和 `src/app_service/` 中的应用业务服务一起编译进同一个构建目标
+`qtet_application`（二者不再拆分为独立物理 target）。
 
 它们是 QML 和 C++ 后端之间的主要 facade。ViewModel 应负责：
 
@@ -877,7 +880,6 @@ qtet_platform
 qtet_system_tray
 qtet_application
 qtet_vpn
-qtet_viewmodel
 qtet_appsupport
 ```
 
@@ -888,9 +890,7 @@ appQtEasyTier
     ↓
 qtet_appsupport
     ↓
-qtet_viewmodel
-    ↓
-qtet_application（桥接层：依赖 qtet_vpn 与全部基础服务）
+qtet_application（应用业务服务 + ViewModel，依赖 qtet_vpn 与全部基础服务）
     ↓
 qtet_vpn / qtet_repository / qtet_service / qtet_platform / qtet_favorite / qtet_system_tray
     ↓
@@ -901,11 +901,12 @@ qtet_config / qtet_log
 
 - `qtet_vpn` 只依赖基础服务（`qtet_config` / `qtet_repository` / `qtet_service` / `qtet_log`），
   不依赖 `qtet_application`。
-- `qtet_application` 依赖 `qtet_vpn` 及各基础服务，供应用服务编排使用。
-- `qtet_viewmodel` 直接链接 `qtet_application` 与少量基础服务（`qtet_repository` / `qtet_service`
-  等为薄壳 ViewModel 的历史直连），不应再直接链接 `qtet_vpn` / `qtet_platform`。
+- `qtet_application` 同时包含 `src/app_service/` 的业务服务与 `src/viewmodels/` 的
+  ViewModel / Model，二者不再拆分为独立物理 target；它依赖 `qtet_vpn` 及各基础服务。
+- 历史薄壳 ViewModel 对 `qtet_repository` / `qtet_service` / `qtet_platform` 的直连
+  已成为 `qtet_application` 内部实现依赖，不应再作为消费者可见的公共依赖扩散。
 
-`qtet_system_tray` 由 `qtet_appsupport` 直接链接，与 `qtet_viewmodel` 处于同一层级，依赖 `qtet_service`、`qtet_config` 和 `qtet_log`。
+`qtet_system_tray` 由 `qtet_appsupport` 直接链接，依赖 `qtet_service`、`qtet_config` 和 `qtet_log`。
 
 原则：
 
@@ -913,7 +914,7 @@ qtet_config / qtet_log
 - 下层不要反向依赖上层。
 - `qtet_vpn` / `qtet_system_tray` 等基础服务不得 include `app_service` 或 `viewmodels` 头文件。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
-- 新 C++ 源文件应加入所属模块 target，而不是随意加入应用 target。
+- 新 C++ 源文件应加入所属模块 target；`src/app_service` 与 `src/viewmodels` 的新文件都加入 `qtet_application`。
 - 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；`-DCLONE_DAEMON_FROM=GITEE`（或 `CNB`）时从对应来源克隆后端源码，默认 `GITHUB`。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
 - Windows 当前只构建前端：即使 `BUILD_WITH_DAEMON=ON`，CMake 也会跳过 `qtet-daemon` 构建和收集。Windows 开发仅按 MinGW64 工具链适配，不为 MSVC 添加专用配置或兼容代码。
 
@@ -928,9 +929,8 @@ qtet_config / qtet_log
 | `qtet_service` | daemon IPC 和 daemon API |
 | `qtet_platform` | 平台相关实现（源码在 `src/platform/`） |
 | `qtet_system_tray` | 系统托盘、托盘消息、真实通知输出 |
-| `qtet_application` | 应用业务服务层（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
+| `qtet_application` | 应用业务服务层 + 暴露给 QML 的 ViewModel / Model（配置/设置/收藏/日志/危险操作/VPN 运行桥） |
 | `qtet_vpn` | VPN 生命周期状态机与运行状态同步（不接触 UI 类型） |
-| `qtet_viewmodel` | 暴露给 QML 的 ViewModel / Model |
 | `qtet_appsupport` | AppServices 和 QML singleton 注册 |
 
 ## 测试组织
@@ -1062,7 +1062,7 @@ src/qml/pages/
 | 应用业务服务 | `src/app_service/` | `qtet_application` |
 | VPN 状态机 / 运行状态 | `src/core/vpn_manager/` | `qtet_vpn` |
 | 系统托盘 / 托盘消息 | `src/core/system_tray/` | `qtet_system_tray` |
-| QML ViewModel / Model | `src/viewmodels/` | `qtet_viewmodel` |
+| QML ViewModel / Model | `src/viewmodels/` | `qtet_application` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
 | QML 页面 / 组件 | `src/qml/` | `qt_add_qml_module` 的 `QML_FILES` |
 | Qt resource | `assets/` | `assets/resources.qrc` |
