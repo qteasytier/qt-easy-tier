@@ -20,8 +20,6 @@ add_qtet_library(qtet_application
     runtime/RuntimeLogModel.h
     runtime/VpnRuntimeService.cpp
     runtime/VpnRuntimeService.h
-    settings/SettingsBackendService.cpp
-    settings/SettingsBackendService.h
     settings/SettingsStore.cpp
     settings/SettingsStore.h
     settings/UpdateCheckService.cpp

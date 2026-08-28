@@ -84,7 +84,7 @@ void TestLogHelper::testFiltering()
     QVERIFY(db->open());
     auto *repo = new LogRepository(db->database(), this);
     repo->clearAll();
-    auto *settings = new SettingsViewModel(nullptr, this);
+    auto *settings = new SettingsViewModel(nullptr, nullptr, this);
     settings->setLogLevel(static_cast<int>(LogLevel::Info));
     settings->setMaxLogEntries(100);
     auto *sink = new RepositoryLogSink(repo, this);

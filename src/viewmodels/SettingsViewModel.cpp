@@ -4,30 +4,46 @@
  *
  * 本地设置（settings3.json）由本类直接管理；开机自启以系统实际状态为唯一权威源，
  * 直接通过 AutoStartHelper 读写，不持久化到 JSON。
- * 自动回连与版本更新检查委托 SettingsBackendService，
- * 本类仅负责将后端服务的信号转发为 QML 可绑定的属性通知。
+ * 自动回连通过注入的 DaemonApi 发起 RPC 并持有状态/忙状态；
+ * 版本更新检查通过注入的 UpdateCheckService 发起，并监听其终态信号收敛忙状态。
  */
 #include "SettingsViewModel.h"
 #include "AppVersion.h"
 #include "platform/AutoStartHelper.h"
+#include "app_service/settings/UpdateCheckService.h"
 #include "core/log/LogHelper.h"
+#include "core/service/DaemonApi.h"
 
-SettingsViewModel::SettingsViewModel(SettingsBackendService *backend, QObject *parent)
+#include <QFutureWatcher>
+#include <QJsonObject>
+
+SettingsViewModel::SettingsViewModel(DaemonApi *daemonApi,
+                                     UpdateCheckService *updateCheckService,
+                                     QObject *parent)
     : QObject(parent)
-    , m_backend(backend)
+    , m_daemonApi(daemonApi)
+    , m_updateCheckService(updateCheckService)
 {
     load();
 
-    // 转发设置后端服务（自动回连 / 更新检查）的状态信号给 QML
-    if (m_backend) {
-        connect(m_backend, &SettingsBackendService::autoReconnectChanged,
-                this, &SettingsViewModel::autoReconnectChanged);
-        connect(m_backend, &SettingsBackendService::autoReconnectBusyChanged,
-                this, &SettingsViewModel::autoReconnectBusyChanged);
-        connect(m_backend, &SettingsBackendService::autoReconnectOperationFailed,
-                this, &SettingsViewModel::autoReconnectOperationFailed);
-        connect(m_backend, &SettingsBackendService::updateCheckBusyChanged,
-                this, &SettingsViewModel::updateCheckBusyChanged);
+    // 更新检查的任意结束信号都表示请求已收敛，解除忙状态
+    if (m_updateCheckService) {
+        connect(m_updateCheckService, &UpdateCheckService::updateCheckFailed,
+                this, [this](const QString &message) {
+                    setUpdateCheckBusy(false);
+                    LogHelper::logWarning(message, "Settings");
+                });
+        connect(m_updateCheckService, &UpdateCheckService::noUpdateAvailable,
+                this, [this](const QString &message) {
+                    setUpdateCheckBusy(false);
+                    LogHelper::logInfo(message, "Settings");
+                });
+        connect(m_updateCheckService, &UpdateCheckService::updateAvailable,
+                this, [this](const UpdateCheckService::UpdateInfo &) {
+                    setUpdateCheckBusy(false);
+                });
+        connect(m_updateCheckService, &UpdateCheckService::checkFinished,
+                this, [this]() { setUpdateCheckBusy(false); });
     }
 }
 
@@ -39,13 +55,12 @@ bool SettingsViewModel::autoStart() const
 
 bool SettingsViewModel::autoReconnect() const
 {
-    // 状态由设置后端服务持有，本类只读转发
-    return m_backend ? m_backend->autoReconnect() : false;
+    return m_autoReconnect;
 }
 
 bool SettingsViewModel::autoReconnectBusy() const
 {
-    return m_backend ? m_backend->autoReconnectBusy() : false;
+    return m_autoReconnectBusy;
 }
 
 bool SettingsViewModel::autoCheckUpdates() const
@@ -65,7 +80,7 @@ void SettingsViewModel::setAutoCheckUpdates(bool value)
 
 bool SettingsViewModel::updateCheckBusy() const
 {
-    return m_backend ? m_backend->updateCheckBusy() : false;
+    return m_updateCheckBusy;
 }
 
 bool SettingsViewModel::hideServerNodes() const
@@ -117,38 +132,67 @@ void SettingsViewModel::save()
 
 void SettingsViewModel::refreshAutoReconnect()
 {
-    // 委托设置后端服务发起查询，结果经信号转发回 QML
-    if (m_backend)
-        m_backend->refreshAutoReconnect();
-    else
-        LogHelper::logWarning(QStringLiteral("设置后端服务不可用，无法查询自动回连状态"), "Settings");
+    if (!m_daemonApi) {
+        LogHelper::logWarning(QStringLiteral("DaemonApi 不可用，无法查询自动回连状态"), "Settings");
+        return;
+    }
+
+    setAutoReconnectBusy(true);
+
+    auto *watcher = new QFutureWatcher<QJsonObject>(this);
+    connect(watcher, &QFutureWatcher<QJsonObject>::finished, this, [this, watcher]() {
+        setAutoReconnectBusy(false);
+        try {
+            const QJsonObject result = watcher->result();
+            const bool enabled = result.value(QStringLiteral("autoReconnect")).toBool(false);
+            if (m_autoReconnect != enabled) {
+                m_autoReconnect = enabled;
+                emit autoReconnectChanged();
+            }
+        } catch (const QException &e) {
+            LogHelper::logWarning(QStringLiteral("查询自动回连状态失败: %1").arg(e.what()), "Settings");
+        }
+        watcher->deleteLater();
+    });
+
+    watcher->setFuture(m_daemonApi->getAutoReconnect());
 }
 
 void SettingsViewModel::setAutoReconnectEnabled(bool enabled)
 {
-    if (!m_backend) {
-        LogHelper::logWarning(QStringLiteral("设置后端服务不可用，无法设置自动回连"), "Settings");
+    if (!m_daemonApi) {
+        LogHelper::logWarning(QStringLiteral("DaemonApi 不可用，无法设置自动回连"), "Settings");
         emit autoReconnectOperationFailed(QStringLiteral("后端未连接，无法设置自动回连"));
         return;
     }
 
-    m_backend->setAutoReconnect(enabled);
-}
+    setAutoReconnectBusy(true);
 
-void SettingsViewModel::checkForUpdates()
-{
-    if (m_backend)
-        m_backend->checkForUpdates(frontendVersion(), true);
-    else
-        LogHelper::logWarning(QStringLiteral("设置后端服务不可用，无法检查更新"), "Settings");
-}
+    const bool previous = m_autoReconnect;
 
-void SettingsViewModel::checkForUpdatesOnStartup()
-{
-    if (!m_autoCheckUpdates)
-        return;
-    if (m_backend)
-        m_backend->checkForUpdates(frontendVersion(), false);
+    auto *watcher = new QFutureWatcher<QJsonObject>(this);
+    connect(watcher, &QFutureWatcher<QJsonObject>::finished, this, [this, watcher, previous]() {
+        setAutoReconnectBusy(false);
+        try {
+            // 以 daemon 返回的实际状态为准，而非用户传入值
+            const QJsonObject result = watcher->result();
+            const bool actual = result.value(QStringLiteral("autoReconnect")).toBool(false);
+            if (m_autoReconnect != actual) {
+                m_autoReconnect = actual;
+                emit autoReconnectChanged();
+            }
+        } catch (const QException &e) {
+            LogHelper::logWarning(QStringLiteral("设置自动回连失败: %1").arg(e.what()), "Settings");
+            if (m_autoReconnect != previous) {
+                m_autoReconnect = previous;
+                emit autoReconnectChanged();
+            }
+            emit autoReconnectOperationFailed(QStringLiteral("设置自动回连失败: %1").arg(e.what()));
+        }
+        watcher->deleteLater();
+    });
+
+    watcher->setFuture(m_daemonApi->setAutoReconnect(enabled));
 }
 
 bool SettingsViewModel::setAutoStart(bool enabled)
@@ -182,6 +226,32 @@ void SettingsViewModel::refreshAutoStart()
 {
     // 重新发射属性通知，使 QML 读取系统真实自启动状态
     emit autoStartChanged();
+}
+
+void SettingsViewModel::checkForUpdates()
+{
+    checkForUpdatesInternal(true);
+}
+
+void SettingsViewModel::checkForUpdatesOnStartup()
+{
+    if (!m_autoCheckUpdates)
+        return;
+    checkForUpdatesInternal(false);
+}
+
+void SettingsViewModel::checkForUpdatesInternal(bool manual)
+{
+    if (!m_updateCheckService) {
+        LogHelper::logWarning(QStringLiteral("UpdateCheckService 不可用，无法检查更新"), "Settings");
+        return;
+    }
+
+    if (m_updateCheckBusy)
+        return;
+
+    setUpdateCheckBusy(true);
+    m_updateCheckService->checkLatestRelease(frontendVersion(), manual);
 }
 
 int SettingsViewModel::logLevel() const
@@ -226,6 +296,22 @@ QString SettingsViewModel::frontendVersion() const
 QString SettingsViewModel::easyTierVersion() const
 {
     return QStringLiteral(QTET_EASYTIER_VERSION);
+}
+
+void SettingsViewModel::setAutoReconnectBusy(bool busy)
+{
+    if (m_autoReconnectBusy == busy)
+        return;
+    m_autoReconnectBusy = busy;
+    emit autoReconnectBusyChanged();
+}
+
+void SettingsViewModel::setUpdateCheckBusy(bool busy)
+{
+    if (m_updateCheckBusy == busy)
+        return;
+    m_updateCheckBusy = busy;
+    emit updateCheckBusyChanged();
 }
 
 SettingsStore::Settings SettingsViewModel::settings() const

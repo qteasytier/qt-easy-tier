@@ -46,7 +46,6 @@ class NetworkConfigRepository;
 class NetworkPageViewModel;
 class QQmlApplicationEngine;
 class RepositoryLogSink;
-class SettingsBackendService;
 class SettingsViewModel;
 class StatusMonitor;
 class SystemTrayManager;
@@ -154,7 +153,6 @@ private:
     DaemonApi *m_daemonApi = nullptr;
     BackendStatusViewModel *m_backendStatusViewModel = nullptr;
     AppState *m_appState = nullptr;
-    SettingsBackendService *m_settingsBackendService = nullptr;
     SettingsViewModel *m_settingsViewModel = nullptr;
     FavoriteNodeImportExportService *m_favoriteNodeImportExportService = nullptr;
     FavoriteNodeViewModel *m_favoriteNodeViewModel = nullptr;

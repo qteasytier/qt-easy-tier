@@ -292,17 +292,19 @@ ImportNodesViewModel
 
 ### SettingsViewModel
 
-`SettingsViewModel` 向 QML 暴露设置项，并协调设置修改、自启动状态等能力。
+`SettingsViewModel` 向 QML 暴露设置项，并协调本地设置、自动回连、版本更新检查与自启动状态。
 
-设置持久化和自动回连细节委托：
+它直接持有自动回连 / 更新检查的异步状态，并通过注入的协作者完成操作：
 
 ```text
-src/app_service/settings/SettingsStore.*
-src/app_service/settings/SettingsBackendService.*
+DaemonApi（自动回连 RPC）
+UpdateCheckService（版本更新检查）
+SettingsStore（settings3.json）
+AutoStartHelper（系统自启动）
 ```
 
-其中 `SettingsBackendService` 负责桥接 daemon 自动回连（`DaemonApi`）与版本更新检查
-（`UpdateCheckService`），`SettingsViewModel` 不再直接接触这两个基础服务。
+其中 `DaemonApi`、`UpdateCheckService`、`SettingsStore`、`AutoStartHelper` 均为非所有权依赖，
+由 `AppServices` 创建并注入；`SettingsViewModel` 只保存指针/值，不构造底层对象。
 
 开机自启动以系统实际状态为唯一权威源：`SettingsViewModel` 直接调用平台层
 `AutoStartHelper` 读写 Windows 注册表 / XDG Autostart 条目，
@@ -315,7 +317,7 @@ QML
     ↓
 SettingsViewModel
     ↓
-SettingsStore / SettingsBackendService / AutoStartHelper（仅自启动）
+DaemonApi / UpdateCheckService / SettingsStore / AutoStartHelper（仅自启动）
 ```
 
 ### ConfigListModel
@@ -526,14 +528,16 @@ src/app_service/settings/
 
 ```text
 SettingsStore
-SettingsBackendService
+UpdateCheckService
 ```
 
 职责划分：
 
 - `SettingsStore`：读写全局设置文件 `settings3.json`（不含自启动字段）。
-- `SettingsBackendService`：桥接 daemon 自动回连（`DaemonApi`）与版本更新检查（`UpdateCheckService`），
-  持有异步请求的忙状态。
+- `UpdateCheckService`：执行版本更新检查（HTTP、版本比较与更新对话框）。
+
+自动回连与更新检查的异步状态由 `SettingsViewModel`（`src/viewmodels`）直接持有和协调：
+它经注入的 `DaemonApi` 发起自动回连 RPC，并监听 `UpdateCheckService` 终态信号收敛忙状态。
 
 开机自启动不在此目录：`SettingsViewModel` 直接调用平台层 `AutoStartHelper`，
 以系统实际状态为唯一权威源，`settings3.json` 不持久化该字段。
@@ -704,7 +708,7 @@ qtet-daemon.sock
 qtet-daemon
 ```
 
-UI 层通过应用服务层访问 daemon 能力（如 `SettingsBackendService` 封装自动回连、`VpnRuntimeService` 封装运行控制），
+UI 层通过应用服务层访问 daemon 能力（如 `SettingsViewModel` 经注入的 `DaemonApi` 封装自动回连、`VpnRuntimeService` 封装运行控制），
 不直接接触 `DaemonClient` / `DaemonApi`。已知债务：`BackendStatusViewModel` 仍直接依赖 `DaemonClient`（见架构边界约定）。
 
 测试中通常通过内存 `QLocalServer` 模拟 daemon，不需要真实 daemon 后台进程。
