@@ -31,7 +31,7 @@
 #include "core/daemon_service/IpcMessage.h"
 #include "app_service/credential/CredentialListModel.h"
 #include "app_service/credential/CredentialService.h"
-#include "viewmodels/credential/CredentialViewModel.h"
+#include "app_service/viewmodels/credential/CredentialViewModel.h"
 
 class TestCredentialService : public QObject {
     Q_OBJECT

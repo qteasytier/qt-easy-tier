@@ -39,22 +39,20 @@ src/
 ├── main.cpp                         应用入口
 ├── app/                             应用装配层（AppServices、QML singleton 注册）
 ├── app_service/                     应用服务层（UI 与基础服务之间的桥接）
-├── viewmodels/                      暴露给 QML 的 ViewModel / Model（UI 层）
+│   └── viewmodels/                  暴露给 QML 的 ViewModel / Model
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
 ├── core/
 │   ├── config/                      配置结构、TOML 序列化、校验、URL 编解码、daemon 载荷、运行状态枚举
-│   ├── favorite/                    收藏节点数据结构与 JSON 编解码
-│   ├── repository/                  SQLite repository
-│   ├── service/                     daemon IPC、JSON-RPC 和 API 封装
-│   ├── vpn_manager/                 VPN 生命周期状态机（基础服务）
+│   ├── sqlite_repository/           SQLite repository
+│   ├── daemon_service/              daemon IPC、JSON-RPC 和 API 封装
 │   ├── system_tray/                 系统托盘与消息分发
 │   └── log/                         日志基础设施
 └── qml/                             QML UI（UI 层）
 ```
 
-架构上按四层理解：`src/app`（装配层）→ `src/app_service`（应用服务层，桥接与编排）→
-基础服务层（`config`/`repository`/`service`/`vpn_manager`/`system_tray`/`platform`/`favorite`/`log`）→
-UI 层（`viewmodels` + `qml`）。UI 层通过应用服务层访问基础服务能力，基础服务层不反向依赖 UI。
+架构上按四层理解：`src/app`（装配层）→ `src/app_service`（应用服务层，桥接与编排，
+含 `viewmodels`）→ 基础服务层（`config`/`sqlite_repository`/`daemon_service`/`system_tray`/`platform`/`log`）→
+UI 层（`qml`）。UI 层通过应用服务层访问基础服务能力，基础服务层不反向依赖 UI。
 
 更完整的开发说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

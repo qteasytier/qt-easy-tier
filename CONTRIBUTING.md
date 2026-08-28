@@ -53,6 +53,7 @@ src/
 ├── main.cpp                         应用入口
 ├── app/                             应用装配层
 ├── app_service/                     应用业务服务层
+│   └── viewmodels/                  暴露给 QML 的 ViewModel / Model（同属 qtet_application target）
 ├── core/                            基础服务层
 │   ├── config/                      配置数据结构、TOML 序列化、校验、URL 编解码
 │   ├── sqlite_repository/           SQLite 持久化
@@ -60,7 +61,6 @@ src/
 │   ├── system_tray/                 系统托盘与托盘消息
 │   └── log/                         日志基础设施
 ├── platform/                        平台相关实现（自启动、daemon 注册、字体）
-├── viewmodels/                      暴露给 QML 的 ViewModel / Model（与 app_service 同属 qtet_application target）
 └── qml/                             QML UI
 ```
 
@@ -246,11 +246,11 @@ QML 通过 QmlSingletonRegistrar 注册的 singleton 访问能力。`VpnRuntimeS
 ViewModel 位于：
 
 ```text
-src/viewmodels/
+src/app_service/viewmodels/
 ```
 
-ViewModel 和 `src/app_service/` 中的应用业务服务一起编译进同一个构建目标
-`qtet_application`（二者不再拆分为独立物理 target）。
+ViewModel 是 `src/app_service/` 应用业务服务的一部分，一起编译进同一个构建目标
+`qtet_application`（不拆分为独立物理 target）。
 
 它们是 QML 和 C++ 后端之间的主要 facade。ViewModel 应负责：
 
@@ -541,7 +541,7 @@ DangerousOperationService
   设置文件重置 → 关闭系统自启动）流程，直接以 QML 注册名 `DangerousOperationViewModel`
   暴露给设置页。
 
-自动回连与更新检查的异步状态由 `SettingsViewModel`（`src/viewmodels`）直接持有和协调：
+自动回连与更新检查的异步状态由 `SettingsViewModel`（`app_service/viewmodels`）直接持有和协调：
 它经注入的 `DaemonApi` 发起自动回连 RPC，并监听 `UpdateCheckService` 终态信号收敛忙状态。
 
 开机自启动不在此目录：`SettingsViewModel` 直接调用平台层 `AutoStartHelper`，
@@ -893,7 +893,7 @@ qtet_config / qtet_log
 - 基础服务层只保留 `qtet_config` / `qtet_log` / `qtet_sqlite_repository` /
   `qtet_daemon_service` / `qtet_system_tray` / `qtet_platform`；其余能力（收藏、
   VPN 状态机、应用业务、ViewModel）全部收敛进 `qtet_application`。
-- `qtet_application` 同时包含 `src/app_service/` 的业务服务与 `src/viewmodels/` 的
+- `qtet_application` 同时包含 `src/app_service/` 的业务服务与 `src/app_service/viewmodels/` 的
   ViewModel / Model，并编译 `FavoriteNodeJsonCodec`、`VpnController`、`StatusMonitor`；
   它依赖 `qtet_sqlite_repository`、`qtet_daemon_service` 及各基础服务。
 - `FavoriteNode` 值类型属于 `qtet_sqlite_repository`（SQLite 记录），
@@ -910,7 +910,7 @@ qtet_config / qtet_log
 - 下层不要反向依赖上层。
 - 基础服务不得 include `app_service` 或 `viewmodels` 头文件。
 - `appQtEasyTier` 链接 `qtet_appsupport`，不要重新聚合生产 `.cpp`。
-- 新 C++ 源文件应加入所属模块 target；`src/app_service` 与 `src/viewmodels` 的新文件都加入 `qtet_application`。
+- 新 C++ 源文件应加入所属模块 target；`src/app_service` 与其 `viewmodels` 子目录的新文件都加入 `qtet_application`。
 - 默认 `BUILD_WITH_DAEMON=ON` 会构建并收集 `qtet-daemon`；传入 `-DBUILD_WITH_DAEMON=OFF` 时跳过后端构建 target 和 post-build 收集步骤；`-DCLONE_DAEMON_FROM=GITEE`（或 `CNB`）时从对应来源克隆后端源码，默认 `GITHUB`。daemon 构建与收集逻辑位于 `cmake/QtEasyTierDaemon.cmake`、`cmake/scripts/BuildDaemon.cmake` 和 `cmake/scripts/CollectDaemon.cmake`，不要把这类流程重新堆回根 `CMakeLists.txt`。
 - Windows 当前只构建前端：即使 `BUILD_WITH_DAEMON=ON`，CMake 也会跳过 `qtet-daemon` 构建和收集。Windows 开发仅按 MinGW64 工具链适配，不为 MSVC 添加专用配置或兼容代码。
 
@@ -973,7 +973,7 @@ tst_app_launch_manager
 
 ```text
 src/core/config/
-src/viewmodels/ConfigEditorViewModel.*
+src/app_service/viewmodels/ConfigEditorViewModel.*
 src/core/config/ConfigPayloadBuilder.*
 src/core/sqlite_repository/
 tests/
@@ -1006,7 +1006,7 @@ src/app_service/
 优先使用 `QAbstractListModel` 风格的 model，放在：
 
 ```text
-src/viewmodels/
+src/app_service/viewmodels/
 ```
 
 避免直接暴露复杂 `QVariantList` 作为长期 API。
@@ -1016,7 +1016,7 @@ src/viewmodels/
 优先放在页面级 ViewModel，例如：
 
 ```text
-src/viewmodels/runtime/NetworkPageViewModel.*
+src/app_service/viewmodels/runtime/NetworkPageViewModel.*
 ```
 
 不要把复杂协调逻辑堆在 QML 文件中。
@@ -1057,7 +1057,7 @@ src/qml/pages/
 | 收藏节点编解码 | `src/app_service/favorite/` | `qtet_application` |
 | VPN 状态机 / 运行状态 | `src/app_service/runtime/` | `qtet_application` |
 | 系统托盘 / 托盘消息 | `src/core/system_tray/` | `qtet_system_tray` |
-| QML ViewModel / Model | `src/viewmodels/` | `qtet_application` |
+| QML ViewModel / Model | `src/app_service/viewmodels/` | `qtet_application` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
 | QML 页面 / 组件 | `src/qml/` | `qt_add_qml_module` 的 `QML_FILES` |
 | Qt resource | `assets/` | `assets/resources.qrc` |

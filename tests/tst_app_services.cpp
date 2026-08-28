@@ -13,8 +13,8 @@
 #include "core/sqlite_repository/DatabaseConnection.h"
 #include "core/system_tray/TrayMessageDispatcher.h"
 #include "core/system_tray/TrayMessageSink.h"
-#include "viewmodels/AppState.h"
-#include "viewmodels/FavoriteNodeViewModel.h"
+#include "app_service/viewmodels/AppState.h"
+#include "app_service/viewmodels/FavoriteNodeViewModel.h"
 
 class RecordingTrayMessageSink final : public TrayMessageSink {
 public:

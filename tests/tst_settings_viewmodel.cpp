@@ -28,7 +28,7 @@
 #include "core/daemon_service/FrameProtocol.h"
 #include "core/daemon_service/IpcMessage.h"
 #include "platform/AutoStartHelper.h"
-#include "viewmodels/SettingsViewModel.h"
+#include "app_service/viewmodels/SettingsViewModel.h"
 
 class TestSettingsViewModel : public QObject {
     Q_OBJECT

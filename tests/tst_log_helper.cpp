@@ -12,7 +12,7 @@
 #include "core/log/LogSink.h"
 #include "core/sqlite_repository/LogRepository.h"
 #include "core/log/LogHelper.h"
-#include "viewmodels/SettingsViewModel.h"
+#include "app_service/viewmodels/SettingsViewModel.h"
 
 class CapturingSink final : public LogSink
 {

@@ -91,7 +91,7 @@ QML → DangerousOperationViewModel → DangerousOperationService
 - `cf729c2 build: 收紧应用装配目标依赖`
 - `0bc2329 docs: 同步阶段4/5架构说明`
 
-- 删除物理 target `qtet_viewmodel`，`src/viewmodels` 源码并入 `qtet_application`。
+- 删除物理 target `qtet_viewmodel`，ViewModel / Model 源码并入 `qtet_application`，随后物理移入 `src/app_service/viewmodels/`。
 - 测试链接全部迁移为直接依赖被测模块。
 - `qtet_appsupport` 依赖收紧为 `PRIVATE`（仅 `Qt6::Core` / `Qt6::Quick` / `qtet_application` / `qtet_system_tray`）。
 

@@ -9,8 +9,8 @@
 #include "NetworkPageViewModel.h"
 
 #include "app_service/runtime/VpnRuntimeService.h"
-#include "viewmodels/ConfigEditorViewModel.h"
-#include "viewmodels/ConfigListModel.h"
+#include "app_service/viewmodels/ConfigEditorViewModel.h"
+#include "app_service/viewmodels/ConfigListModel.h"
 
 NetworkPageViewModel::NetworkPageViewModel(ConfigListModel *configListModel,
                                            ConfigEditorViewModel *configEditorViewModel,
