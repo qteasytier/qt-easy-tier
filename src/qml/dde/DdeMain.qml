@@ -48,15 +48,32 @@ ApplicationWindow {
     // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组（按钮按 flags 位自动显示）
     // 窗口图标：TitleBar.icon 为 DciIcon（按系统主题图标名查找），系统主题暂无 QtEasyTier
     // 图标，故通过 leftContent 自定义区展示应用内嵌图标（qrc:/icons/qtet.png）。
-    header: TitleBar {
-        title: root.title
+    header: Item {
+        id: headerArea
+        height: titleBar.height + 1
 
-        leftContent: Image {
-            source: "qrc:/icons/qtet.png"
-            sourceSize: Qt.size(16, 16)
-            fillMode: Image.PreserveAspectFit
-            smooth: true
+        TitleBar {
+            id: titleBar
+            title: root.title
+
+            leftContent: Image {
+                source: "qrc:/icons/qtet.png"
+                sourceSize: Qt.size(16, 16)
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
         }
+
+        // 额头与主体内容之间的分割线（qtet：TitleBar 内置分隔线为透明色，此处补可见分割线；
+        // 颜色与 Main.qml 的分隔线规则一致，随亮/暗主题自适应）
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
+        }
+    }
     }
 
     ColumnLayout {
