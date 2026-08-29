@@ -14,7 +14,7 @@ import org.deepin.dtk 1.0 as D
 ApplicationWindow {
     id: root
 
-    // 初始不显示，由 main.cpp 根据普通启动或 --autostart 决定是否展示窗口。
+    // 初始不显示，由 main.cpp 根据普通启动或 --autostart 决定是否展示窗口
     visible: false
     width: 700
     height: 480
@@ -24,10 +24,9 @@ ApplicationWindow {
 
     color: palette.window
 
-    // dtk WindowButtonGroup 按 Window.flags 对应位决定窗口按钮可见性，需显式声明
+    // 需显式声明窗口按钮标志；启用 DTK 客户端侧装饰（避免系统标题栏叠加）
     flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
 
-    // 启用 DTK 客户端侧装饰（否则窗口管理器提供系统标题栏，与 dtk TitleBar 叠加）
     DWindow.enabled: true
     // 圆角随系统主题（< 0 时取 dtk 默认 12）
     DWindow.windowRadius: D.DTK.platformTheme.windowRadius < 0 ? 12 : D.DTK.platformTheme.windowRadius
@@ -64,8 +63,7 @@ ApplicationWindow {
                 QuitAction { }
             }
 
-            // TitleBar.icon 为 DciIcon（按主题图标名查找），系统主题无 QtEasyTier 图标，
-            // 故用 leftContent 展示应用内嵌图标
+            // 系统主题无 QtEasyTier 图标，用 leftContent 展示应用内嵌图标
             leftContent: Image {
                 source: "qrc:/icons/qtet.png"
                 sourceSize: Qt.size(24, 24)
@@ -74,7 +72,7 @@ ApplicationWindow {
             }
         }
 
-        // 额头与内容之间的分割线（TitleBar 内置分隔线为透明色，颜色规则同 Main.qml）
+        // 额头与内容之间的分割线（TitleBar 内置分隔线为透明色）
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right

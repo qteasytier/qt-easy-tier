@@ -27,8 +27,7 @@ DialogWindow {
         title: qsTr("错误")
     }
 
-    // DialogWindow 高度由内容（contentLoader 的 childrenRect）自动决定；
-    // 这里只按子项自然尺寸排布，让窗口收缩到刚好容纳文本与按钮，避免重叠或底部空余。
+    // DialogWindow 高度由内容自动决定，此处按子项自然尺寸排布即可
     ColumnLayout {
         width: root.width
         spacing: 16

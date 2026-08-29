@@ -195,3 +195,48 @@ qtet_config / qtet_log
 
 - 新增了 CMake target、QML 文件或资源时，建议从干净目录重新配置验证一遍。
 - 提交前确认：改动属于哪个层与 target、是否需要更新 QML singleton 注册、是否需要补测试。
+
+## 附录：DDE 布局移植（可选）
+
+`BUILD_WITH_DDE=ON`（默认开启）时，主界面由 `main.cpp` 加载 `qrc:/QtEasyTier/dde/DdeMain.qml`（DTK `ApplicationWindow` + `TitleBar`），而非共享的 `Main.qml`。同一套页面与业务层逻辑复用，仅 UI 壳层换用 DTK 主题。
+
+### 蒙版替换机制
+
+同名组件放在 `src/qml/dde/components/` 下，经 `CMakeLists.txt` 按条件编译，在 DDE 构建中覆盖共享同名类型：
+
+```cmake
+if(BUILD_WITH_DDE)
+    list(APPEND QTET_QML_FILES
+        src/qml/dde/components/IconToolButton.qml
+        src/qml/dde/components/Card.qml
+        ...
+        src/qml/dde/DdeMain.qml
+    )
+else()
+    list(APPEND QTET_QML_FILES
+        src/qml/components/Card.qml
+        ...
+    )
+endif()
+```
+
+- DDE 版与共享版类型名必须一致（类型由文件名决定），才能被蒙版替换。
+- 需要蒙版替换的组件，其共享版必须从基础 `QTET_QML_FILES` 列表移除，仅保留在 `else()` 分支，否则 DDE 模式下同类型重复注册会加载失败。
+- `src/qml/dde/DdeMain.qml`、`src/qml/dde/AppAboutDialog.qml` 只由 DDE 分支加入，无共享对应文件。
+
+### DTK 对话框要点
+
+- 独立对话框用 `D.DialogWindow`（继承 `Window`），标题栏用 `header: D.DialogTitleBar`；它有独立的窗口边框与关闭按钮，不是主窗口内嵌弹层。
+- `DialogWindow` 的默认属性 `content` 是 `contentLoader.children`，**只接受 `Item`**。`Connections` / `Timer` / `Theme` 等 `QtObject` 不能直接放在顶层，需以命名属性声明（如 `property Theme theme: Theme { }`）或移入内容 `Item` 内。
+- 嵌套的 `DialogWindow`（`Window` 非 `Item`）不能作另一 `DialogWindow` 的 content 子项，须以命名属性挂载（如 `property var revokeConfirmDialog: D.DialogWindow { ... }`）。
+- `DialogWindow` 高度由内容 `childrenRect` 自动决定，宽度需显式设置。内容布局用 `anchors.left/right: parent` + `anchors.leftMargin/rightMargin` 铺满并控制左右边距（`Layout.fillWidth` / `Layout.margins` 只在父为布局容器时生效）。
+- 没有 `standardButtons` / `onOpened` / `onAccepted`：底部按钮用 `RowLayout + Item{fillWidth}` 右对齐；数据刷新/状态重置在自定义 `open()` 中完成，关闭逻辑监听 `onVisibleChanged` 补发 `closed` 信号（兼容共享版 `QQC.Dialog.onClosed`）。
+- 控件优先用 DTK 原生（`D.Label` / `D.Button` / `D.TextField` / `D.CheckBox` / `D.SpinBox` / `D.ListView` / `D.DialogTitleBar`），并遵循 DTK 默认字体（如 `D.CheckBox` 默认 `fontManager.t8`），不在页面中硬编码字号。
+- `QtQuick.Controls` 以 `import QtQuick.Controls as QQC` 别名限量引用，避免与 DTK 的 `ApplicationWindow`/`Label` 同名歧义。
+
+### 新增 DDE 组件流程
+
+1. 在 `src/qml/dde/components/` 新建同名组件，接口与共享版保持一致（属性、信号、`open()/close()`）。
+2. 若是蒙版替换，将其加入 CMake 的 `if(BUILD_WITH_DDE)` 分支，并从共享基础列表移除对应共享版。
+3. 在桌面环境验证主题、窗口布局与交互，能用 `QT_QPA_PLATFORM=offscreen` 做无头启动检查 QML 加载错误。
+4. 保持与共享版相同的功能与接口，DDE 版只是 UI 壳层的主题化复刻。

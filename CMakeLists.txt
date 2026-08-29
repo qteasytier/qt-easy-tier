@@ -131,9 +131,6 @@ set(QTET_QML_FILES
     src/qml/components/QtETabWidget.qml
     src/qml/components/ServerListItem.qml
     src/qml/components/ProxyNetworkListItem.qml
-    src/qml/components/ImportNodesDialog.qml
-    src/qml/components/GenerateCredentialDialog.qml
-    src/qml/components/CredentialManageDialog.qml
     src/qml/components/Theme.qml
     src/qml/pages/InstanceList.qml
     src/qml/pages/NetworkPage.qml
@@ -144,13 +141,17 @@ set(QTET_QML_FILES
     src/qml/pages/LogPage.qml
 )
 
-# Card/IconToolButton/EditableListItem 由 DDE 版同名组件按模式蒙版替换
+# Card/IconToolButton/EditableListItem/ErrorDialog/ImportNodesDialog/
+# GenerateCredentialDialog/CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
 if(BUILD_WITH_DDE)
     list(APPEND QTET_QML_FILES
         src/qml/dde/components/IconToolButton.qml
         src/qml/dde/components/Card.qml
         src/qml/dde/components/EditableListItem.qml
         src/qml/dde/components/ErrorDialog.qml
+        src/qml/dde/components/ImportNodesDialog.qml
+        src/qml/dde/components/GenerateCredentialDialog.qml
+        src/qml/dde/components/CredentialManageDialog.qml
         src/qml/dde/DdeMain.qml
         src/qml/dde/AppAboutDialog.qml
     )
@@ -160,6 +161,9 @@ else()
         src/qml/components/IconToolButton.qml
         src/qml/components/EditableListItem.qml
         src/qml/components/ErrorDialog.qml
+        src/qml/components/ImportNodesDialog.qml
+        src/qml/components/GenerateCredentialDialog.qml
+        src/qml/components/CredentialManageDialog.qml
     )
 endif()
 

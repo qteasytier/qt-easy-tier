@@ -1,10 +1,7 @@
 /* @file AppAboutDialog.qml
- * @brief DDE 关于对话框（仅 DDE 模式加载）
+ * @brief DDE 关于对话框：左图标+产品名、右版本/主页/描述/致谢，尺寸取官方默认
  *
- * 布局与字段对照官方 AboutDialog：DialogWindow + DialogTitleBar（无标题行）、
- * 左侧图标与产品名、右侧版本/主页/描述/致谢；尺寸取官方默认（DS.Style.aboutDialog.*）。
- * 官方组件的右信息列基于 Flickable，在本环境（Qt 6.8 + dtkdeclarative 6.7.47.2）
- * 会触发递归布局终止，故以普通 ColumnLayout 复刻布局与字号。
+ * 官方右信息列基于 Flickable，在本环境会触发递归布局终止，故用 ColumnLayout 复刻。
  */
 import QtQuick
 import QtQuick.Layouts
