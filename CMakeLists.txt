@@ -27,8 +27,8 @@ option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
 set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHUB or CNB")
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
 
-# DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面（依赖系统 Chameleon/org.deepin.dtk QML 模块）
-option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" OFF)
+# DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
+option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" ON)
 
 include(cmake/QtEasyTierDaemon.cmake)
 
@@ -127,10 +127,7 @@ set(QTET_QML_FILES
     src/qml/components/Sidebar.qml
     src/qml/components/SidebarItem.qml
     src/qml/components/PageContainer.qml
-    src/qml/components/Card.qml
-    src/qml/components/IconToolButton.qml
     src/qml/components/EditableList.qml
-    src/qml/components/EditableListItem.qml
     src/qml/components/QtETabWidget.qml
     src/qml/components/ServerListItem.qml
     src/qml/components/ProxyNetworkListItem.qml
@@ -147,10 +144,22 @@ set(QTET_QML_FILES
     src/qml/pages/LogPage.qml
 )
 
+# Card/IconToolButton/EditableListItem 由 DDE 版同名组件按模式蒙版替换
 if(BUILD_WITH_DDE)
     list(APPEND QTET_QML_FILES
+        src/qml/dde/components/IconToolButton.qml
+        src/qml/dde/components/Card.qml
+        src/qml/dde/components/EditableListItem.qml
+        src/qml/dde/components/ErrorDialog.qml
         src/qml/dde/DdeMain.qml
         src/qml/dde/AppAboutDialog.qml
+    )
+else()
+    list(APPEND QTET_QML_FILES
+        src/qml/components/Card.qml
+        src/qml/components/IconToolButton.qml
+        src/qml/components/EditableListItem.qml
+        src/qml/components/ErrorDialog.qml
     )
 endif()
 

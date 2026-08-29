@@ -100,22 +100,8 @@ Window {
     }
 
     // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动
-    Dialog {
+    ErrorDialog {
         id: errorDialog
-        title: qsTr("错误")
-        modal: true
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        standardButtons: Dialog.Ok
-        width: Math.min(420, parent ? parent.width - 48 : 360)
-
-        property string text: ""
-
-        Label {
-            text: errorDialog.text
-            wrapMode: Text.WordWrap
-            width: parent ? parent.width : 360
-        }
     }
 
     Connections {
