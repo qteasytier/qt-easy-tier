@@ -30,19 +30,33 @@ ApplicationWindow {
 
     color: palette.window
 
+    // 窗口 flags：必须显式声明标题/最小化/最大化/关闭按钮 hints。
+    // dtk WindowButtonGroup 以 Window.window.flags 的对应位作为各按钮可见性依据，
+    // 而 QML Window 的默认 flags 不含 Min/Max/Close hints（会隐藏全部窗口按钮）。
+    flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
+
     // DTK 窗口样式：显式启用客户端侧装饰（DWindow 附加属性）。
     // 未启用时窗口仍由窗口管理器提供系统标题栏（黑条），与 dtk TitleBar 叠加，
     // 必须 enabled: true 才能接管装饰并呈现 DDE 风格圆角/阴影效果好窗口。
     DWindow.enabled: true
-    DWindow.windowRadius: 18
+    // 圆角跟随系统主题规则（与 dtk 内部 Style/FlowStyle 判断一致：platformTheme.windowRadius < 0 时回退 12）
+    DWindow.windowRadius: D.DTK.platformTheme.windowRadius < 0 ? 12 : D.DTK.platformTheme.windowRadius
     DWindow.shadowColor: Qt.rgba(0, 0, 0, 0.15)
 
     Theme { id: theme }
 
-    // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组
-    // 系统图标主题暂无 QtEasyTier 图标，故不设置 icon，仅显示标题。
+    // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组（按钮按 flags 位自动显示）
+    // 窗口图标：TitleBar.icon 为 DciIcon（按系统主题图标名查找），系统主题暂无 QtEasyTier
+    // 图标，故通过 leftContent 自定义区展示应用内嵌图标（qrc:/icons/qtet.png）。
     header: TitleBar {
         title: root.title
+
+        leftContent: Image {
+            source: "qrc:/icons/qtet.png"
+            sourceSize: Qt.size(16, 16)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+        }
     }
 
     ColumnLayout {
