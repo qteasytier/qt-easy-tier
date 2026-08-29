@@ -28,6 +28,8 @@ ApplicationWindow {
     minimumHeight: 300
     title: qsTr("QtEasyTier")
 
+    color: palette.window
+
     Theme { id: theme }
 
     // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组

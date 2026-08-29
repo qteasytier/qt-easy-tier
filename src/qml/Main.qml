@@ -1,4 +1,5 @@
 /* @brief 应用主窗口：QML 入口，负责窗口属性、侧边栏导航、页面容器切换和底部状态栏的整体布局 */
+// 注意：若修改本文件布局，请同步更新 dde/DdeMain.qml（DDE 模式窗口壳）
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
