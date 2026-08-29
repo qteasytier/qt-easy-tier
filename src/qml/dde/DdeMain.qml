@@ -74,7 +74,6 @@ ApplicationWindow {
             color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
         }
     }
-    }
 
     ColumnLayout {
         anchors.fill: parent
