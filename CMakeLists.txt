@@ -148,7 +148,10 @@ set(QTET_QML_FILES
 )
 
 if(BUILD_WITH_DDE)
-    list(APPEND QTET_QML_FILES src/qml/dde/DdeMain.qml)
+    list(APPEND QTET_QML_FILES
+        src/qml/dde/DdeMain.qml
+        src/qml/dde/AppAboutDialog.qml
+    )
 endif()
 
 foreach(qml_file IN LISTS QTET_QML_FILES)

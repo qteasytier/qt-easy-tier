@@ -1,22 +1,16 @@
 /* @file DdeMain.qml
- * @brief DDE（Deepin 桌面环境）模式应用主窗口：DTK ApplicationWindow + TitleBar，页面与组件复用 Main.qml 现有层
+ * @brief DDE 模式应用主窗口（BUILD_WITH_DDE=ON 时由 main.cpp 加载）：DTK ApplicationWindow + TitleBar
  *
- * 仅当 CMake BUILD_WITH_DDE=ON（QTET_WITH_DDE 宏）时由 main.cpp 加载。
- * 相对 Main.qml 的变化：
- *  - 根窗口改用 org.deepin.dtk.ApplicationWindow（DTK 标题栏、DTK 调色板、跟随 DDE 亮/暗主题）；
- *  - 页面容器、侧边栏、底部状态栏、错误弹窗逻辑与 Main.qml 逐条等价。
+ * 相对 Main.qml：根窗口与标题栏走 DTK；页面容器、侧边栏、状态栏、错误弹窗逻辑等价。
  */
 import QtQuick
-// QtQuick.Controls 以 QQC 别名引入，仅用 QQC.Label / QQC.Dialog / QQC.Overlay；
-// 避免与 org.deepin.dtk 的 ApplicationWindow 产生同名类型歧义，
-// 同时避免裸 Label 隐式依赖 dtk 的导出（无 dtk 的静态检查环境不可解析）。
+// QtQuick.Controls 仅以 QQC 别名限量使用（避免与 dtk 的 ApplicationWindow/Label 同名歧义）
 import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
+import org.deepin.dtk 1.0 as D
 
-// 主窗口：DTK ApplicationWindow，自带标题栏与主题感知调色板
-/* @brief 根窗口：管理全局布局、页面切换和错误提示 */
 ApplicationWindow {
     id: root
 
@@ -30,24 +24,17 @@ ApplicationWindow {
 
     color: palette.window
 
-    // 窗口 flags：必须显式声明标题/最小化/最大化/关闭按钮 hints。
-    // dtk WindowButtonGroup 以 Window.window.flags 的对应位作为各按钮可见性依据，
-    // 而 QML Window 的默认 flags 不含 Min/Max/Close hints（会隐藏全部窗口按钮）。
+    // dtk WindowButtonGroup 按 Window.flags 对应位决定窗口按钮可见性，需显式声明
     flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
 
-    // DTK 窗口样式：显式启用客户端侧装饰（DWindow 附加属性）。
-    // 未启用时窗口仍由窗口管理器提供系统标题栏（黑条），与 dtk TitleBar 叠加，
-    // 必须 enabled: true 才能接管装饰并呈现 DDE 风格圆角/阴影效果好窗口。
+    // 启用 DTK 客户端侧装饰（否则窗口管理器提供系统标题栏，与 dtk TitleBar 叠加）
     DWindow.enabled: true
-    // 圆角跟随系统主题规则（与 dtk 内部 Style/FlowStyle 判断一致：platformTheme.windowRadius < 0 时回退 12）
+    // 圆角随系统主题（< 0 时取 dtk 默认 12）
     DWindow.windowRadius: D.DTK.platformTheme.windowRadius < 0 ? 12 : D.DTK.platformTheme.windowRadius
     DWindow.shadowColor: Qt.rgba(0, 0, 0, 0.15)
 
     Theme { id: theme }
 
-    // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组（按钮按 flags 位自动显示）
-    // 窗口图标：TitleBar.icon 为 DciIcon（按系统主题图标名查找），系统主题暂无 QtEasyTier
-    // 图标，故通过 leftContent 自定义区展示应用内嵌图标（qrc:/icons/qtet.png）。
     header: Item {
         id: headerArea
         height: titleBar.height + 1
@@ -56,16 +43,38 @@ ApplicationWindow {
             id: titleBar
             title: root.title
 
+            // 标题栏抽屉菜单：主题/帮助/关于/退出
+            menu: Menu {
+                ThemeMenu { }
+
+                MenuSeparator { }
+
+                MenuItem {
+                    text: qsTr("帮助")
+                    onTriggered: Qt.openUrlExternally("https://qtet.cn/docs-home")
+                }
+
+                AboutAction {
+                    text: qsTr("关于")
+                    aboutDialog: AppAboutDialog { }
+                }
+
+                MenuSeparator { }
+
+                QuitAction { }
+            }
+
+            // TitleBar.icon 为 DciIcon（按主题图标名查找），系统主题无 QtEasyTier 图标，
+            // 故用 leftContent 展示应用内嵌图标
             leftContent: Image {
                 source: "qrc:/icons/qtet.png"
-                sourceSize: Qt.size(16, 16)
+                sourceSize: Qt.size(24, 24)
                 fillMode: Image.PreserveAspectFit
                 smooth: true
             }
         }
 
-        // 额头与主体内容之间的分割线（qtet：TitleBar 内置分隔线为透明色，此处补可见分割线；
-        // 颜色与 Main.qml 的分隔线规则一致，随亮/暗主题自适应）
+        // 额头与内容之间的分割线（TitleBar 内置分隔线为透明色，颜色规则同 Main.qml）
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -92,7 +101,6 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: 0
 
-                // 侧边栏项点击 → 同步切换页面容器
                 onItemClicked: function (index) {
                     sidebar.currentIndex = index;
                     pageContainer.currentIndex = index;
@@ -133,7 +141,6 @@ ApplicationWindow {
                     width: 8
                     height: 8
                     radius: 4
-                    // 根据连接状态显示不同颜色
                     color: BackendStatusViewModel.connected ? theme.statusGreen
                          : BackendStatusViewModel.connecting ? theme.statusOrange
                          : theme.statusRed
@@ -145,14 +152,12 @@ ApplicationWindow {
                     color: palette.windowText
                 }
 
-                // 弹簧占位，把后续元素推到右侧
                 Item { Layout.fillWidth: true }
             }
         }
     }
 
-    // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动
-    // Chameleon 风格未提供 Dialog 映射时回退 Qt 默认样式，功能与 Main.qml 等价。
+    // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动，逻辑与 Main.qml 等价
     QQC.Dialog {
         id: errorDialog
         title: qsTr("错误")
