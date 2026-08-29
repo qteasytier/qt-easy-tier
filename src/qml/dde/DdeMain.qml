@@ -30,6 +30,13 @@ ApplicationWindow {
 
     color: palette.window
 
+    // DTK 窗口样式：显式启用客户端侧装饰（DWindow 附加属性）。
+    // 未启用时窗口仍由窗口管理器提供系统标题栏（黑条），与 dtk TitleBar 叠加，
+    // 必须 enabled: true 才能接管装饰并呈现 DDE 风格圆角/阴影效果好窗口。
+    DWindow.enabled: true
+    DWindow.windowRadius: 18
+    DWindow.shadowColor: Qt.rgba(0, 0, 0, 0.15)
+
     Theme { id: theme }
 
     // DDE 自绘标题栏：图标 + 标题 + 主题菜单 + 窗口按钮组
