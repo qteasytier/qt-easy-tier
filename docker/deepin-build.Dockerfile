@@ -3,19 +3,9 @@
 #
 # 本镜像在 deepin v25 (crimson) 基础上安装系统依赖、Qt 6.8 开发包、
 # DTK6 开发包与 DDE 托盘插件开发包，供 CNB docker.build 动态构建
-# 镜像机制缓存复用（平台按哈希自动缓存到制品库）。
-#
 # 架构差异通过 buildArgs 注入：
 #   - amd64: BASE_IMAGE=linuxdeepin/deepin:crimson
 #   - arm64: BASE_IMAGE=linuxdeepin/deepin:crimson-arm64
-#
-# 与通用 Linux 构建环境（docker/linux-build.Dockerfile）不同：
-#   - 不通过 aqt 下载 Qt，直接使用 crimson 软件源自带的 Qt 6.8
-#     （deepin 25 系统 Qt 已为 6.8，满足项目 find_package(Qt6 6.8) 要求），
-#     因此不设置 Qt6_DIR/PATH/LD_LIBRARY_PATH，find_package 走默认路径。
-#   - 额外安装 DTK6 与 dde-tray-loader 开发包，用于构建
-#     BUILD_WITH_DDE（DTK QML 前端）与 BUILD_WITH_DDE_TRAY_PLUGIN（托盘插件）。
-# =====================================================================
 
 ARG BASE_IMAGE=linuxdeepin/deepin:crimson
 FROM ${BASE_IMAGE}
@@ -42,6 +32,7 @@ RUN apt-get update \
       libglib2.0-0 libglib2.0-dev libicu-dev libdouble-conversion3 \
       libpcre2-16-0 libmd4c0 libzstd1 \
       python3 \
+      qml6-module-qtquick-dialogs \
       qt6-base-dev qt6-declarative-dev qt6-svg-dev \
       libdtk6core-dev libdtk6gui-dev libdtk6declarative-dev \
       qml6-module-qtquick-controls2-styles-chameleon \
