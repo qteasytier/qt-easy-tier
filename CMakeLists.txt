@@ -62,6 +62,9 @@ endif()
 
 function(add_qtet_library name)
     qt_add_library(${name} STATIC ${ARGN})
+    # 静态库可能被链入共享模块（如 DDE 托盘插件 libqtetDdeTrayPlugin.so），
+    # 需以位置无关代码（-fPIC）编译，否则 arm64 链接共享库时报 relocation 错误
+    set_target_properties(${name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_include_directories(${name} PUBLIC ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
 endfunction()
 

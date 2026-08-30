@@ -33,7 +33,7 @@ RUN apt-get update \
       libpcre2-16-0 libmd4c0 libzstd1 \
       python3 \
       qml6-module-qtquick-dialogs \
-      qt6-base-dev qt6-declarative-dev qt6-svg-dev \
+      qt6-base-dev qt6-declarative-dev qt6-svg-dev libqt6sql6-sqlite \
       libdtk6core-dev libdtk6gui-dev libdtk6declarative-dev \
       qml6-module-qtquick-controls2-styles-chameleon \
       dde-tray-loader-dev \
