@@ -28,8 +28,8 @@ set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHU
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
 
 # DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
-option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" ON)
-option(BUILD_WITH_DDE_TRAY_PLUGIN "构建 DDE 托盘网络状态插件" ON)
+option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" OFF)
+option(BUILD_WITH_DDE_TRAY_PLUGIN "构建 DDE 托盘网络状态插件" OFF)
 
 include(cmake/QtEasyTierDaemon.cmake)
 
