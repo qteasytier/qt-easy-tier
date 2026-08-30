@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(QtEasyTier VERSION 3.2.0 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
-# qtet-daemon 不再锁定 tag：不定义 QTET_DAEMON_VER，克隆时使用远端默认分支
-# （1.0 之后的 daemon 支持多前端连接模型，不再按版本号发布 tag）
+set(QTET_DAEMON_VER 1.1.0)
 
 # 向 C++ 侧暴露版本号
 configure_file(
