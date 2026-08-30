@@ -91,4 +91,5 @@ configs-wal
 .opencode/
 .codebuddy/
 .worktrees/
+.vscode/
 docs/

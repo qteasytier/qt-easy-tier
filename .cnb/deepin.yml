@@ -1,0 +1,173 @@
+# =====================================================================
+# QtEasyTier CNB 流水线 —— Deepin 构建（amd64 / arm64）
+#
+# 本文件由根目录 .cnb.yml 通过 include 引入，与 .cnb/linux.yml 合并。
+#
+# 平台说明：
+#   - 使用 CNB 官方节点（cnb:arch:amd64 / cnb:arch:arm64:v8）。
+#   - 构建环境（系统依赖 + Qt 6.8 + DTK6 + DDE 托盘插件开发包）固化在
+#     docker/deepin-build.Dockerfile 中，基础镜像为
+#     linuxdeepin/deepin:crimson（arm64 使用 crimson-arm64），
+#     通过 docker.build 动态构建镜像机制由 CNB 平台按哈希自动缓存到制品库。
+#   - 与通用 Linux 流水线不同：不通过 aqt 下载 Qt，直接使用 crimson
+#     软件源自带的 Qt 6.8（不设置 CMAKE_PREFIX_PATH，find_package 走默认路径）。
+#
+# 构建选项：
+#   - BUILD_WITH_DDE=ON：构建基于 DDE（Deepin v25）DTK QML 前端页面
+#   - BUILD_WITH_DDE_TRAY_PLUGIN=ON：构建 DDE 托盘网络状态插件
+#   - CLONE_DAEMON_FROM=CNB：后端 qtet-daemon 从 CNB 克隆
+#
+# =====================================================================
+
+# =====================================================================
+# Deepin 公共 Stage（脚本走默认 shell，语法兼容 POSIX sh）
+# 锚点统一加 dde- 前缀，避免与 linux.yml 合并后命名冲突
+# =====================================================================
+
+# 从 CMakeLists.txt 提取版本号（master / PR 使用）
+.dde-extract-version: &dde-extract-version
+  name: extract-version
+  script: |
+    VERSION="$(grep -E '^project\(QtEasyTier VERSION ' CMakeLists.txt | sed -E 's/^project\(QtEasyTier VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+    if [ -z "$VERSION" ]; then
+      echo "无法从 CMakeLists.txt 提取版本号" >&2
+      exit 1
+    fi
+    echo "##[set-output VERSION=$VERSION]"
+  exports:
+    VERSION: QTET_VERSION
+
+.dde-configure: &dde-configure
+  name: configure
+  script: |
+    # Qt 6.8 由 crimson 系统软件源提供，find_package 走默认路径，无需 CMAKE_PREFIX_PATH
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_WITH_DDE=ON -DBUILD_WITH_DDE_TRAY_PLUGIN=ON \
+      -DCLONE_DAEMON_FROM=CNB
+
+.dde-build: &dde-build
+  name: build
+  script: cmake --build build --parallel "$(nproc)"
+
+.dde-test: &dde-test
+  name: test
+  env:
+    QT_QPA_PLATFORM: offscreen
+  script: ctest --test-dir build --output-on-failure
+
+# 打 deb 包（build_deepin_deb.sh 以当前目录作为输出目录，故先 cd 到 build/Output）
+.dde-package-deb: &dde-package-deb
+  name: package-deb
+  script: |
+    cd build/Output
+    bash ../../assets/package/deepin/build_deepin_deb.sh -v "$QTET_VERSION" -a "$QTET_BUILD_ARCH"
+
+# 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
+# 当前提交，构建页面即可"附件签出"下载 .deb 安装包。
+# glob 精确匹配 deepin 产物名（包名 qteasytier-dde），避免与 linux 产物混淆。
+.dde-upload-attachments: &dde-upload-attachments
+  name: upload-attachments
+  image: cnbcool/attachments:latest
+  settings:
+    attachments:
+      - "./build/Output/qteasytier-dde_v*.deb"
+
+# =====================================================================
+# Pipeline 基础配置（YAML 锚点，供各事件引用）
+# =====================================================================
+
+# 提交信息以 docs 开头时跳过构建（仅 master 构建使用）。
+# 用法：在 Stage 上声明 if: *dde-if-not-docs，脚本退出码为 0 时才执行；
+#       提交信息首行（CNB_COMMIT_MESSAGE_TITLE）以 docs 开头时退出码为 1，跳过全部任务。
+.dde-if-not-docs: &dde-if-not-docs |
+  case "$CNB_COMMIT_MESSAGE_TITLE" in
+    docs*) exit 1 ;;
+    *) exit 0 ;;
+  esac
+
+# Deepin amd64：官方节点 + 动态构建环境镜像（docker/deepin-build.Dockerfile，缓存复用）
+.dde-amd64: &dde-amd64
+  runner:
+    tags: cnb:arch:amd64
+  docker:
+    # 动态构建镜像：CNB 按哈希（Dockerfile + buildArgs + arch）自动缓存到制品库，
+    # 命中直接复用，未命中才构建并推送
+    build:
+      dockerfile: docker/deepin-build.Dockerfile
+      buildArgs:
+        BASE_IMAGE: linuxdeepin/deepin:crimson
+  env:
+    QTET_BUILD_ARCH: amd64
+
+# Deepin arm64：官方节点 + 动态构建环境镜像（docker/deepin-build.Dockerfile，缓存复用）
+# arm64 基础镜像使用 crimson-arm64 标签
+.dde-arm64: &dde-arm64
+  runner:
+    tags: cnb:arch:arm64:v8
+  docker:
+    build:
+      dockerfile: docker/deepin-build.Dockerfile
+      buildArgs:
+        BASE_IMAGE: linuxdeepin/deepin:crimson-arm64
+  env:
+    QTET_BUILD_ARCH: arm64
+
+# =====================================================================
+# 事件编排（Deepin 部分）
+# =====================================================================
+
+# ---- master 分支 push：构建 + 测试 + 打包 ----
+# 提交信息以 docs 开头时跳过整个构建（仅文档变更，无需产物），
+# 通过 Stage 级 if 条件统一管控，PR 流水线不受影响。
+master:
+  push:
+    deepin-amd64:
+      <<: *dde-amd64
+      name: Deepin amd64 (master)
+      stages:
+        - name: QtEasyTier master build (deepin amd64)
+          if: *dde-if-not-docs
+          jobs:
+            - *dde-extract-version
+            - *dde-configure
+            - *dde-build
+            - *dde-test
+            - *dde-package-deb
+            - *dde-upload-attachments
+    deepin-arm64:
+      <<: *dde-arm64
+      name: Deepin arm64 (master)
+      stages:
+        - name: QtEasyTier master build (deepin arm64)
+          if: *dde-if-not-docs
+          jobs:
+            - *dde-extract-version
+            - *dde-configure
+            - *dde-build
+            - *dde-test
+            - *dde-package-deb
+            - *dde-upload-attachments
+
+# ---- 任意分支 PR：构建 + 测试 + 打包 ----
+# 说明：PR 事件 CNB_TOKEN 权限受限（缺 repo-code:rw），无法上传 commit 附件；
+# 上传附件仅保留在 master push 事件（token 权限完整）执行。
+"**":
+  pull_request:
+    deepin-amd64:
+      <<: *dde-amd64
+      name: Deepin amd64 (PR check)
+      stages:
+        - *dde-extract-version
+        - *dde-configure
+        - *dde-build
+        - *dde-test
+        - *dde-package-deb
+    deepin-arm64:
+      <<: *dde-arm64
+      name: Deepin arm64 (PR check)
+      stages:
+        - *dde-extract-version
+        - *dde-configure
+        - *dde-build
+        - *dde-test
+        - *dde-package-deb

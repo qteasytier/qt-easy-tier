@@ -18,17 +18,17 @@ QtEasyTier 是一个基于 Qt 6 / C++ 的 EasyTier 桌面客户端。它提供�
 
 ## 功能特性
 
-- 网络配置管理：创建、重命名、删除、导入和导出配置。
+- 网络实例配置管理：创建、重命名、删除、导入和导出配置。
 - 一键启动/停止：从配置列表直接控制指定网络实例。
 - 运行状态查看：展示节点信息、运行日志和后端连接状态。
+- 安全模式支持：零信任架构，E2EE、Noise 握手、凭据验证等功能提升网络安全性
 - 收藏节点管理：维护常用节点信息。
-- 系统托盘：支持关闭到托盘、托盘唤起主窗口和自启动场景。
+- DDE 托盘插件：deepin/UOS 用户可在系统托盘插件中快速查看和启动网络实例。
 
 ## 技术栈
 
-- Qt 6.8+
-- C++20
-- QML / Qt Quick
+- Qt 6.8+ （QML / Qt Quick）
+- C++ 20
 - SQLite
 - CMake 3.16+
 
@@ -68,7 +68,7 @@ Windows 当前仅适配 MinGW64(UCRT) 构建，不面向 MSVC / Visual Studio �
 ## 构建与运行
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -S . 
 cmake --build build -j
 ./build/Output/appQtEasyTier
 ```
@@ -93,6 +93,23 @@ pacman -S  mingw-w64-ucrt-x86_64-gcc \
 ```
 
 **您还需要将MSYS2 UCRT安装目录添加到环境变量 `PATH` 中**。
+
+### deein/UOS 系统构建
+
+QtEasyTier 专门适配了 DDE 桌面环境，您可以构建 DDE 专版应用程序
+
+```bash
+cmake -B build -S . -DBUILD_WITH_DDE=ON -DBUILD_WITH_DDE_TRAY_PLUGIN=ON
+```
+
+- `BUILD_WITH_DDE` 用于开启 DDE 专版构建，开启后程序UI会使用 DTK 风格。
+- `BUILD_WITH_DDE_TRAY_PLUGIN` 用于开启构建 QtEasyTier DDE 托盘插件，该插件可用于查看实例运行状态和快速启动/停止实例。
+
+使用以下命令将插件安装到 DDE 标准目录，重启后可在**系统控制中心->个性化->桌面和任务栏->插件区域**找到托盘开关
+
+```bash
+sudo cmake --install build
+```
 
 ### 只构建前端
 

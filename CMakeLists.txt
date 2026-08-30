@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(QtEasyTier VERSION 3.2.0 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
-set(QTET_DAEMON_VER 1.0.0)
+set(QTET_DAEMON_VER 1.1.0)
 
 # 向 C++ 侧暴露版本号
 configure_file(
@@ -26,6 +26,10 @@ option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
 # qtet-daemon 克隆来源：GITEE / GITHUB / CNB，默认 GITHUB
 set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHUB or CNB")
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
+
+# DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
+option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" OFF)
+option(BUILD_WITH_DDE_TRAY_PLUGIN "构建 DDE 托盘网络状态插件" OFF)
 
 include(cmake/QtEasyTierDaemon.cmake)
 
@@ -58,6 +62,9 @@ endif()
 
 function(add_qtet_library name)
     qt_add_library(${name} STATIC ${ARGN})
+    # 静态库可能被链入共享模块（如 DDE 托盘插件 libqtetDdeTrayPlugin.so），
+    # 需以位置无关代码（-fPIC）编译，否则 arm64 链接共享库时报 relocation 错误
+    set_target_properties(${name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_include_directories(${name} PUBLIC ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
 endfunction()
 
@@ -69,6 +76,9 @@ add_subdirectory(src/platform)
 add_subdirectory(src/system_tray)
 add_subdirectory(src/core)
 add_subdirectory(src/app)
+if(BUILD_WITH_DDE_TRAY_PLUGIN)
+    add_subdirectory(src/dde_tray_plugin)
+endif()
 
 if(WIN32)
     set(QTET_WINDOWS_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/favicon/qtet.ico")
@@ -115,21 +125,19 @@ target_link_libraries(appQtEasyTier PRIVATE
     qtet_appsupport
 )
 
+if(BUILD_WITH_DDE)
+    target_compile_definitions(appQtEasyTier PRIVATE QTET_WITH_DDE)
+endif()
+
 set(QTET_QML_FILES
     src/qml/Main.qml
     src/qml/components/Sidebar.qml
     src/qml/components/SidebarItem.qml
     src/qml/components/PageContainer.qml
-    src/qml/components/Card.qml
-    src/qml/components/IconToolButton.qml
     src/qml/components/EditableList.qml
-    src/qml/components/EditableListItem.qml
     src/qml/components/QtETabWidget.qml
     src/qml/components/ServerListItem.qml
     src/qml/components/ProxyNetworkListItem.qml
-    src/qml/components/ImportNodesDialog.qml
-    src/qml/components/GenerateCredentialDialog.qml
-    src/qml/components/CredentialManageDialog.qml
     src/qml/components/Theme.qml
     src/qml/pages/InstanceList.qml
     src/qml/pages/NetworkPage.qml
@@ -139,6 +147,32 @@ set(QTET_QML_FILES
     src/qml/pages/FavoriteNodesPage.qml
     src/qml/pages/LogPage.qml
 )
+
+# Card/IconToolButton/EditableListItem/ErrorDialog/ImportNodesDialog/
+# GenerateCredentialDialog/CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
+if(BUILD_WITH_DDE)
+    list(APPEND QTET_QML_FILES
+        src/qml/dde/components/IconToolButton.qml
+        src/qml/dde/components/Card.qml
+        src/qml/dde/components/EditableListItem.qml
+        src/qml/dde/components/ErrorDialog.qml
+        src/qml/dde/components/ImportNodesDialog.qml
+        src/qml/dde/components/GenerateCredentialDialog.qml
+        src/qml/dde/components/CredentialManageDialog.qml
+        src/qml/dde/DdeMain.qml
+        src/qml/dde/AppAboutDialog.qml
+    )
+else()
+    list(APPEND QTET_QML_FILES
+        src/qml/components/Card.qml
+        src/qml/components/IconToolButton.qml
+        src/qml/components/EditableListItem.qml
+        src/qml/components/ErrorDialog.qml
+        src/qml/components/ImportNodesDialog.qml
+        src/qml/components/GenerateCredentialDialog.qml
+        src/qml/components/CredentialManageDialog.qml
+    )
+endif()
 
 foreach(qml_file IN LISTS QTET_QML_FILES)
     file(RELATIVE_PATH qml_resource_alias "${CMAKE_CURRENT_SOURCE_DIR}/src/qml" "${CMAKE_CURRENT_SOURCE_DIR}/${qml_file}")

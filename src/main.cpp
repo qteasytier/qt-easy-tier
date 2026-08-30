@@ -28,8 +28,10 @@
 int main(int argc, char *argv[])
 {
 
-// Windows下使用 FluentWinUI3 样式，其他平台使用默认样式
-#ifdef Q_OS_WIN
+// DDE 模式使用 DDE 的 Chameleon 风格（DTK 视觉）；Windows 使用 FluentWinUI3 样式；其他平台使用默认样式
+#ifdef QTET_WITH_DDE
+    QQuickStyle::setStyle(QStringLiteral("Chameleon"));
+#elif defined(Q_OS_WIN)
     QQuickStyle::setStyle(QStringLiteral("FluentWinUI3"));
 #endif
 
@@ -63,7 +65,11 @@ int main(int argc, char *argv[])
     registerQmlSingletons(engine, services);
 
     // 从内嵌 QRC 加载主 QML 界面，避免依赖程序目录中的本地 QML 文件。
+#ifdef QTET_WITH_DDE
+    engine.load(QUrl(QStringLiteral("qrc:/QtEasyTier/dde/DdeMain.qml")));
+#else
     engine.load(QUrl(QStringLiteral("qrc:/QtEasyTier/Main.qml")));
+#endif
 
     if (engine.rootObjects().isEmpty()) {
         LogHelper::logError(QStringLiteral("QML 主界面加载失败"));

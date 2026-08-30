@@ -1,5 +1,6 @@
 include:
   - .cnb/linux.yml
+  - .cnb/deepin.yml
   # 由于 CNB 下 Windows 构建不够成熟，暂时放弃 Windows 原生构建
   #- .cnb/windows.yml
   - .cnb/sync_github.yml

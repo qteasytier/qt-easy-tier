@@ -1,4 +1,5 @@
 /* @brief 应用主窗口：QML 入口，负责窗口属性、侧边栏导航、页面容器切换和底部状态栏的整体布局 */
+// 注意：若修改本文件布局，请同步更新 dde/DdeMain.qml（DDE 模式窗口壳）
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -99,22 +100,8 @@ Window {
     }
 
     // 全局错误弹窗：由 AppState 的 errorOccurred 信号驱动
-    Dialog {
+    ErrorDialog {
         id: errorDialog
-        title: qsTr("错误")
-        modal: true
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        standardButtons: Dialog.Ok
-        width: Math.min(420, parent ? parent.width - 48 : 360)
-
-        property string text: ""
-
-        Label {
-            text: errorDialog.text
-            wrapMode: Text.WordWrap
-            width: parent ? parent.width : 360
-        }
     }
 
     Connections {
