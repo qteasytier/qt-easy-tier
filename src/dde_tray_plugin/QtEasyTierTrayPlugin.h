@@ -34,7 +34,7 @@ public:
 
 private:
     void updateIcon();
-    static constexpr auto kItemKey = "qteasytier-network-status";
+    static constexpr auto kItemKey = "qteasytier-dde-tray-plugin";
     static constexpr auto kOpenMainMenuId = "open-main";
     QPointer<QLabel> m_icon;
     QPointer<QLabel> m_tips;

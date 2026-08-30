@@ -51,6 +51,9 @@ target_link_libraries(qtetDdeTrayPlugin PRIVATE
         Qt6::Core Qt6::Network Qt6::Sql Qt6::Widgets
         qtet_dde_tray_status
     )
+# 插件构建产物输出到 Output/Plugins，与应用本体分离，便于打包脚本单独收集
+set_target_properties(qtetDdeTrayPlugin PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${QTET_OUTPUT_DIR}/Plugins")
 # 可选 DTK GUI（DciIcon 加载 .dci 控制中心图标）；未安装 dtk6gui 开发包时 icon() 回退 PNG
 find_package(DTKGui QUIET)
 if(DTKGui_FOUND)
@@ -59,11 +62,6 @@ if(DTKGui_FOUND)
 endif()
 install(TARGETS qtetDdeTrayPlugin
         LIBRARY DESTINATION "${DDE_TRAY_PLUGIN_INSTALL_DIR}")
-install(FILES tray-plugin.json
-        DESTINATION "${DDE_TRAY_PLUGIN_INSTALL_DIR}")
-# 控制中心图标：dde-tray-loader 固定读取 dcc-setting/<pluginName>.svg
-# （见 dde-tray-loader src/loader/widgetplugin.cpp 的 DCCIconPath 拼接规则），
-# 插件 pluginName() 为 "qteasytier-network-status"，文件名不可随意更改
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/favicon/qtet.svg"
         DESTINATION "${DDE_DCC_ICON_INSTALL_DIR}"
-        RENAME qteasytier-network-status.svg)
+        RENAME qteasytier-dde-tray-plugin.svg)

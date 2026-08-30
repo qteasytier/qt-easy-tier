@@ -38,7 +38,7 @@ QtEasyTierTrayPlugin::~QtEasyTierTrayPlugin()
 
 const QString QtEasyTierTrayPlugin::pluginName() const
 {
-    return QStringLiteral("qteasytier-network-status");
+    return QStringLiteral("qteasytier-dde-tray-plugin");
 }
 
 const QString QtEasyTierTrayPlugin::pluginDisplayName() const

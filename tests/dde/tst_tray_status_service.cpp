@@ -16,13 +16,13 @@ class TrayStatusServiceTest final : public QObject {
     Q_OBJECT
 
 private slots:
-    void countsOnlineNodesIncludingLocalNode();
+    void countsOnlineNodesExcludingLocalNode();
     void ignoresEventsAndMalformedOtherInstance();
     void resolvesDatabasePathMatchingMainApp();
     void showsNoInstancesWhenDaemonNotConnected();
 };
 
-void TrayStatusServiceTest::countsOnlineNodesIncludingLocalNode()
+void TrayStatusServiceTest::countsOnlineNodesExcludingLocalNode()
 {
     const QJsonObject network{
         {QStringLiteral("my_node_info"), QJsonObject{{QStringLiteral("peer_id"), 1}}},
@@ -40,8 +40,9 @@ void TrayStatusServiceTest::countsOnlineNodesIncludingLocalNode()
                     {QStringLiteral("value"), encoded}}
     }}};
 
+    // 节点数统计不含本机：routes 中 peer_id=1 与本机相同被排除，仅统计远端 2、3
     const auto counts = TrayStatusService::parseNodeCounts(result);
-    QCOMPARE(counts.value(QStringLiteral("local")), 3);
+    QCOMPARE(counts.value(QStringLiteral("local")), 2);
 }
 
 void TrayStatusServiceTest::ignoresEventsAndMalformedOtherInstance()
@@ -60,8 +61,10 @@ void TrayStatusServiceTest::ignoresEventsAndMalformedOtherInstance()
                     {QStringLiteral("value"), QStringLiteral("broken")}}
     }}};
 
+    // 节点数统计不含本机：my_node_info.peer_id=9 与 routes 唯一节点相同，
+    // 排除后计数为 0；同时验证 events 字段不干扰解析、畸形实例被跳过
     const auto counts = TrayStatusService::parseNodeCounts(result);
-    QCOMPARE(counts.value(QStringLiteral("valid")), 1);
+    QCOMPARE(counts.value(QStringLiteral("valid")), 0);
     QVERIFY(!counts.contains(QStringLiteral("broken")));
 }
 
