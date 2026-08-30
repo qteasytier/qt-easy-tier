@@ -8,6 +8,8 @@ import org.deepin.dtk
 DialogWindow {
     id: root
 
+    modality: Qt.ApplicationModal
+
     property string text: ""
 
     title: ""

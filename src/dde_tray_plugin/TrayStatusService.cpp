@@ -292,9 +292,10 @@ QHash<QString, int> TrayStatusService::parseNodeCounts(const QJsonObject &result
             continue;
         const auto network = document.object();
         const auto routes = network.value(QStringLiteral("routes")).toArray();
-        const auto local = network.value(QStringLiteral("my_node_info")).toObject();
-        const qint64 localPeer = local.value(QStringLiteral("peer_id")).toVariant().toLongLong();
-        int count = local.isEmpty() ? 0 : 1;
+        // 本机 peer_id 仅用于排除本机节点，节点数统计不含本机
+        const qint64 localPeer = network.value(QStringLiteral("my_node_info"))
+            .toObject().value(QStringLiteral("peer_id")).toVariant().toLongLong();
+        int count = 0;
         for (const auto &route : routes) {
             if (route.toObject().value(QStringLiteral("peer_id")).toVariant().toLongLong()
                 != localPeer)

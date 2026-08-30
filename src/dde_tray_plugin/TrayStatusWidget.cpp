@@ -153,8 +153,17 @@ void TrayStatusWidget::refreshView()
             nameLabel->setStyleSheet(QStringLiteral("color: palette(highlight);"));
         infoLayout->addWidget(nameLabel);
 
-        auto *statusLabel = new QLabel(
-            instance.local ? stateText(instance.state) : tr("运行中 · 外部实例"), card);
+        // 状态文案：运行中显示节点连接数（节点数未就绪时退化为纯状态文本）
+        QString statusText;
+        if (instance.state == ConfigRunState::Running) {
+            const QString nodePart = instance.nodeCount
+                ? tr(" · %1 个节点连接").arg(*instance.nodeCount) : QString();
+            statusText = instance.local ? tr("运行中") + nodePart
+                                        : tr("运行中 · 外部实例") + nodePart;
+        } else {
+            statusText = stateText(instance.state);
+        }
+        auto *statusLabel = new QLabel(statusText, card);
         statusLabel->setObjectName(QStringLiteral("cardStatus"));
         infoLayout->addWidget(statusLabel);
         cardLayout->addLayout(infoLayout);

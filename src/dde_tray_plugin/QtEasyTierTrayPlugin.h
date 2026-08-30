@@ -2,6 +2,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 
 #include "pluginsiteminterface_v2.h"
 
@@ -35,8 +36,8 @@ private:
     void updateIcon();
     static constexpr auto kItemKey = "qteasytier-network-status";
     static constexpr auto kOpenMainMenuId = "open-main";
-    QLabel *m_icon = nullptr;
-    QLabel *m_tips = nullptr;
+    QPointer<QLabel> m_icon;
+    QPointer<QLabel> m_tips;
     TrayStatusService *m_service = nullptr;
-    TrayStatusWidget *m_popup = nullptr;
+    QPointer<TrayStatusWidget> m_popup;
 };

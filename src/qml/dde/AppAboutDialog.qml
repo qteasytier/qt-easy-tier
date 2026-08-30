@@ -13,6 +13,8 @@ import org.deepin.dtk.style 1.0 as DStyle
 DialogWindow {
     id: root
 
+    modality: Qt.ApplicationModal
+
     width: DStyle.Style.aboutDialog.width
     height: DStyle.Style.aboutDialog.height
     // 官方关于页无标题行：仅保留 DialogTitleBar（右上角关闭按钮）
@@ -34,7 +36,10 @@ DialogWindow {
             spacing: 10
 
             Image {
-                source: "qrc:/icons/qtet-96.png"
+                source: "qrc:/icons/qtet.png"
+                sourceSize: Qt.size(96, 96)
+                Layout.preferredWidth: 96
+                Layout.preferredHeight: 96
                 Layout.alignment: Qt.AlignHCenter
                 smooth: true
             }
@@ -108,7 +113,7 @@ DialogWindow {
                     font: D.DTK.fontManager.t10
                 }
                 Label {
-                    text: qsTr("致谢所使用的开源软件")
+                    text: qsTr("致谢所使用的开源软件以及 deepin 开源社区")
                     font: D.DTK.fontManager.t8
                 }
             }

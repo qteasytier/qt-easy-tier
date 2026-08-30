@@ -12,6 +12,8 @@ import org.deepin.dtk 1.0 as D
 D.DialogWindow {
     id: root
 
+    modality: Qt.ApplicationModal
+
     title: ""
     width: 560
 

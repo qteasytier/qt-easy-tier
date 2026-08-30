@@ -3,7 +3,6 @@
         <file alias="qtet.png">favicon/qtet.png</file>
         <file alias="qtet-green.png">favicon/qtet-green.png</file>
         <file alias="qtet-red.png">favicon/qtet-red.png</file>
-        <file alias="qtet-96.png">images/qtet-96.png</file>
         <file alias="net-page.svg">images/net-page.svg</file>
         <file alias="eye.svg">images/eye.svg</file>
         <file alias="eye-slash.svg">images/eye-slash.svg</file>

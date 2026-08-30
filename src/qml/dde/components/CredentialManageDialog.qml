@@ -12,6 +12,8 @@ import org.deepin.dtk 1.0 as D
 D.DialogWindow {
     id: root
 
+    modality: Qt.ApplicationModal
+
     title: ""
     width: 640
 
@@ -134,6 +136,7 @@ D.DialogWindow {
     // 撤销确认对话框：Window 非 Item，不能作 DialogWindow 的 content 子项，故以命名属性挂载
     property var revokeConfirmDialog: D.DialogWindow {
         id: revokeConfirmDialog
+        modality: Qt.ApplicationModal
         title: ""
         width: Math.min(420, root.width - 48)
 

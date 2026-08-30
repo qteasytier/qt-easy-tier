@@ -13,20 +13,15 @@ target_link_libraries(qtet_dde_tray_status PUBLIC
     qtet_log
 )
 
-set(DDE_TRAY_LOADER_SOURCE_DIR "" CACHE PATH
-    "dde-tray-loader 源码目录（含 interfaces/）；留空则使用系统安装的 dde-tray-loader-dev 头文件")
-# Deepin 25 loader 扫描的绝对路径，安装时忽略 CMAKE_INSTALL_PREFIX；
-# 临时验证可覆盖：-DDDE_TRAY_PLUGIN_INSTALL_DIR=/tmp/xxx
+# 安装目录：dde-dock 扫描/读取的标准绝对路径，安装时忽略 CMAKE_INSTALL_PREFIX；
+# 需要更换安装路径时直接指定：-DDDE_TRAY_PLUGIN_INSTALL_DIR=/xxx -DDDE_DCC_ICON_INSTALL_DIR=/yyy
 set(DDE_TRAY_PLUGIN_INSTALL_DIR "/usr/lib/dde-dock/plugins/system-trays" CACHE PATH
     "DDE 托盘插件安装目录（绝对路径）")
+set(DDE_DCC_ICON_INSTALL_DIR "/usr/share/dde-dock/icons/dcc-setting" CACHE PATH
+    "DDE 控制中心插件图标安装目录（绝对路径）")
 
-# 接口头文件来源：优先源码树模式（DDE_TRAY_LOADER_SOURCE_DIR/interfaces），
-# 其次使用系统 apt 包 dde-tray-loader-dev 安装的头文件（/usr/include/dde-dock）。
-if(DDE_TRAY_LOADER_SOURCE_DIR)
-    set(DDE_TRAY_INTERFACE_DIR "${DDE_TRAY_LOADER_SOURCE_DIR}/interfaces")
-else()
-    set(DDE_TRAY_INTERFACE_DIR "/usr/include/dde-dock")
-endif()
+# 接口头文件：系统 apt 包 dde-tray-loader-dev 安装的硬编码路径（/usr/include/dde-dock）
+set(DDE_TRAY_INTERFACE_DIR "/usr/include/dde-dock")
 
 foreach(interface_file IN ITEMS
     pluginsiteminterface.h
@@ -36,8 +31,7 @@ foreach(interface_file IN ITEMS
     if(NOT EXISTS "${DDE_TRAY_INTERFACE_DIR}/${interface_file}")
         message(FATAL_ERROR
             "DDE 托盘接口文件不存在：${DDE_TRAY_INTERFACE_DIR}/${interface_file}。\n"
-            "请安装开发包：sudo apt install dde-tray-loader-dev\n"
-            "或提供源码路径：-DDDE_TRAY_LOADER_SOURCE_DIR=/path/to/dde-tray-loader")
+            "请安装开发包：sudo apt install dde-tray-loader-dev")
     endif()
 endforeach()
 
@@ -57,7 +51,19 @@ target_link_libraries(qtetDdeTrayPlugin PRIVATE
         Qt6::Core Qt6::Network Qt6::Sql Qt6::Widgets
         qtet_dde_tray_status
     )
+# 可选 DTK GUI（DciIcon 加载 .dci 控制中心图标）；未安装 dtk6gui 开发包时 icon() 回退 PNG
+find_package(DTKGui QUIET)
+if(DTKGui_FOUND)
+    target_compile_definitions(qtetDdeTrayPlugin PRIVATE QTET_DDE_TRAY_HAS_DTK)
+    target_link_libraries(qtetDdeTrayPlugin PRIVATE Dtk6::Gui)
+endif()
 install(TARGETS qtetDdeTrayPlugin
         LIBRARY DESTINATION "${DDE_TRAY_PLUGIN_INSTALL_DIR}")
 install(FILES tray-plugin.json
         DESTINATION "${DDE_TRAY_PLUGIN_INSTALL_DIR}")
+# 控制中心图标：dde-tray-loader 固定读取 dcc-setting/<pluginName>.svg
+# （见 dde-tray-loader src/loader/widgetplugin.cpp 的 DCCIconPath 拼接规则），
+# 插件 pluginName() 为 "qteasytier-network-status"，文件名不可随意更改
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/favicon/qtet.svg"
+        DESTINATION "${DDE_DCC_ICON_INSTALL_DIR}"
+        RENAME qteasytier-network-status.svg)
