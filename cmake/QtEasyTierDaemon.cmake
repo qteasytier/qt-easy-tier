@@ -45,7 +45,6 @@ function(qtet_configure_daemon)
     set(qtet_daemon_build_command
         "${CMAKE_COMMAND}"
         "-DQTET_DAEMON_REPO_URL=${qtet_daemon_repo_url}"
-        "-DQTET_DAEMON_VER=${QTET_DAEMON_VER}"
         "-DQTET_DAEMON_SRC_DIR=${QTET_DAEMON_SRC_DIR}"
         "-DQTET_DAEMON_BUILD_DIR=${QTET_DAEMON_BUILD_DIR}"
         "-DQTET_DAEMON_BUILD_TYPE=${qtet_daemon_build_type}"
@@ -55,6 +54,10 @@ function(qtet_configure_daemon)
         "-DQTET_DAEMON_C_COMPILER=${CMAKE_C_COMPILER}"
         "-DQTET_DAEMON_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
     )
+    # QTET_DAEMON_VER 未定义时使用远端默认分支
+    if(DEFINED QTET_DAEMON_VER AND NOT QTET_DAEMON_VER STREQUAL "")
+        list(APPEND qtet_daemon_build_command "-DQTET_DAEMON_VER=${QTET_DAEMON_VER}")
+    endif()
     if(DEFINED CMAKE_TOOLCHAIN_FILE AND NOT CMAKE_TOOLCHAIN_FILE STREQUAL "")
         list(APPEND qtet_daemon_build_command "-DQTET_DAEMON_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
     endif()

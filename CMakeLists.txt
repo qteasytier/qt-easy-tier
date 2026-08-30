@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(QtEasyTier VERSION 3.2.0 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
-set(QTET_DAEMON_VER 1.0.0)
+# qtet-daemon 不再锁定 tag：不定义 QTET_DAEMON_VER，克隆时使用远端默认分支
+# （1.0 之后的 daemon 支持多前端连接模型，不再按版本号发布 tag）
 
 # 向 C++ 侧暴露版本号
 configure_file(
@@ -29,6 +30,7 @@ set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
 
 # DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
 option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" ON)
+option(BUILD_WITH_DDE_TRAY_PLUGIN "构建 DDE 托盘网络状态插件" ON)
 
 include(cmake/QtEasyTierDaemon.cmake)
 
@@ -72,6 +74,9 @@ add_subdirectory(src/platform)
 add_subdirectory(src/system_tray)
 add_subdirectory(src/core)
 add_subdirectory(src/app)
+if(BUILD_WITH_DDE_TRAY_PLUGIN)
+    add_subdirectory(src/dde_tray_plugin)
+endif()
 
 if(WIN32)
     set(QTET_WINDOWS_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/favicon/qtet.ico")

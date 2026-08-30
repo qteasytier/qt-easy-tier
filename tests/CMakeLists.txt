@@ -99,3 +99,8 @@ target_link_libraries(tst_system_tray_manager PRIVATE qtet_system_tray)
 
 add_core_test(tst_app_launch_manager tst_app_launch_manager.cpp)
 target_link_libraries(tst_app_launch_manager PRIVATE qtet_appsupport)
+
+# DDE 托盘插件专属测试（tests/dde/）
+if(BUILD_WITH_DDE_TRAY_PLUGIN)
+    add_subdirectory(dde)
+endif()

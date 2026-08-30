@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/dde-tray">
+        <file alias="qtet.png">../../assets/favicon/qtet.png</file>
+        <file alias="qtet-green.png">../../assets/favicon/qtet-green.png</file>
+        <file alias="qtet-red.png">../../assets/favicon/qtet-red.png</file>
+    </qresource>
+</RCC>

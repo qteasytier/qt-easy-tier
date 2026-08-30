@@ -1,8 +1,10 @@
 if(NOT DEFINED QTET_DAEMON_REPO_URL OR QTET_DAEMON_REPO_URL STREQUAL "")
     message(FATAL_ERROR "QTET_DAEMON_REPO_URL is required")
 endif()
-if(NOT DEFINED QTET_DAEMON_VER OR QTET_DAEMON_VER STREQUAL "")
-    message(FATAL_ERROR "QTET_DAEMON_VER is required")
+# QTET_DAEMON_VER 可选：定义且非空时克隆/对齐到指定 tag，否则使用远端默认分支
+set(QTET_DAEMON_HAS_TAG FALSE)
+if(DEFINED QTET_DAEMON_VER AND NOT QTET_DAEMON_VER STREQUAL "")
+    set(QTET_DAEMON_HAS_TAG TRUE)
 endif()
 if(NOT DEFINED QTET_DAEMON_SRC_DIR OR QTET_DAEMON_SRC_DIR STREQUAL "")
     message(FATAL_ERROR "QTET_DAEMON_SRC_DIR is required")
@@ -18,32 +20,66 @@ endif()
 find_program(GIT_EXECUTABLE git REQUIRED)
 
 message(STATUS "qtet-daemon repository: ${QTET_DAEMON_REPO_URL}")
-message(STATUS "qtet-daemon version (tag): ${QTET_DAEMON_VER}")
+if(QTET_DAEMON_HAS_TAG)
+    message(STATUS "qtet-daemon version (tag): ${QTET_DAEMON_VER}")
+else()
+    message(STATUS "qtet-daemon version (branch): remote default branch")
+endif()
 message(STATUS "qtet-daemon source directory: ${QTET_DAEMON_SRC_DIR}")
 
 if(NOT EXISTS "${QTET_DAEMON_SRC_DIR}/CMakeLists.txt")
+    set(clone_command "${GIT_EXECUTABLE}" clone --depth 1)
+    if(QTET_DAEMON_HAS_TAG)
+        list(APPEND clone_command --branch "${QTET_DAEMON_VER}")
+    endif()
+    list(APPEND clone_command "${QTET_DAEMON_REPO_URL}" "${QTET_DAEMON_SRC_DIR}")
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" clone --branch "${QTET_DAEMON_VER}" --depth 1 "${QTET_DAEMON_REPO_URL}" "${QTET_DAEMON_SRC_DIR}"
+        COMMAND ${clone_command}
         RESULT_VARIABLE clone_result
     )
     if(NOT clone_result EQUAL 0)
         message(FATAL_ERROR "Failed to clone qtet-daemon")
     endif()
 else()
-    message(STATUS "qtet-daemon source directory already exists, forcing alignment to tag ${QTET_DAEMON_VER}")
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" fetch --tags --force
-        RESULT_VARIABLE fetch_result
-    )
-    if(NOT fetch_result EQUAL 0)
-        message(FATAL_ERROR "Failed to fetch qtet-daemon tags")
-    endif()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" checkout --detach --force "${QTET_DAEMON_VER}"
-        RESULT_VARIABLE checkout_result
-    )
-    if(NOT checkout_result EQUAL 0)
-        message(FATAL_ERROR "Failed to checkout qtet-daemon tag ${QTET_DAEMON_VER}")
+    if(QTET_DAEMON_HAS_TAG)
+        message(STATUS "qtet-daemon source directory already exists, forcing alignment to tag ${QTET_DAEMON_VER}")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" fetch --tags --force
+            RESULT_VARIABLE fetch_result
+        )
+        if(NOT fetch_result EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch qtet-daemon tags")
+        endif()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" checkout --detach --force "${QTET_DAEMON_VER}"
+            RESULT_VARIABLE checkout_result
+        )
+        if(NOT checkout_result EQUAL 0)
+            message(FATAL_ERROR "Failed to checkout qtet-daemon tag ${QTET_DAEMON_VER}")
+        endif()
+    else()
+        message(STATUS "qtet-daemon source directory already exists, forcing alignment to remote default branch")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" fetch --force origin
+            RESULT_VARIABLE fetch_result
+        )
+        if(NOT fetch_result EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch qtet-daemon default branch")
+        endif()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" remote set-head origin -a
+            RESULT_VARIABLE set_head_result
+        )
+        if(NOT set_head_result EQUAL 0)
+            message(FATAL_ERROR "Failed to resolve qtet-daemon default branch")
+        endif()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${QTET_DAEMON_SRC_DIR}" checkout --detach --force origin/HEAD
+            RESULT_VARIABLE checkout_result
+        )
+        if(NOT checkout_result EQUAL 0)
+            message(FATAL_ERROR "Failed to checkout qtet-daemon default branch")
+        endif()
     endif()
 endif()
 
