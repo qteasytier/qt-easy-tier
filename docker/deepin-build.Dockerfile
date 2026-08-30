@@ -47,7 +47,3 @@ RUN apt-get update \
       qml6-module-qtquick-controls2-styles-chameleon \
       dde-tray-loader-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# ---- 构建校验（确认 Qt 6.8 可用） ----
-RUN qmake -query QT_VERSION \
-    && qmake -query QT_INSTALL_PREFIX
