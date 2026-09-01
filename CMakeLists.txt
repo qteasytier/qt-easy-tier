@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(QtEasyTier VERSION 3.2.0 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
-set(QTET_DAEMON_VER 1.1.0)
+set(QTET_DAEMON_VER 0.1.0)
 
 # 向 C++ 侧暴露版本号
 configure_file(
@@ -23,9 +23,9 @@ set(CMAKE_AUTORCC ON)
 
 # 构建后端可选参数
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
-# qtet-daemon 克隆来源：GITEE / GITHUB / CNB，默认 GITHUB
-set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITEE, GITHUB or CNB")
-set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITEE GITHUB CNB)
+# qtet-daemon 克隆来源：GITHUB / CNB，默认 GITHUB
+set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITHUB or CNB")
+set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITHUB CNB)
 
 # DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
 option(BUILD_WITH_DDE "构建基于 DDE 的前端页面" OFF)

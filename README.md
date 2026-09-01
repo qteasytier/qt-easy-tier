@@ -27,10 +27,12 @@ QtEasyTier 是一个基于 Qt 6 / C++ 的 EasyTier 桌面客户端。它提供�
 
 ## 技术栈
 
+- CMake 3.16+
 - Qt 6.8+ （QML / Qt Quick）
 - C++ 20
 - SQLite
-- CMake 3.16+
+- OpenSSL
+- Boost.Asio (Daemon 构建时需要)
 
 ## 目录结构
 
@@ -89,6 +91,7 @@ pacman -S  mingw-w64-ucrt-x86_64-gcc \
            mingw-w64-ucrt-x86_64-qt6-svg \
            mingw-w64-ucrt-x86_64-qt6-tools \
            mingw-w64-ucrt-x86_64-openssl \
+           mingw-w64-ucrt-x86_64-boost \
            git
 ```
 
@@ -122,14 +125,14 @@ cmake --build build -j
 
 ### 指定后端克隆来源
 
-默认从 GitHub 克隆后端源码，可通过 `CLONE_DAEMON_FROM` 选择来源（`GITEE` / `GITHUB` / `CNB`）：
+默认从 GitHub 克隆后端源码，可通过 `CLONE_DAEMON_FROM` 选择来源（`GITHUB` / `CNB`）：
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM=GITEE
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DCLONE_DAEMON_FROM=CNB
 cmake --build build -j
 ```
 
-设置 `-DCLONE_DAEMON_FROM=GITEE` 后，CMake 会从 Gitee 克隆后端源码；设为 `CNB` 则从 cnb.cool 克隆。
+设置 `-DCLONE_DAEMON_FROM=CNB` 后，CMake 会从 cnb.cool 克隆。
 
 ## 测试
 

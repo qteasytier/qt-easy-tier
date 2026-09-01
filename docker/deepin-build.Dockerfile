@@ -30,7 +30,7 @@ RUN apt-get update \
       libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
       libglu1-mesa-dev libpng-dev libssl-dev \
       libglib2.0-0 libglib2.0-dev libicu-dev libdouble-conversion3 \
-      libpcre2-16-0 libmd4c0 libzstd1 \
+      libpcre2-16-0 libmd4c0 libzstd1 libboost-all-dev \
       python3 \
       qml6-module-qtquick-dialogs \
       qt6-base-dev qt6-declarative-dev qt6-svg-dev libqt6sql6-sqlite \

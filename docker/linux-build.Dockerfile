@@ -40,7 +40,7 @@ RUN apt-get update \
       libxcb-xinput-dev libegl1-mesa-dev libgles2-mesa-dev \
       libglu1-mesa-dev libpng-dev libssl-dev \
       libglib2.0-0 libglib2.0-dev libicu-dev libdouble-conversion3 \
-      libpcre2-16-0 libmd4c0 libzstd1 \
+      libpcre2-16-0 libmd4c0 libzstd1 libboost-all-dev \
       python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
