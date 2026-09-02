@@ -15,7 +15,7 @@ SwbDialog {
     width: Math.min(520, parent ? parent.width - 48 : 480)
     standardButtons: Dialog.None
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     /* 表单视图是否可见（false 时展示结果或错误视图） */
     property bool showForm: true
@@ -177,7 +177,7 @@ SwbDialog {
                 Layout.fillWidth: true
                 text: qsTr("关闭本页面后密钥将不再显示，请妥善保管")
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
                 wrapMode: Text.WordWrap
             }
 
@@ -238,7 +238,7 @@ SwbDialog {
                     id: copyHint
                     visible: false
                     text: qsTr("已复制到剪贴板")
-                    color: theme.statusGreen
+                    color: appTheme.statusGreen
                     font: FontHelper.smallFont
                 }
                 Timer {
@@ -264,7 +264,7 @@ SwbDialog {
                 Layout.fillWidth: true
                 text: qsTr("生成失败")
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
             }
             SwbLabel {
                 id: errorText

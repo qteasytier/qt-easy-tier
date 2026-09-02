@@ -4,7 +4,6 @@
 set(_components_qml
     components/Sidebar.qml
     components/PageContainer.qml
-    components/QtETabWidget.qml
     components/Theme.qml
 )
 list(APPEND QTET_QML_FILES ${_components_qml})

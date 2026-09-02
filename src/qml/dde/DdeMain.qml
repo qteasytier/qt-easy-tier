@@ -32,7 +32,7 @@ ApplicationWindow {
     DWindow.windowRadius: D.DTK.platformTheme.windowRadius < 0 ? 12 : D.DTK.platformTheme.windowRadius
     DWindow.shadowColor: Qt.rgba(0, 0, 0, 0.15)
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     header: Item {
         id: headerArea
@@ -139,9 +139,9 @@ ApplicationWindow {
                     width: 8
                     height: 8
                     radius: 4
-                    color: BackendStatusViewModel.connected ? theme.statusGreen
-                         : BackendStatusViewModel.connecting ? theme.statusOrange
-                         : theme.statusRed
+                    color: BackendStatusViewModel.connected ? appTheme.statusGreen
+                         : BackendStatusViewModel.connecting ? appTheme.statusOrange
+                         : appTheme.statusRed
                 }
 
                 QQC.Label {

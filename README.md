@@ -29,6 +29,7 @@ QtEasyTier 是一个基于 Qt 6 / C++ 的 EasyTier 桌面客户端。它提供�
 
 - CMake 3.16+
 - Qt 6.8+ （QML / Qt Quick）
+- SWB-QML-UI（内置的 shadcn 风格 QML 组件库，见 `ThirdParty/SWB-QML-UI`）
 - C++ 20
 - SQLite
 - OpenSSL
@@ -59,7 +60,7 @@ src/
 
 - CMake 3.16 或更新版本
 - 支持 C++20 的 C++ 编译器
-- Qt 6.8 或更新版本，包含 `Core`、`Sql`、`Network`、`Test`、`Quick`、`Widgets`、`Concurrent`、`Svg`、`QuickDialogs2`
+- Qt 6.8 或更新版本，包含 `Core`、`Sql`、`Network`、`Test`、`Quick`、`Widgets`、`Concurrent`、`Svg`、`QuickDialogs2`、`QuickEffects`
 - OpenSSL 库
 - `git`，用于默认构建 `qtet-daemon`
 
@@ -105,7 +106,7 @@ QtEasyTier 专门适配了 DDE 桌面环境，您可以构建 DDE 专版应用�
 cmake -B build -S . -DBUILD_WITH_DDE=ON -DBUILD_WITH_DDE_TRAY_PLUGIN=ON
 ```
 
-- `BUILD_WITH_DDE` 用于开启 DDE 专版构建，开启后程序UI会使用 DTK 风格。
+- `BUILD_WITH_DDE` 用于开启 DDE 专版构建，开启后主窗口壳与部分对话框使用 DTK 风格（共享页面为 Swb 风格）。
 - `BUILD_WITH_DDE_TRAY_PLUGIN` 用于开启构建 QtEasyTier DDE 托盘插件，该插件可用于查看实例运行状态和快速启动/停止实例。
 
 使用以下命令将插件安装到 DDE 标准目录，重启后可在**系统控制中心->个性化->桌面和任务栏->插件区域**找到托盘开关
@@ -175,7 +176,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-新增 C++ 源文件时，请加入对应模块目录的 `CMakeLists.txt`。新增 QML 文件时，请加入根 `CMakeLists.txt` 的 `QTET_QML_FILES` 列表。详细模块边界、对象生命周期和测试约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+新增 C++ 源文件时，请加入对应模块目录的 `CMakeLists.txt`。新增 QML 文件时，请加入其所在目录（`src/qml/components/`、`src/qml/components/config_form/`、`src/qml/pages/`、`src/qml/dde/`）的 `CMakeLists.txt`。详细模块边界、对象生命周期和测试约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 赞助本项目
 项目开发不易，如果您认为本项目对您有帮助，欢迎赞助项目开发，您的支持是我们继续开发的重要动力！

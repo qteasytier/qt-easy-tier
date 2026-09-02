@@ -44,7 +44,7 @@ D.DialogWindow {
     }
 
     // DialogWindow 的 content 只接受 Item，故以命名属性声明 Theme（QtObject）
-    property Theme theme: Theme { }
+    property Theme appTheme: Theme { }
 
     header: D.DialogTitleBar {
         title: qsTr("添加临时节点密钥")
@@ -199,7 +199,7 @@ D.DialogWindow {
                 Layout.fillWidth: true
                 text: qsTr("关闭本页面后密钥将不再显示，请妥善保管")
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
                 wrapMode: Text.WordWrap
             }
 
@@ -262,7 +262,7 @@ D.DialogWindow {
                     id: copyHint
                     visible: false
                     text: qsTr("已复制到剪贴板")
-                    color: theme.statusGreen
+                    color: appTheme.statusGreen
                     font: FontHelper.smallFont
                 }
                 Timer {
@@ -288,7 +288,7 @@ D.DialogWindow {
                 Layout.fillWidth: true
                 text: qsTr("生成失败")
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
             }
             D.Label {
                 id: errorText

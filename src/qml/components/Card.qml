@@ -1,13 +1,16 @@
-/* @brief 卡片容器组件：基于 SwbFrame 提供 shadcn 风格圆角面板与统一内边距，用于包裹各类设置区块 */
+/* @brief 卡片容器组件：基于 SwbFrame 提供 shadcn 风格圆角面板、统一内边距与可选加粗标题 */
 import QtQuick
 import QtQuick.Layouts
 import SwbControls
 
-// 卡片容器：基于 SwbFrame（Frame），提供圆角边框和统一内边距
+// 卡片容器：基于 SwbFrame（Frame），提供圆角边框、统一内边距与可选加粗标题
 // contentSpacing 属性名避免与 Qt 6.7+ Frame.spacing (FINAL) 冲突
-/* @brief 卡片面板，内含 ColumnLayout 支持子元素垂直排列 */
+/* @brief 卡片面板，标题（可选）与内容按 ColumnLayout 垂直排列 */
 SwbFrame {
     id: root
+
+    /* 卡片标题：非空时在内容区顶部以粗体显示 */
+    property string title: ""
 
     // 内容间距，由外部配置页面传入
     property int contentSpacing: 0
@@ -19,6 +22,14 @@ SwbFrame {
 
     contentItem: ColumnLayout {
         spacing: root.contentSpacing
+
+        // 加粗标题（显式 Font.Bold 覆盖 SwbLabel 的 Medium weight 默认绑定）
+        SwbLabel {
+            text: root.title
+            visible: root.title !== ""
+            font.weight: Font.Bold
+            Layout.bottomMargin: 2
+        }
     }
 
     background: Rectangle {

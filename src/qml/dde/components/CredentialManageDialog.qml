@@ -73,7 +73,7 @@ D.DialogWindow {
     }
 
     // DialogWindow 的 content 只接受 Item，故以命名属性声明 Theme（QtObject）
-    property Theme theme: Theme { }
+    property Theme appTheme: Theme { }
 
     // 刷新当前实例的凭证列表
     function refreshList() {
@@ -602,7 +602,7 @@ D.DialogWindow {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
-                color: theme.statusGreen
+                color: appTheme.statusGreen
             }
             D.Label {
                 Layout.fillWidth: true
@@ -636,7 +636,7 @@ D.DialogWindow {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
             }
             D.Label {
                 Layout.fillWidth: true

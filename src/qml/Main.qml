@@ -23,7 +23,7 @@ Window {
     // 与 Swb 控件试点页的页面底色保持一致，避免暗色模式下前后景割裂
     color: SwbTheme.background
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     ColumnLayout {
         anchors.fill: parent
@@ -84,9 +84,9 @@ Window {
                     height: 8
                     radius: 4
                     // 根据连接状态显示不同颜色
-                    color: BackendStatusViewModel.connected ? theme.statusGreen
-                         : BackendStatusViewModel.connecting ? theme.statusOrange
-                         : theme.statusRed
+                    color: BackendStatusViewModel.connected ? appTheme.statusGreen
+                         : BackendStatusViewModel.connecting ? appTheme.statusOrange
+                         : appTheme.statusRed
                 }
 
                 Label {

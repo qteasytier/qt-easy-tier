@@ -1,9 +1,10 @@
-/* @brief 网络页面：配置管理与网络运行的入口页面，根据后端连接状态切换显示连接提示或完整功能面板 */
+/* @brief 网络页面：配置管理与网络运行的入口页面，根据后端连接状态切换显示连接提示或完整功能面板，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtEasyTier
+import SwbControls
 
 // 网络页面：配置管理与网络运行的入口页面
 // 根据后端连接状态显示不同视图：
@@ -13,7 +14,7 @@ import QtEasyTier
 Rectangle {
     id: root
 
-    color: palette.window
+    color: SwbTheme.background
 
     // 页面初始化时查询运行状态
     Component.onCompleted: NetworkPageViewModel.refreshRunning()
@@ -23,13 +24,13 @@ Rectangle {
         visible: !BackendStatusViewModel.connected
         anchors.fill: parent
 
-        Label {
+        SwbLabel {
             anchors.centerIn: parent
             text: BackendStatusViewModel.connecting
                 ? qsTr("正在连接后端...")
                 : qsTr("后端尚未连接")
             font.pixelSize: 24
-            color: palette.placeholderText
+            color: SwbTheme.mutedForeground
         }
     }
 
@@ -56,10 +57,10 @@ Rectangle {
             Item {
                 anchors.fill: parent
 
-                Label {
+                SwbLabel {
                     anchors.centerIn: parent
                     text: qsTr("请先选中或新建配置项")
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                 }
             }
         }
@@ -104,7 +105,7 @@ Rectangle {
             Rectangle {
                 width: 1
                 Layout.fillHeight: true
-                color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.12)
+                color: SwbTheme.border
             }
 
             // 右侧内容区：根据状态切换显示
@@ -117,16 +118,15 @@ Rectangle {
         }
 
         // 导入方式选择对话框
-        Dialog {
+        SwbDialog {
             id: importChoiceDialog
             title: qsTr("导入配置")
-            modal: true
             parent: Overlay.overlay
             anchors.centerIn: parent
             standardButtons: Dialog.Cancel
             RowLayout {
                 spacing: 12
-                Button {
+                SwbButton {
                     text: qsTr("从文件导入")
                     Layout.fillWidth: true
                     onClicked: {
@@ -134,7 +134,8 @@ Rectangle {
                         importFileDialog.open()
                     }
                 }
-                Button {
+                SwbButton {
+                    variant: "outline"
                     text: qsTr("从 URL 导入")
                     Layout.fillWidth: true
                     onClicked: {
@@ -146,23 +147,22 @@ Rectangle {
         }
 
         // 导入 URL 对话框
-        Dialog {
+        SwbDialog {
             id: importUrlDialog
             title: qsTr("从 URL 导入")
-            modal: true
             parent: Overlay.overlay
             anchors.centerIn: parent
             width: Math.min(520, parent ? parent.width - 48 : 480)
             standardButtons: Dialog.Ok | Dialog.Cancel
             ColumnLayout {
-                anchors.fill: parent
+                width: parent ? parent.width : 480
                 spacing: 8
-                Label { text: qsTr("粘贴 qtet:// 开头的配置 URL：") }
-                ScrollView {
+                SwbLabel { text: qsTr("粘贴 qtet:// 开头的配置 URL：") }
+                SwbScrollView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 80
 
-                    TextArea {
+                    SwbTextArea {
                         id: importUrlField
                         placeholderText: "qtet://..."
                         wrapMode: TextEdit.WrapAnywhere

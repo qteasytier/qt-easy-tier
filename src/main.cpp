@@ -14,7 +14,6 @@
 #include <QApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
-#include <QQuickStyle>
 #include <QUrl>
 #include <QWindow>
 
@@ -27,13 +26,6 @@
 
 int main(int argc, char *argv[])
 {
-
-// DDE 模式使用 DDE 的 Chameleon 风格（DTK 视觉）；Windows 使用 FluentWinUI3 样式；其他平台使用默认样式
-#ifdef QTET_WITH_DDE
-    QQuickStyle::setStyle(QStringLiteral("Chameleon"));
-#elif defined(Q_OS_WIN)
-    QQuickStyle::setStyle(QStringLiteral("FluentWinUI3"));
-#endif
 
     QApplication app(argc, argv);
     app.setOrganizationName(QStringLiteral("qteasytier"));

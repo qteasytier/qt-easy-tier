@@ -16,7 +16,7 @@ ColumnLayout {
     spacing: 4
 
     // 状态色(添加按钮文字统一用 statusGreen)
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     function allProtocols() {
         return ["tcp", "udp", "icmp"]
@@ -125,7 +125,7 @@ ColumnLayout {
         variant: "ghost"
         size: "sm"
         text: qsTr("添加代理子网")
-        textColor: theme.statusGreen
+        textColor: appTheme.statusGreen
         onClicked: {
             addDialog.cidrText = ""
             addDialog.mappedCidrText = ""

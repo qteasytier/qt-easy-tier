@@ -49,18 +49,25 @@ Rectangle {
                 }
 
                 // 开机自启开关：操作失败时恢复到系统真实状态（settings3.json 不再持久化该字段）
-                SwbSwitch {
-                    id: autoStartSwitch
-                    text: qsTr("开机自启")
-                    checked: SettingsViewModel.autoStart
-                    Component.onCompleted: SettingsViewModel.refreshAutoStart()
-                    onToggled: {
-                        if (!SettingsViewModel.setAutoStart(checked)) {
-                            // 设置失败：恢复开关，重建到 ViewModel 的声明式绑定
-                            checked = Qt.binding(function() { return SettingsViewModel.autoStart })
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    SwbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("开机自启")
+                    }
+
+                    SwbSwitch {
+                        id: autoStartSwitch
+                        checked: SettingsViewModel.autoStart
+                        Component.onCompleted: SettingsViewModel.refreshAutoStart()
+                        onToggled: {
+                            if (!SettingsViewModel.setAutoStart(checked)) {
+                                // 设置失败：恢复开关，重建到 ViewModel 的声明式绑定
+                                checked = Qt.binding(function() { return SettingsViewModel.autoStart })
+                            }
                         }
                     }
-                    Layout.fillWidth: true
                 }
 
                 SwbLabel {
@@ -69,20 +76,26 @@ Rectangle {
                     color: dimTextColor
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
-                    Layout.leftMargin: 42
                     Layout.bottomMargin: 8
                 }
 
                 // 自动回连开关：通过后端 RPC 操作，未连接/正在连接/请求中时禁用
-                SwbSwitch {
-                    id: autoReconnectSwitch
-                    text: qsTr("自动回连")
-                    checked: SettingsViewModel.autoReconnect
-                    enabled: BackendStatusViewModel.connected
-                             && !BackendStatusViewModel.connecting
-                             && !SettingsViewModel.autoReconnectBusy
-                    onToggled: SettingsViewModel.setAutoReconnectEnabled(checked)
+                RowLayout {
                     Layout.fillWidth: true
+
+                    SwbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("自动回连")
+                    }
+
+                    SwbSwitch {
+                        id: autoReconnectSwitch
+                        checked: SettingsViewModel.autoReconnect
+                        enabled: BackendStatusViewModel.connected
+                                 && !BackendStatusViewModel.connecting
+                                 && !SettingsViewModel.autoReconnectBusy
+                        onToggled: SettingsViewModel.setAutoReconnectEnabled(checked)
+                    }
                 }
 
                 Connections {
@@ -101,16 +114,22 @@ Rectangle {
                     color: dimTextColor
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
-                    Layout.leftMargin: 42
                     Layout.bottomMargin: 8
                 }
 
                 // 隐藏服务节点开关：只过滤运行状态页展示，不影响后台缓存
-                SwbSwitch {
-                    text: qsTr("隐藏服务节点")
-                    checked: SettingsViewModel.hideServerNodes
-                    onToggled: SettingsViewModel.hideServerNodes = checked
+                RowLayout {
                     Layout.fillWidth: true
+
+                    SwbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("隐藏服务节点")
+                    }
+
+                    SwbSwitch {
+                        checked: SettingsViewModel.hideServerNodes
+                        onToggled: SettingsViewModel.hideServerNodes = checked
+                    }
                 }
 
                 SwbLabel {
@@ -119,15 +138,21 @@ Rectangle {
                     color: dimTextColor
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
-                    Layout.leftMargin: 42
                     Layout.bottomMargin: 8
                 }
 
-                SwbSwitch {
-                    text: qsTr("自动检查更新")
-                    checked: SettingsViewModel.autoCheckUpdates
-                    onToggled: SettingsViewModel.autoCheckUpdates = checked
+                RowLayout {
                     Layout.fillWidth: true
+
+                    SwbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("自动检查更新")
+                    }
+
+                    SwbSwitch {
+                        checked: SettingsViewModel.autoCheckUpdates
+                        onToggled: SettingsViewModel.autoCheckUpdates = checked
+                    }
                 }
 
                 SwbLabel {
@@ -136,7 +161,6 @@ Rectangle {
                     color: dimTextColor
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
-                    Layout.leftMargin: 42
                     Layout.bottomMargin: 8
                 }
             }

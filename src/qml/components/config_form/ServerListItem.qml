@@ -22,7 +22,7 @@ ColumnLayout {
     spacing: 4
 
     // 状态色(添加按钮文字统一用 statusGreen)
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     ListModel { id: listModel }
 
@@ -94,7 +94,7 @@ ColumnLayout {
         variant: "ghost"
         size: "sm"
         text: qsTr("添加服务器地址")
-        textColor: theme.statusGreen
+        textColor: appTheme.statusGreen
         onClicked: {
             addDialog.uriText = ""
             addDialog.publicKeyText = ""

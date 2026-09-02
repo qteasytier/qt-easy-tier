@@ -51,13 +51,13 @@ ColumnLayout {
         text: qsTr("从收藏导入")
         variant: "ghost"
         size: "sm"
-        textColor: theme.statusGreen
+        textColor: appTheme.statusGreen
         Layout.fillWidth: true
         onClicked: importNodesDialog.open()
     }
 
     // 主题状态色（导入按钮文字）
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     ImportNodesDialog {
         id: importNodesDialog

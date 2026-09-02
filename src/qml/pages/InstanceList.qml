@@ -28,7 +28,7 @@ Rectangle {
     implicitWidth: 200
     implicitHeight: 400
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     /* 选中指定配置实例，触发右侧面板加载 */
     signal configSelected(string instanceName)
@@ -217,9 +217,9 @@ Rectangle {
                     width: 3
                     radius: 2
                     visible: isRunning || isBusy || runState === 4
-                    color: runState === 4 ? theme.statusRed
-                         : isBusy ? theme.statusOrange
-                         : theme.statusGreen
+                    color: runState === 4 ? appTheme.statusRed
+                         : isBusy ? appTheme.statusOrange
+                         : appTheme.statusGreen
                 }
 
                 // 单击选中/右键菜单/长按菜单
@@ -292,9 +292,9 @@ Rectangle {
                                 return qsTr("未运行")
                             }
                             font: FontHelper.smallFont
-                            color: runState === 4 ? theme.statusRed
-                                 : isBusy ? theme.statusOrange
-                                 : isRunning ? theme.statusGreen
+                            color: runState === 4 ? appTheme.statusRed
+                                 : isBusy ? appTheme.statusOrange
+                                 : isRunning ? appTheme.statusGreen
                                  : SwbTheme.mutedForeground
                         }
                     }

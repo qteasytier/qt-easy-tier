@@ -15,7 +15,7 @@ SwbDialog {
     width: Math.min(560, parent ? parent.width - 48 : 520)
     standardButtons: Dialog.None
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     /* 视图状态："list" 凭证列表 / "fetching" 获取原密钥中 / "edit" 编辑表单 / "success" 操作成功 / "error" 操作失败 */
     property string viewState: "list"
@@ -465,13 +465,6 @@ SwbDialog {
                 }
             }
 
-            // 允许中继
-            SwbCheckBox {
-                id: editAllowRelayCheck
-                text: qsTr("允许通过该凭证节点中继数据")
-                checked: root.editAllowRelay
-            }
-
             // 允许代理的 CIDR
             RowLayout {
                 Layout.fillWidth: true
@@ -490,11 +483,22 @@ SwbDialog {
                 }
             }
 
-            // 可复用
-            SwbCheckBox {
-                id: editReusableCheck
-                text: qsTr("允许多个节点并发复用该凭证")
-                checked: root.editReusable
+            // 允许中继 + 可复用：两个勾选框并排一行，置于表单最下方
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 24
+
+                SwbCheckBox {
+                    id: editAllowRelayCheck
+                    text: qsTr("允许通过该凭证节点中继数据")
+                    checked: root.editAllowRelay
+                }
+
+                SwbCheckBox {
+                    id: editReusableCheck
+                    text: qsTr("允许多个节点并发复用该凭证")
+                    checked: root.editReusable
+                }
             }
 
             // 底部按钮：返回 / 保存
@@ -527,7 +531,7 @@ SwbDialog {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
-                color: theme.statusGreen
+                color: appTheme.statusGreen
             }
             SwbLabel {
                 Layout.fillWidth: true
@@ -560,7 +564,7 @@ SwbDialog {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
-                color: theme.statusRed
+                color: appTheme.statusRed
             }
             SwbLabel {
                 Layout.fillWidth: true

@@ -64,16 +64,40 @@ ColumnLayout {
     // ============================================
     // Tab 页签容器
     // ============================================
-    QtETabWidget {
-        id: tabWidget
+    // 标签栏：直接使用 SwbControls 的 SwbTabBar（line 变体，按钮均分宽度）
+    SwbTabBar {
+        id: tabBar
+        Layout.fillWidth: true
+        variant: "line"
+
+        SwbTabButton {
+            text: qsTr("基础设置")
+            // 绑定页面根宽而非 tabBar.width：后者经 implicitWidth 依赖子项宽度，会形成绑定循环
+            width: root.width / 2
+        }
+        SwbTabButton {
+            text: qsTr("高级设置")
+            width: root.width / 2
+        }
+    }
+
+    // 标签栏底部分隔线
+    Rectangle {
+        Layout.fillWidth: true
+        height: 1
+        color: SwbTheme.border
+    }
+
+    // 内容区：两个标签页按索引切换
+    StackLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
+        currentIndex: tabBar.currentIndex
 
         // ============================================
         // Tab 1: 基础设置
         // ============================================
         SwbScrollView {
-            property string tabTitle: qsTr("基础设置")
             id: basicScroll
             contentWidth: availableWidth
 
@@ -104,14 +128,8 @@ ColumnLayout {
                         Layout.leftMargin: 12
                         Layout.rightMargin: 12
                         contentSpacing: 6
-
-                        // 卡片标题（元数据未提供时不渲染）
-                        SwbLabel {
-                            text: formCard.modelData.cardTitle
-                            font.bold: true
-                            visible: formCard.modelData.cardTitle !== ""
-                            Layout.bottomMargin: 2
-                        }
+                        // 加粗标题由 Card 内置渲染（元数据未提供时不显示）
+                        title: modelData.cardTitle
 
                         // 字段渲染：FormField 按字段 type 分发到具体渲染器
                         Repeater {
@@ -145,7 +163,6 @@ ColumnLayout {
         // Tab 2: 高级设置
         // ============================================
         SwbScrollView {
-            property string tabTitle: qsTr("高级设置")
             id: advancedScroll
             contentWidth: availableWidth
 
@@ -174,13 +191,8 @@ ColumnLayout {
                         Layout.leftMargin: 12
                         Layout.rightMargin: 12
                         contentSpacing: 6
-
-                        SwbLabel {
-                            text: formCard.modelData.cardTitle
-                            font.bold: true
-                            visible: formCard.modelData.cardTitle !== ""
-                            Layout.bottomMargin: 2
-                        }
+                        // 加粗标题由 Card 内置渲染（元数据未提供时不显示）
+                        title: modelData.cardTitle
 
                         Repeater {
                             model: formCard.modelData.fields
@@ -211,15 +223,15 @@ ColumnLayout {
         Layout.margins: 8
         spacing: 8
 
+        // 弹性空间，将导出/清空按钮统一推至右侧
+        Item { Layout.fillWidth: true }
+
         SwbButton {
             text: qsTr("导出配置")
             // 无当前配置时禁用
             enabled: ConfigEditorViewModel.currentInstanceName !== ""
             onClicked: exportChoiceDialog.open()
         }
-
-        // 弹性空间，将导出按钮推至左侧、清空按钮推至右侧
-        Item { Layout.fillWidth: true }
 
         SwbButton {
             variant: "outline"

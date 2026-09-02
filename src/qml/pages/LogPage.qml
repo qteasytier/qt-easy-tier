@@ -20,10 +20,10 @@ Rectangle {
     /* 根据日志级别字符串返回对应的主题颜色 */
     function levelColor(level) {
         if (level === "error")
-            return theme.statusRed
+            return appTheme.statusRed
         if (level === "warning")
-            return theme.statusOrange
-        return theme.statusGreen
+            return appTheme.statusOrange
+        return appTheme.statusGreen
     }
 
     /* 根据日志级别字符串返回对应的中文显示文本 */
@@ -35,7 +35,7 @@ Rectangle {
         return qsTr("信息")
     }
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     // 页面加载时从数据库读取日志
     Component.onCompleted: LogViewModel.loadLogs()
@@ -67,9 +67,9 @@ Rectangle {
                 Repeater {
                     model: [
                         { label: qsTr("全部"), level: "all", color: SwbTheme.foreground },
-                        { label: qsTr("信息"), level: "info", color: theme.statusGreen },
-                        { label: qsTr("警告"), level: "warning", color: theme.statusOrange },
-                        { label: qsTr("错误"), level: "error", color: theme.statusRed }
+                        { label: qsTr("信息"), level: "info", color: appTheme.statusGreen },
+                        { label: qsTr("警告"), level: "warning", color: appTheme.statusOrange },
+                        { label: qsTr("错误"), level: "error", color: appTheme.statusRed }
                     ]
 
                     delegate: Rectangle {

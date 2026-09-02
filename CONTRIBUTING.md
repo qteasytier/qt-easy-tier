@@ -81,7 +81,7 @@ main.cpp → DatabaseConnection → QQmlApplicationEngine → AppServices
 - ViewModel 负责暴露 QML 可绑定属性/信号/槽、转换数据、协调页面动作、调用应用服务；不应拼 daemon payload、写持久化细节、承载平台逻辑或自建静态 singleton。
 - 运行状态展示模型 `NodeInfoModel` / `RuntimeLogModel` 属于应用核心层（`src/core/runtime/`），由 `VpnRuntimeService` 持有并填充。
 - QML singleton `DangerousOperationViewModel` 是兼容注册名，实际注册对象是应用服务 `DangerousOperationService`。
-- 新 QML 文件加入根 `CMakeLists.txt` 的 `qt_add_qml_module(... QML_FILES ...)`。
+- 新 QML 文件加入其所在目录（`src/qml/components/`、`src/qml/components/config_form/`、`src/qml/pages/`、`src/qml/dde/`）的 `CMakeLists.txt`；根 `CMakeLists.txt` 按目录聚合各列表。UI 统一使用 SwbControls（`import SwbControls`），不再从 C++ 注入 QQuickStyle。
 
 ### 应用核心：src/core
 
@@ -159,7 +159,7 @@ qtet_config / qtet_log
 | 应用核心业务 / 收藏编解码 / VPN 状态机 | `src/core/`（对应子目录） | `qtet_appcore` |
 | QML ViewModel / Model | `src/core/viewmodels/` | `qtet_appcore` |
 | 应用装配 / QML 注册 | `src/app/` | `qtet_appsupport` |
-| QML 页面 / 组件 | `src/qml/` | `qt_add_qml_module` 的 `QML_FILES` |
+| QML 页面 / 组件 | `src/qml/`（按目录的 `CMakeLists.txt` 注册） | app 目标的 qml 模块 |
 | Qt resource | `assets/` | `assets/resources.qrc` |
 
 放置代码前先自问：
@@ -200,31 +200,37 @@ qtet_config / qtet_log
 
 ## 附录：DDE 布局移植（可选）
 
-`BUILD_WITH_DDE=ON`（默认开启）时，主界面由 `main.cpp` 加载 `qrc:/QtEasyTier/dde/DdeMain.qml`（DTK `ApplicationWindow` + `TitleBar`），而非共享的 `Main.qml`。同一套页面与业务层逻辑复用，仅 UI 壳层换用 DTK 主题。
+`BUILD_WITH_DDE=ON`（默认关闭）时，主界面由 `main.cpp` 加载 `qrc:/QtEasyTier/dde/DdeMain.qml`（DTK `ApplicationWindow` + `TitleBar`），而非共享的 `Main.qml`。同一套页面与业务层逻辑复用，仅窗口壳与部分对话框换用 DTK 主题（共享页面为 SwbControls 风格）。
 
 ### 蒙版替换机制
 
-同名组件放在 `src/qml/dde/components/` 下，经 `CMakeLists.txt` 按条件编译，在 DDE 构建中覆盖共享同名类型：
+同名组件放在 `src/qml/dde/components/` 下，经目录 `CMakeLists.txt` 收集到蒙版集合变量，由根 `CMakeLists.txt` 按构建模式二选一编入，在 DDE 构建中覆盖共享同名类型：
 
 ```cmake
+# 各目录把共享版登记进 QTET_QML_MASK_SHARED（如 src/qml/components/CMakeLists.txt）
+list(APPEND QTET_QML_MASK_SHARED
+    components/Card.qml
+    ...
+)
+# DDE 版与 DDE 专属文件登记进 QTET_QML_MASK_DDE（src/qml/dde/CMakeLists.txt）
+set(QTET_QML_MASK_DDE
+    dde/DdeMain.qml
+    dde/components/Card.qml
+    ...
+    PARENT_SCOPE
+)
+# 根 CMakeLists.txt 聚合时二选一
 if(BUILD_WITH_DDE)
-    list(APPEND QTET_QML_FILES
-        src/qml/dde/components/IconToolButton.qml
-        src/qml/dde/components/Card.qml
-        ...
-        src/qml/dde/DdeMain.qml
-    )
+    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_DDE})
 else()
-    list(APPEND QTET_QML_FILES
-        src/qml/components/Card.qml
-        ...
-    )
+    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_SHARED})
 endif()
 ```
 
 - DDE 版与共享版类型名必须一致（类型由文件名决定），才能被蒙版替换。
-- 需要蒙版替换的组件，其共享版必须从基础 `QTET_QML_FILES` 列表移除，仅保留在 `else()` 分支，否则 DDE 模式下同类型重复注册会加载失败。
-- `src/qml/dde/DdeMain.qml`、`src/qml/dde/AppAboutDialog.qml` 只由 DDE 分支加入，无共享对应文件。
+- 需要蒙版替换的组件，其共享版只能进入 `QTET_QML_MASK_SHARED`（不得进常规 `QTET_QML_FILES`），否则 DDE 模式下同类型重复注册会加载失败。
+- `src/qml/dde/DdeMain.qml`、`src/qml/dde/AppAboutDialog.qml` 只由 DDE 集合加入，无共享对应文件。
+- 列表元素为相对 `src/qml/` 的路径，兼作 `QT_RESOURCE_ALIAS`。
 
 ### DTK 对话框要点
 

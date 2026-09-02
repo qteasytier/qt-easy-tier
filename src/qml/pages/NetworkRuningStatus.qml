@@ -1,36 +1,63 @@
-/* @brief 网络运行状态页面：通过自定义 Tab 展示当前网络的节点信息列表和运行日志，支持日志导出 */
+/* @brief 网络运行状态页面：通过自定义 Tab 展示当前网络的节点信息列表和运行日志，支持日志导出，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtEasyTier
+import SwbControls
 
 // 网络运行状态页面：展示当前网络的节点信息与运行日志
 /* @brief 运行状态根容器，包含节点信息 Tab、运行日志 Tab 与页面级导出日志按钮 */
 ColumnLayout {
+    id: root
+
     Layout.fillWidth: true
     Layout.fillHeight: true
     spacing: 0
 
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     /* 根据连接类型等级字符串返回对应颜色 */
     function statusColor(level) {
-        if (level === "green") return theme.statusGreen
-        if (level === "orange") return theme.statusOrange
-        if (level === "red") return theme.statusRed
-        if (level === "blue") return theme.statusBlue
-        return Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
+        if (level === "green") return appTheme.statusGreen
+        if (level === "orange") return appTheme.statusOrange
+        if (level === "red") return appTheme.statusRed
+        if (level === "blue") return appTheme.statusBlue
+        return SwbTheme.withAlpha(SwbTheme.foreground, 0.15)
     }
 
-    // 自定义 Tab 控件，包含两个标签页
-    QtETabWidget {
+    // 标签栏：直接使用 SwbControls 的 SwbTabBar（line 变体，按钮均分宽度）
+    SwbTabBar {
+        id: tabBar
+        Layout.fillWidth: true
+        variant: "line"
+
+        SwbTabButton {
+            text: qsTr("运行状态")
+            // 绑定页面根宽而非 tabBar.width：后者经 implicitWidth 依赖子项宽度，会形成绑定循环
+            width: root.width / 2
+        }
+        SwbTabButton {
+            text: qsTr("运行日志")
+            width: root.width / 2
+        }
+    }
+
+    // 标签栏底部分隔线
+    Rectangle {
+        Layout.fillWidth: true
+        height: 1
+        color: SwbTheme.border
+    }
+
+    // 内容区：两个标签页按索引切换
+    StackLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
+        currentIndex: tabBar.currentIndex
 
         // ========== 标签页1：运行状态 ==========
         Item {
-            property string tabTitle: qsTr("运行状态")
 
             ColumnLayout {
                 anchors.fill: parent
@@ -38,11 +65,11 @@ ColumnLayout {
                 spacing: 0
 
                 // 空状态：暂无节点信息
-                Label {
+                SwbLabel {
                     visible: VpnRuntimeService.nodeInfoModel.count === 0
                     text: qsTr("暂无节点信息")
                     font.pixelSize: 24
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     horizontalAlignment: Text.AlignHCenter
@@ -59,6 +86,8 @@ ColumnLayout {
                     spacing: 6
                     clip: true
 
+                    ScrollBar.vertical: SwbScrollBar {}
+
                     // 每个节点用 Card 组件展示
                     delegate: Card {
                         width: nodeListView.width
@@ -73,41 +102,36 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 6
 
-                                // 虚拟 IP（高亮显示）
-                                Label {
+                                // 虚拟 IP（加粗前景色强调）
+                                SwbLabel {
                                     text: virtualIp || ""
                                     font.bold: true
-                                    color: palette.highlight
                                 }
 
                                 // 主机名
-                                Label {
+                                SwbLabel {
                                     text: hostname || ""
-                                    color: palette.windowText
                                 }
 
                                 Item { Layout.fillWidth: true }
 
-                                // 本机标记：半透明高亮背景
+                                // 本机标记：柔和前景色徽章
                                 Rectangle {
                                     visible: isLocalNode === true
                                     radius: 4
-                                    color: Qt.rgba(palette.highlight.r,
-                                        palette.highlight.g,
-                                        palette.highlight.b, 0.15)
+                                    color: SwbTheme.withAlpha(SwbTheme.foreground, 0.12)
                                     implicitWidth: localLabel.implicitWidth + 8
                                     implicitHeight: localLabel.implicitHeight + 4
 
-                                    Label {
+                                    SwbLabel {
                                         id: localLabel
                                         anchors.centerIn: parent
                                         text: qsTr("本机")
                                         font: FontHelper.smallFont
-                                        color: palette.highlight
                                     }
                                 }
 
-                                // 连接类型标记：颜色通过 Theme 单例统一管理
+                                // 连接类型标记：颜色通过状态色统一管理
                                 Rectangle {
                                     visible: !(isLocalNode === true)
                                     radius: 4
@@ -115,12 +139,12 @@ ColumnLayout {
                                     implicitWidth: typeLabel.implicitWidth + 8
                                     implicitHeight: typeLabel.implicitHeight + 4
 
-                                    Label {
+                                    SwbLabel {
                                         id: typeLabel
                                         anchors.centerIn: parent
                                         text: connectionTypeText || ""
                                         font: FontHelper.smallFont
-                                        color: connectionTypeTextColor === "onColor" ? theme.textOnColor : palette.windowText
+                                        color: connectionTypeTextColor === "onColor" ? appTheme.textOnColor : SwbTheme.foreground
                                     }
                                 }
                             }
@@ -131,19 +155,19 @@ ColumnLayout {
                                 spacing: 12
 
                                 // 延迟显示：绿(<60ms) / 橙(<200ms) / 红(>=200ms)
-                                Label {
+                                SwbLabel {
                                     text: latencyText
                                     font: FontHelper.smallFont
-                                    color: latencyLevel === "unknown" ? palette.placeholderText : statusColor(latencyLevel)
+                                    color: latencyLevel === "unknown" ? SwbTheme.mutedForeground : statusColor(latencyLevel)
                                     // 非本机节点或本机有延迟时显示
                                     visible: showLatency
                                 }
 
                                 // 协议信息（如 UDP/TCP）
-                                Label {
+                                SwbLabel {
                                     text: protocol || ""
                                     font: FontHelper.smallFont
-                                    color: palette.placeholderText
+                                    color: SwbTheme.mutedForeground
                                     visible: (protocol || "") !== ""
                                 }
                             }
@@ -155,7 +179,6 @@ ColumnLayout {
 
         // ========== 标签页2：运行日志 ==========
         Item {
-            property string tabTitle: qsTr("运行日志")
 
             ColumnLayout {
                 anchors.fill: parent
@@ -165,11 +188,11 @@ ColumnLayout {
                 Item { Layout.preferredHeight: 8 }
 
                 // 空状态：暂无日志
-                Label {
+                SwbLabel {
                     visible: VpnRuntimeService.runtimeLogModel.count === 0
                     text: qsTr("暂无日志")
                     font.pixelSize: 24
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     horizontalAlignment: Text.AlignHCenter
@@ -177,20 +200,20 @@ ColumnLayout {
                 }
 
                 // 日志文本框：使用控件内置滚动条，文本自动避开滚动区域边界
-                ScrollView {
+                SwbScrollView {
                     id: logScrollView
                     visible: VpnRuntimeService.runtimeLogModel.count > 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
 
-                    TextArea {
+                    SwbTextArea {
                         id: runtimeLogTextArea
                         text: VpnRuntimeService.runtimeLogModel.plainText
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.WrapAnywhere
-                        color: palette.windowText
+                        // 日志展示用无背景纯文本形态
                         background: null
 
                         onTextChanged: cursorPosition = length
@@ -207,7 +230,8 @@ ColumnLayout {
 
         Item { Layout.fillWidth: true }
 
-        Button {
+        SwbButton {
+            variant: "outline"
             text: qsTr("管理临时节点密钥")
             enabled: NetworkPageViewModel.currentInstanceSecureMode
             onClicked: {
@@ -217,7 +241,7 @@ ColumnLayout {
             }
         }
 
-        Button {
+        SwbButton {
             text: qsTr("导出日志")
             onClicked: exportLogDialog.open()
         }
