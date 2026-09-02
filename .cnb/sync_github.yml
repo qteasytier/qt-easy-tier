@@ -100,10 +100,10 @@
 # ---- v* 分支 push（发布流程）：无需再同步代码（通用 push 已负责），
 #      直接等待 GitHub 发布对应版本 release 后镜像同步到本仓库，
 #      同步完成流水线才结束 ----
-v*:
-  push:
-    wait-and-mirror-release:
-      runner:
-        cpus: 1
-      stages:
-        - *st-wait-and-mirror-release
+#v*:
+#  push:
+#    wait-and-mirror-release:
+#      runner:
+#        cpus: 1
+#      stages:
+#        - *st-wait-and-mirror-release

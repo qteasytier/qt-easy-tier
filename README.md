@@ -98,7 +98,7 @@ pacman -S  mingw-w64-ucrt-x86_64-gcc \
 
 **您还需要将MSYS2 UCRT安装目录添加到环境变量 `PATH` 中**。
 
-### deein/UOS 系统构建
+### deepin/UOS 系统构建
 
 QtEasyTier 专门适配了 DDE 桌面环境，您可以构建 DDE 专版应用程序
 
