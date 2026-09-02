@@ -39,6 +39,24 @@ target_link_libraries(tst_config_list_model PRIVATE qtet_appcore)
 add_core_test(tst_config_editor_viewmodel tst_config_editor_viewmodel.cpp)
 target_link_libraries(tst_config_editor_viewmodel PRIVATE qtet_appcore)
 
+# 网络配置编辑器薄壳的 QML 冒烟测试：经构建树模块目录加载 pages/NetworkOptions.qml。
+# 模块 qmldir 带 prefer :/QtEasyTier/，优先从 qrc 解析类型，故把同一份 QML
+# （QTET_QML_FILES 元素为相对 src/qml 的路径，兼作 QT_RESOURCE_ALIAS）
+# 与图标资源一并嵌入测试进程。
+add_core_test(tst_network_options_smoke tst_network_options_smoke.cpp ${CMAKE_SOURCE_DIR}/assets/resources.qrc)
+# 静态集成：按上游 README 同时链接 SwbControlsplugin（QML 插件与类型注册）
+target_link_libraries(tst_network_options_smoke PRIVATE qtet_appsupport SwbControls SwbControlsplugin)
+target_compile_definitions(tst_network_options_smoke PRIVATE QTET_TEST_QML_DIR="${CMAKE_BINARY_DIR}")
+set(QTET_SMOKE_QML_ABS "")
+foreach(qml_rel IN LISTS QTET_QML_FILES)
+    list(APPEND QTET_SMOKE_QML_ABS "${CMAKE_SOURCE_DIR}/src/qml/${qml_rel}")
+    set_source_files_properties("${CMAKE_SOURCE_DIR}/src/qml/${qml_rel}" PROPERTIES QT_RESOURCE_ALIAS "${qml_rel}")
+endforeach()
+qt_add_resources(tst_network_options_smoke "qtet_qml_smoke"
+    PREFIX "/QtEasyTier"
+    FILES ${QTET_SMOKE_QML_ABS}
+)
+
 add_core_test(tst_favorite_node_repository tst_favorite_node_repository.cpp)
 target_link_libraries(tst_favorite_node_repository PRIVATE qtet_sqlite_repository)
 

@@ -1,21 +1,21 @@
-/* @brief 运行日志页面：展示应用运行日志，支持按级别筛选（全部/信息/警告/错误）和清空操作 */
+/* @brief 运行日志页面：展示应用运行日志，支持按级别筛选（全部/信息/警告/错误）和清空操作，Swb 控件试点页 */
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 /* @brief 日志页面根容器，包含筛选栏和日志列表 */
 Rectangle {
     id: root
 
-    color: palette.window
+    color: SwbTheme.background
     /* 当前日志级别筛选条件：all/info/warning/error */
     property string levelFilter: "all"
 
     /* 分隔线颜色 */
-    readonly property color dividerColor: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.12)
+    readonly property color dividerColor: SwbTheme.border
     /* 未选中筛选按钮的柔和背景色 */
-    readonly property color mutedPanelColor: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.045)
+    readonly property color mutedPanelColor: SwbTheme.secondary
 
     /* 根据日志级别字符串返回对应的主题颜色 */
     function levelColor(level) {
@@ -47,12 +47,12 @@ Rectangle {
         spacing: 10
 
         // 页面标题
-        Label {
+        SwbLabel {
             Layout.fillWidth: true
             text: qsTr("运行日志")
             font.bold: true
             font.pixelSize: 24
-            color: palette.highlight
+            color: SwbTheme.foreground
         }
 
         // 日志筛选工具栏
@@ -66,7 +66,7 @@ Rectangle {
                 // 级别筛选按钮组：全部/信息/警告/错误
                 Repeater {
                     model: [
-                        { label: qsTr("全部"), level: "all", color: palette.highlight },
+                        { label: qsTr("全部"), level: "all", color: SwbTheme.foreground },
                         { label: qsTr("信息"), level: "info", color: theme.statusGreen },
                         { label: qsTr("警告"), level: "warning", color: theme.statusOrange },
                         { label: qsTr("错误"), level: "error", color: theme.statusRed }
@@ -80,16 +80,16 @@ Rectangle {
                         Layout.preferredWidth: chipText.implicitWidth + 26
                         Layout.preferredHeight: chipText.implicitHeight + 10
                         radius: height / 2
-                        color: selected ? Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.2) : root.mutedPanelColor
+                        color: selected ? SwbTheme.withAlpha(modelData.color, 0.2) : root.mutedPanelColor
                         border.color: selected ? modelData.color : root.dividerColor
                         border.width: 1
 
-                        Label {
+                        SwbLabel {
                             id: chipText
                             anchors.centerIn: parent
                             text: modelData.label
                             font.bold: filterChip.selected
-                            color: filterChip.selected ? modelData.color : palette.windowText
+                            color: filterChip.selected ? modelData.color : SwbTheme.foreground
                         }
 
                         MouseArea {
@@ -102,16 +102,16 @@ Rectangle {
 
                 Item { Layout.fillWidth: true }
 
-                Label {
+                SwbLabel {
                     text: qsTr("已保存 %1 / %2").arg(LogViewModel.count).arg(SettingsViewModel.maxLogEntries)
                     font.pixelSize: FontHelper.smallFont.pixelSize
                     font.bold: true
-                    color: Qt.rgba(palette.highlight.r, palette.highlight.g, palette.highlight.b, 1.0)
+                    color: SwbTheme.foreground
                 }
 
-                Button {
+                SwbButton {
                     text: qsTr("清空日志")
-                    flat: true
+                    variant: "ghost"
                     enabled: LogViewModel.count > 0
                     onClicked: LogViewModel.clearLogs()
                 }
@@ -135,19 +135,19 @@ Rectangle {
                     width: Math.min(parent.width, 360)
                     spacing: 10
 
-                    Label {
+                    SwbLabel {
                         Layout.fillWidth: true
                         text: qsTr("没有可显示的日志")
                         font.bold: true
-                        color: palette.windowText
+                        color: SwbTheme.foreground
                         horizontalAlignment: Text.AlignHCenter
                     }
 
-                    Label {
+                    SwbLabel {
                         Layout.fillWidth: true
                         text: qsTr("当应用产生达到当前输出等级的日志时，会自动出现在这里。")
                         font: FontHelper.smallFont
-                        color: palette.placeholderText
+                        color: SwbTheme.mutedForeground
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -185,11 +185,11 @@ Rectangle {
                                 Layout.preferredWidth: entryLevelText.implicitWidth + 26
                                 Layout.preferredHeight: entryLevelText.implicitHeight + 10
                                 radius: height / 2
-                                color: Qt.rgba(root.levelColor(level).r, root.levelColor(level).g, root.levelColor(level).b, 0.16)
+                                color: SwbTheme.withAlpha(root.levelColor(level), 0.16)
                                 border.color: root.levelColor(level)
                                 border.width: 1
 
-                                Label {
+                                SwbLabel {
                                     id: entryLevelText
                                     anchors.centerIn: parent
                                     text: root.levelText(level)
@@ -199,7 +199,7 @@ Rectangle {
                                 }
                             }
 
-                            Label {
+                            SwbLabel {
                                 Layout.fillWidth: true
                                 text: "[" + timestamp + "]"
                                 font.pixelSize: FontHelper.smallFont.pixelSize
@@ -209,10 +209,10 @@ Rectangle {
                             }
                         }
 
-                        Label {
+                        SwbLabel {
                             Layout.fillWidth: true
                             text: message
-                            color: palette.windowText
+                            color: SwbTheme.foreground
                             horizontalAlignment: Text.AlignLeft
                             wrapMode: Text.WrapAnywhere
                         }

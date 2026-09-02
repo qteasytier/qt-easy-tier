@@ -95,7 +95,7 @@ ApplicationWindow {
             Sidebar {
                 id: sidebar
 
-                Layout.preferredWidth: 64
+                Layout.preferredWidth: 56
                 Layout.fillHeight: true
                 currentIndex: 0
 

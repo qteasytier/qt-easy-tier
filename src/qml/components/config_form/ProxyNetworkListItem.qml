@@ -1,7 +1,9 @@
-/* @brief 代理子网列表组件：管理 cidr + mappedCidr + allow 列表，支持添加、删除和去重检测 */
+/* @brief 代理子网列表组件：管理 cidr + mappedCidr + allow 列表，支持添加、删除和去重检测，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtEasyTier
+import SwbControls
 
 ColumnLayout {
     id: root
@@ -12,6 +14,9 @@ ColumnLayout {
     signal duplicateDetected(string msg)
 
     spacing: 4
+
+    // 状态色(添加按钮文字统一用 statusGreen)
+    Theme { id: theme }
 
     function allProtocols() {
         return ["tcp", "udp", "icmp"]
@@ -40,20 +45,41 @@ ColumnLayout {
     ListView {
         id: listView
         Layout.fillWidth: true
-        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 44 + 4
-        spacing: 2
+        // 动态计算高度（行高 42，分隔线风格无行距）
+        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 42
+        spacing: 0
         model: listModel
         interactive: false
 
         delegate: Rectangle {
+            id: proxyRow
+
             required property int index
             required property var model
 
             width: ListView.view.width
             height: 42
-            color: index % 2 === 0 ? "transparent"
-                                   : Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.04)
-            radius: 4
+            color: rowHover.hovered ? SwbTheme.withAlpha(SwbTheme.foreground, 0.04)
+                 : "transparent"
+            radius: SwbTheme.radiusSm
+
+            Behavior on color {
+                ColorAnimation { duration: SwbTheme.animationDuration }
+            }
+
+            HoverHandler {
+                id: rowHover
+            }
+
+            // 行底分隔线（最后一行不显示）
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: SwbTheme.border
+                visible: proxyRow.index < listView.count - 1
+            }
 
             RowLayout {
                 anchors.fill: parent
@@ -65,17 +91,17 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    Label {
+                    SwbLabel {
                         Layout.fillWidth: true
                         text: model.mappedCidr ? model.cidr + " -> " + model.mappedCidr : model.cidr
                         elide: Text.ElideRight
                         verticalAlignment: Text.AlignVCenter
                     }
 
-                    Label {
+                    SwbLabel {
                         Layout.fillWidth: true
                         text: qsTr("协议: ") + root.allowText(model.allow)
-                        color: palette.placeholderText
+                        color: SwbTheme.mutedForeground
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }
@@ -93,19 +119,13 @@ ColumnLayout {
         }
     }
 
-    Button {
+    SwbButton {
         id: addButton
         Layout.fillWidth: true
-        flat: true
+        variant: "ghost"
+        size: "sm"
         text: qsTr("添加代理子网")
-        contentItem: Label {
-            text: addButton.text
-            color: palette.highlight
-            renderType: Text.NativeRendering
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
+        textColor: theme.statusGreen
         onClicked: {
             addDialog.cidrText = ""
             addDialog.mappedCidrText = ""
@@ -116,10 +136,9 @@ ColumnLayout {
         }
     }
 
-    Dialog {
+    SwbDialog {
         id: addDialog
         title: qsTr("添加代理子网")
-        modal: true
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
@@ -162,31 +181,31 @@ ColumnLayout {
             width: parent ? parent.width : 360
             spacing: 8
 
-            Label { text: qsTr("CIDR（必填）") }
+            SwbLabel { text: qsTr("CIDR（必填）") }
 
-            TextField {
+            SwbTextField {
                 id: cidrField
                 Layout.fillWidth: true
                 placeholderText: "192.168.1.0/24"
                 onAccepted: addDialog.acceptProxyNetwork()
             }
 
-            Label { text: qsTr("映射网段（选填）") }
+            SwbLabel { text: qsTr("映射网段（选填）") }
 
-            TextField {
+            SwbTextField {
                 id: mappedCidrField
                 Layout.fillWidth: true
                 placeholderText: "192.168.10.0/24"
                 onAccepted: addDialog.acceptProxyNetwork()
             }
 
-            Label { text: qsTr("允许协议") }
+            SwbLabel { text: qsTr("允许协议") }
 
             RowLayout {
                 Layout.fillWidth: true
-                CheckBox { id: tcpCheck; text: "tcp"; checked: true }
-                CheckBox { id: udpCheck; text: "udp"; checked: true }
-                CheckBox { id: icmpCheck; text: "icmp"; checked: true }
+                SwbCheckBox { id: tcpCheck; text: "tcp"; checked: true }
+                SwbCheckBox { id: udpCheck; text: "udp"; checked: true }
+                SwbCheckBox { id: icmpCheck; text: "icmp"; checked: true }
             }
         }
 
@@ -197,12 +216,13 @@ ColumnLayout {
             topPadding: 8
             bottomPadding: 12
 
-            Button {
+            SwbButton {
+                variant: "outline"
                 text: qsTr("取消")
                 onClicked: addDialog.close()
             }
 
-            Button {
+            SwbButton {
                 text: qsTr("添加")
                 onClicked: addDialog.acceptProxyNetwork()
             }

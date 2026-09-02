@@ -1,16 +1,17 @@
-/* @brief 节点收藏页面：管理常用节点的增删改查，支持节点名称/URI/公钥的编辑和清空操作 */
+/* @brief 节点收藏页面：管理常用节点的增删改查，支持节点名称/URI/公钥的编辑和清空操作，Swb 控件迁移页 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 // 节点收藏页面：管理常用节点的增删改查
 /* @brief 收藏页面根容器，包含节点列表和添加/清空按钮 */
 Rectangle {
     id: root
 
-    color: palette.window
+    color: SwbTheme.background
 
     /* 当前正在编辑的节点数据库 ID，-1 表示新增模式 */
     property int editNodeId: -1
@@ -35,18 +36,18 @@ Rectangle {
         spacing: 10
 
         // 页面标题
-        Label {
+        SwbLabel {
             text: qsTr("节点收藏")
             font.pixelSize: 24
             font.bold: true
-            color: palette.highlight
+            color: SwbTheme.foreground
         }
 
         // 空状态提示：无节点时显示引导文字
-        Label {
+        SwbLabel {
             visible: FavoriteNodeViewModel.count === 0
             text: qsTr("暂无收藏节点，点击下方按钮添加")
-            color: palette.placeholderText
+            color: SwbTheme.mutedForeground
             font.pixelSize: 13
             Layout.fillWidth: true
             Layout.topMargin: 20
@@ -59,11 +60,15 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 4
+            spacing: 0
             model: FavoriteNodeViewModel
 
-            // 单个节点行
+            ScrollBar.vertical: SwbScrollBar {}
+
+            // 单个节点行：悬停浅色反馈 + 行底分隔线（替代原斑马纹）
             delegate: Rectangle {
+                id: nodeRow
+
                 required property int index
                 required property int nodeId
                 required property string nodeName
@@ -72,10 +77,26 @@ Rectangle {
 
                 width: nodeListView.width
                 height: 56
-                radius: 8
-                // 偶数行透明，奇数行用极淡的文字色做分隔
-                color: index % 2 === 0 ? "transparent"
-                       : Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.04)
+                color: rowHover.hovered ? SwbTheme.withAlpha(SwbTheme.foreground, 0.04)
+                     : "transparent"
+
+                Behavior on color {
+                    ColorAnimation { duration: SwbTheme.animationDuration }
+                }
+
+                HoverHandler {
+                    id: rowHover
+                }
+
+                // 行底分隔线（最后一行不显示）
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: SwbTheme.border
+                    visible: nodeRow.index < nodeListView.count - 1
+                }
 
                 RowLayout {
                     anchors.fill: parent
@@ -88,7 +109,7 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 2
 
-                        Label {
+                        SwbLabel {
                             // 有公钥时标注【安全】
                             text: nodeName + (nodePublicKey ? qsTr("【安全】") : "")
                             font.pixelSize: 14
@@ -97,10 +118,10 @@ Rectangle {
                             Layout.fillWidth: true
                         }
 
-                        Label {
+                        SwbLabel {
                             text: nodeUri
                             font.pixelSize: 11
-                            color: palette.placeholderText
+                            color: SwbTheme.mutedForeground
                             font.family: "monospace"
                             elide: Text.ElideMiddle
                             Layout.fillWidth: true
@@ -146,7 +167,7 @@ Rectangle {
                 spacing: 6
 
                 // 添加节点按钮
-                Button {
+                SwbButton {
                     Layout.fillWidth: true
                     text: qsTr("添加节点")
                     onClicked: {
@@ -161,40 +182,40 @@ Rectangle {
                 }
 
                 // 批量导入节点：读取与 publicservers.json 相同格式的 JSON 文件
-                Button {
+                SwbButton {
                     Layout.fillWidth: true
                     text: qsTr("导入节点")
+                    variant: "outline"
                     onClicked: importModeDialog.open()
                 }
 
                 // 批量导出节点：导出为与 publicservers.json 相同格式的 JSON 文件
-                Button {
+                SwbButton {
                     Layout.fillWidth: true
                     text: qsTr("导出节点")
+                    variant: "outline"
                     enabled: FavoriteNodeViewModel.count > 0
                     onClicked: exportNodesFileDialog.open()
                 }
             }
 
-
-
-            // 清空列表按钮：仅在有节点时可用
-            Button {
+            // 清空列表按钮：危险操作，红字 ghost 样式，仅在有节点时可用
+            SwbButton {
                 Layout.fillWidth: true
                 text: qsTr("清空节点列表")
-                flat: true
+                variant: "ghost"
+                textColor: SwbTheme.destructive
                 enabled: FavoriteNodeViewModel.count > 0
                 onClicked: clearConfirmDialog.open()
             }
-
         }
     }
 
     // 批量导入方式选择对话框
-    Dialog {
+    SwbDialog {
         id: importModeDialog
         title: qsTr("导入节点")
-        modal: true
+        parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(360, parent ? parent.width - 48 : 320)
 
@@ -202,7 +223,7 @@ Rectangle {
             width: parent ? parent.width : 320
             spacing: 8
 
-            Button {
+            SwbButton {
                 Layout.fillWidth: true
                 text: qsTr("从本地文件导入")
                 onClicked: {
@@ -211,9 +232,10 @@ Rectangle {
                 }
             }
 
-            Button {
+            SwbButton {
                 Layout.fillWidth: true
                 text: qsTr("从 URL 导入")
+                variant: "outline"
                 onClicked: {
                     importModeDialog.close()
                     importUrlField.text = ""
@@ -224,11 +246,11 @@ Rectangle {
     }
 
     // 批量导入 URL 输入对话框
-    Dialog {
+    SwbDialog {
         id: importUrlDialog
         title: qsTr("从 URL 导入节点")
         standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
+        parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
 
@@ -236,11 +258,11 @@ Rectangle {
             width: parent ? parent.width : 360
             spacing: 8
 
-            Label {
+            SwbLabel {
                 text: qsTr("节点 JSON 地址（http/https）")
             }
 
-            TextField {
+            SwbTextField {
                 id: importUrlField
                 Layout.fillWidth: true
                 placeholderText: qsTr("https://example.com/nodes.json")
@@ -281,11 +303,11 @@ Rectangle {
     }
 
     // 节点编辑/添加对话框
-    Dialog {
+    SwbDialog {
         id: nodeDialog
         title: editMode ? qsTr("编辑节点") : qsTr("添加节点")
         standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
+        parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
 
@@ -293,31 +315,31 @@ Rectangle {
             width: parent ? parent.width : 360
             spacing: 8
 
-            Label {
+            SwbLabel {
                 text: qsTr("节点名称（必填）")
             }
 
-            TextField {
+            SwbTextField {
                 id: editNameField
                 Layout.fillWidth: true
                 placeholderText: qsTr("请输入节点名称")
             }
 
-            Label {
+            SwbLabel {
                 text: qsTr("节点地址（必填）")
             }
 
-            TextField {
+            SwbTextField {
                 id: editUriField
                 Layout.fillWidth: true
                 placeholderText: qsTr("例如：tcp://example.com:27773")
             }
 
-            Label {
+            SwbLabel {
                 text: qsTr("节点公钥（选填）")
             }
 
-            TextField {
+            SwbTextField {
                 id: editPublicKeyField
                 Layout.fillWidth: true
                 placeholderText: qsTr("留空表示不使用公钥验证")
@@ -346,18 +368,18 @@ Rectangle {
     }
 
     // 删除单个节点确认对话框
-    Dialog {
+    SwbDialog {
         id: deleteConfirmDialog
         title: qsTr("确认删除")
+        parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(320, parent.width - 32)
-        modal: true
         standardButtons: Dialog.Yes | Dialog.No
 
         property string nodeName: ""
         property int nodeId: -1
 
-        Label {
+        SwbLabel {
             text: qsTr("确定要删除节点 \"%1\" 吗？").arg(deleteConfirmDialog.nodeName)
             wrapMode: Text.WordWrap
             width: parent ? parent.width : 280
@@ -370,15 +392,15 @@ Rectangle {
     }
 
     // 清空全部节点确认对话框
-    Dialog {
+    SwbDialog {
         id: clearConfirmDialog
         title: qsTr("确认清空")
+        parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(320, parent.width - 32)
-        modal: true
         standardButtons: Dialog.Yes | Dialog.No
 
-        Label {
+        SwbLabel {
             text: qsTr("确定要清空所有节点吗？此操作不可恢复。")
             wrapMode: Text.WordWrap
             width: parent ? parent.width : 280

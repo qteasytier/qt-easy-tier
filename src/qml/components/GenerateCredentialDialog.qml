@@ -1,15 +1,15 @@
-/* @brief 添加临时节点密钥对话框：填写参数签发安全模式临时凭证，成功后展示密钥并支持一键复制 */
+/* @brief 添加临时节点密钥对话框：填写参数签发安全模式临时凭证，成功后展示密钥并支持一键复制，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 /* @brief 临时节点密钥生成对话框，包含完整参数表单与结果/错误展示 */
-Dialog {
+SwbDialog {
     id: root
 
     title: qsTr("添加临时节点密钥")
-    modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(520, parent ? parent.width - 48 : 480)
@@ -78,18 +78,16 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("有效期（秒）")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                SpinBox {
+                SwbSpinBox {
                     id: ttlSpin
                     Layout.fillWidth: true
                     from: 1
                     to: 2592000
                     value: 3600
-                    editable: true
                 }
             }
 
@@ -98,12 +96,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("凭证 ID（可选）")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     id: idField
                     Layout.fillWidth: true
                     placeholderText: qsTr("留空则由服务端自动生成")
@@ -112,13 +109,13 @@ Dialog {
             }
 
             // 允许中继
-            CheckBox {
+            SwbCheckBox {
                 id: allowRelayCheck
                 text: qsTr("允许通过该凭证节点中继数据")
             }
 
             // 可复用
-            CheckBox {
+            SwbCheckBox {
                 id: reusableCheck
                 text: qsTr("允许多个节点并发复用该凭证")
                 checked: true
@@ -129,12 +126,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("ACL 组")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     id: groupsField
                     Layout.fillWidth: true
                     placeholderText: qsTr("逗号分隔，可留空")
@@ -147,12 +143,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("允许代理 CIDR")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     id: cidrsField
                     Layout.fillWidth: true
                     placeholderText: qsTr("逗号分隔，可留空")
@@ -161,12 +156,12 @@ Dialog {
             }
 
             // 目标实例提示
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("将当前实例「%1」作为凭证签发目标。")
                     .arg(VpnRuntimeService.activeInstanceName)
                 font: FontHelper.smallFont
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
                 wrapMode: Text.WordWrap
                 visible: VpnRuntimeService.activeInstanceName !== ""
             }
@@ -178,7 +173,7 @@ Dialog {
             spacing: 10
 
             // 密钥仅本次展示，关闭后无法再次查看
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("关闭本页面后密钥将不再显示，请妥善保管")
                 font.bold: true
@@ -186,10 +181,10 @@ Dialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("临时凭证生成成功，复制密钥分发给其他节点即可临时加入网络：")
-                color: palette.windowText
+                color: SwbTheme.foreground
                 wrapMode: Text.WordWrap
             }
 
@@ -198,32 +193,31 @@ Dialog {
                 Layout.fillWidth: true
                 visible: root.resultCredentialId !== ""
 
-                Label {
+                SwbLabel {
                     text: qsTr("凭证 ID")
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                 }
-                Label {
+                SwbLabel {
                     text: root.resultCredentialId
                     font.family: "monospace"
-                    color: palette.highlight
+                    color: SwbTheme.foreground
                     elide: Text.ElideMiddle
                     Layout.fillWidth: true
                 }
             }
 
             // 密钥内容（只读，可选中复制）
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("密钥（credential_secret）")
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
             }
-            TextField {
+            SwbTextField {
                 id: secretArea
                 text: root.resultSecret
                 readOnly: true
                 selectByMouse: true
                 font.family: "monospace"
-                color: palette.windowText
                 Layout.fillWidth: true
             }
 
@@ -231,9 +225,8 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Button {
+                SwbButton {
                     text: qsTr("复制密钥")
-                    highlighted: true
                     onClicked: {
                         secretArea.selectAll()
                         secretArea.copy()
@@ -241,7 +234,7 @@ Dialog {
                         copyHintTimer.restart()
                     }
                 }
-                Label {
+                SwbLabel {
                     id: copyHint
                     visible: false
                     text: qsTr("已复制到剪贴板")
@@ -254,10 +247,10 @@ Dialog {
                     onTriggered: copyHint.visible = false
                 }
                 Item { Layout.fillWidth: true }
-                Label {
+                SwbLabel {
                     text: qsTr("过期时间：%1").arg(root.resultExpiryText)
                     font: FontHelper.smallFont
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                 }
             }
         }
@@ -267,16 +260,16 @@ Dialog {
             visible: !root.showForm && root.hasError
             spacing: 10
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("生成失败")
                 font.bold: true
                 color: theme.statusRed
             }
-            Label {
+            SwbLabel {
                 id: errorText
                 Layout.fillWidth: true
-                color: palette.windowText
+                color: SwbTheme.foreground
                 wrapMode: Text.WordWrap
             }
         }
@@ -289,16 +282,16 @@ Dialog {
             Item { Layout.fillWidth: true }
 
             // 表单视图：取消 / 生成
-            Button {
+            SwbButton {
                 visible: root.showForm
+                variant: "outline"
                 text: qsTr("取消")
                 enabled: !root.generating
                 onClicked: root.close()
             }
-            Button {
+            SwbButton {
                 visible: root.showForm
                 text: root.generating ? qsTr("生成中…") : qsTr("生成")
-                highlighted: true
                 enabled: !root.generating && VpnRuntimeService.activeInstanceName !== ""
                 onClicked: {
                     CredentialViewModel.generateCredential(
@@ -313,10 +306,9 @@ Dialog {
             }
 
             // 结果 / 错误视图：完成
-            Button {
+            SwbButton {
                 visible: !root.showForm
                 text: qsTr("完成")
-                highlighted: !root.hasError
                 onClicked: root.close()
             }
         }

@@ -93,3 +93,7 @@ configs-wal
 .worktrees/
 .vscode/
 docs/
+
+# 本地参考目录与工具目录,不入库
+/SWB-QML-UI-main/
+/.zcode/

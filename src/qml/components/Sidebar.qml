@@ -1,111 +1,125 @@
-/* @brief 侧边栏导航组件：垂直排列的导航项列表，通过 currentIndex 控制选中项，右侧有分隔线 */
+/* @brief 侧边栏导航组件：参照 SWB-QML-UI 示例的图标 rail 风格，SwbToolButton 导航项 + 底部明暗主题切换 */
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import SwbControls
 
-// 侧边栏导航：垂直排列的导航项列表，右侧有分隔线
+// 侧边栏导航：64px 纯图标 rail（示例项目模式）
+// 选中态由 SwbToolButton 的 checked 背景块表达，悬停提示由 SwbToolTip 提供
 // 通过 currentIndex 控制选中项，itemClicked 信号通知外部切换页面
-/* @brief 侧边栏根容器，包含导航项列表和右侧分隔线 */
+/* @brief 侧边栏根容器：应用标识、导航按钮组、弹簧与主题切换按钮 */
 Rectangle {
     id: root
 
-    color: palette.alternateBase
+    color: SwbTheme.background
 
     /* 当前选中项的索引，0=网络配置 1=节点收藏 2=日志 3=设置 */
     property int currentIndex: 0
 
+    /*
+      主题模式：auto=跟随系统（默认）/ light / dark。
+      SwbTheme.darkMode 默认绑定 Application.styleHints.colorScheme，系统深浅色
+      变化会实时生效；但手动赋值会打断该绑定，故仅显式选择时覆盖，
+      切回 auto 时通过 applyThemeMode() 重建响应式绑定恢复跟随。
+    */
+    property string themeMode: "auto"
+
     /* 导航项被点击时发出，外部按索引切换对应页面 */
     signal itemClicked(int index)
 
-    /*
-      重复器内容变化计数：用于让共享选中条在 delegate 延迟创建或重建时重新求值。
-      这样即使 currentIndex 先于 delegate 完成设置，也能在 item 可用后刷新到正确位置。
-    */
-    property int delegateRevision: 0
+    /* 图标边长：主题 token 基础上加 6，配合 lg 按钮尺寸 */
+    readonly property int navIconSize: SwbTheme.iconSize + 6
 
-    /*
-      组件初次完成前禁用高亮条的位移动画，避免它从左上角错误滑入。
-    */
-    property bool indicatorAnimationReady: false
-
-    function selectedItem() {
-        return repeater.itemAt(root.currentIndex)
-    }
-
-    function selectedItemX() {
-        return sidebarLayout.x + 3
-    }
-
-    function selectedItemY() {
-        const item = root.selectedItem()
-        return item ? sidebarLayout.y + item.y + item.height * 0.2 : sidebarLayout.y
-    }
-
-    function selectedItemHeight() {
-        const item = root.selectedItem()
-        return item ? item.height * 0.6 : 0
+    /* 应用当前主题模式：auto 时重建对系统 colorScheme 的绑定，否则固定覆盖 */
+    function applyThemeMode() {
+        if (themeMode === "auto") {
+            SwbTheme.darkMode = Qt.binding(function() {
+                return Application.styleHints.colorScheme === Qt.Dark
+            })
+        } else {
+            SwbTheme.darkMode = (themeMode === "dark")
+        }
     }
 
     ColumnLayout {
-        id: sidebarLayout
         anchors.fill: parent
-        anchors.margins: 4
-        spacing: 2
+        anchors.topMargin: 14
+        anchors.bottomMargin: 14
+        spacing: 10
 
+        // 导航按钮组：纯图标 + 悬停提示，选中项图标点亮
         Repeater {
-            id: repeater
             model: ListModel {
-                ListElement { icon: "qrc:/icons/net-page.svg"; label: "网络配置"; page: "network" }
-                ListElement { icon: "qrc:/icons/favorites.svg"; label: "节点收藏"; page: "favoriteNodes" }
-                ListElement { icon: "qrc:/icons/log.svg"; label: "日志"; page: "logs" }
-                ListElement { icon: "qrc:/icons/settings.svg"; label: "设置"; page: "settings" }
+                ListElement { iconSource: "qrc:/icons/net-page.svg"; label: "网络配置" }
+                ListElement { iconSource: "qrc:/icons/favorites.svg"; label: "节点收藏" }
+                ListElement { iconSource: "qrc:/icons/log.svg"; label: "日志" }
+                ListElement { iconSource: "qrc:/icons/settings.svg"; label: "设置" }
             }
 
-            delegate: SidebarItem {
-                Layout.fillWidth: true
-                icon: model.icon
-                label: model.label
-                selected: root.currentIndex === index
-                onClicked: root.itemClicked(index)
-            }
+            delegate: SwbToolButton {
+                id: navButton
 
-            onItemAdded: root.delegateRevision++
-            onItemRemoved: root.delegateRevision++
+                /* 模型角色：图标资源与提示文字（role 不能叫 icon，会与按钮自身的 icon 组属性冲突） */
+                required property string iconSource
+                required property string label
+                required property int index
+
+                Layout.alignment: Qt.AlignHCenter
+                size: "lg"
+
+                icon.source: navButton.iconSource
+                icon.width: root.navIconSize
+                icon.height: root.navIconSize
+                icon.color: navButton.checked ? SwbTheme.accentForeground : SwbTheme.mutedForeground
+
+                checked: root.currentIndex === navButton.index
+                onClicked: root.itemClicked(navButton.index)
+
+                SwbToolTip {
+                    text: navButton.label
+                    visible: navButton.hovered
+                }
+            }
         }
 
-        // 弹簧占位，把导航项推到顶部
-        Item {
-            Layout.fillHeight: true
+        // 弹簧占位，把主题切换按钮推到底部
+        Item { Layout.fillHeight: true }
+
+        // 明暗主题切换：auto → light → dark 循环；auto 跟随系统深浅色并实时变化。
+        // auto 模式以大写字母 A 作为图标（不使用 svg），light/dark 分别为太阳/月亮；
+        // 图标源与文字互斥，SwbIconLabel 只渲染存在的一方，无须 display 切换。
+        SwbToolButton {
+            id: themeButton
+
+            Layout.alignment: Qt.AlignHCenter
+            size: "lg"
+
+            icon.source: root.themeMode === "auto" ? ""
+                         : (SwbTheme.darkMode ? "qrc:/swb/theme/moon.svg"
+                                             : "qrc:/swb/theme/sun.svg")
+            icon.width: root.navIconSize
+            icon.height: root.navIconSize
+            icon.color: SwbTheme.mutedForeground
+
+            text: root.themeMode === "auto" ? "A" : ""
+            textColor: SwbTheme.mutedForeground
+            font.pixelSize: 18
+            font.bold: true
+
+            onClicked: {
+                root.themeMode = root.themeMode === "auto" ? "light"
+                             : root.themeMode === "light" ? "dark"
+                             : "auto"
+                root.applyThemeMode()
+            }
+
+            SwbToolTip {
+                text: root.themeMode === "auto" ? qsTr("主题：跟随系统")
+                     : root.themeMode === "light" ? qsTr("主题：亮色")
+                     : qsTr("主题：暗色")
+                visible: themeButton.hovered
+            }
         }
     }
-
-    // 单个共享选中高亮条，跟随当前选中项在侧边栏内滑动
-    Rectangle {
-        id: selectionIndicator
-        x: root.selectedItemX()
-        y: {
-            root.delegateRevision
-            return root.selectedItemY()
-        }
-        width: 3
-        height: {
-            root.delegateRevision
-            return root.selectedItemHeight()
-        }
-        color: palette.highlight
-        radius: 1.5
-        visible: height > 0
-
-        Behavior on y {
-            enabled: root.indicatorAnimationReady
-            NumberAnimation {
-                duration: 220
-                easing.type: Easing.OutCubic
-            }
-        }
-    }
-
-    Component.onCompleted: root.indicatorAnimationReady = true
 
     // 右侧分隔线
     Rectangle {
@@ -113,6 +127,6 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         width: 1
-        color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.12)
+        color: SwbTheme.border
     }
 }

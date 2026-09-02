@@ -1,15 +1,15 @@
-/* @brief 管理临时节点密钥对话框：查询/编辑/撤销当前实例已签发的安全模式临时凭证 */
+/* @brief 管理临时节点密钥对话框：查询/编辑/撤销当前实例已签发的安全模式临时凭证，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 /* @brief 临时凭证管理对话框，包含凭证列表、编辑表单与结果/错误视图 */
-Dialog {
+SwbDialog {
     id: root
 
     title: qsTr("管理临时节点密钥")
-    modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(560, parent ? parent.width - 48 : 520)
@@ -107,20 +107,19 @@ Dialog {
     property string revokeId: ""
 
     /* 撤销确认对话框 */
-    Dialog {
+    SwbDialog {
         id: revokeConfirmDialog
         title: qsTr("撤销凭证")
-        modal: true
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, root.width - 48)
         standardButtons: Dialog.Yes | Dialog.No
 
-        Label {
+        SwbLabel {
             width: parent.width
             wrapMode: Text.WordWrap
             text: qsTr("确定撤销凭证「%1」吗？撤销后使用该凭证的节点将无法加入网络。").arg(root.revokeId)
-            color: palette.windowText
+            color: SwbTheme.foreground
         }
 
         onAccepted: {
@@ -204,30 +203,30 @@ Dialog {
             spacing: 8
 
             // 目标实例提示
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("当前实例「%1」已签发的临时凭证。").arg(VpnRuntimeService.activeInstanceName)
                 font: FontHelper.smallFont
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
                 wrapMode: Text.WordWrap
                 visible: VpnRuntimeService.activeInstanceName !== ""
             }
 
             // 加载中提示
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 visible: root.listing
                 text: qsTr("加载中…")
                 font: FontHelper.smallFont
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
             }
 
             // 空状态
-            Label {
+            SwbLabel {
                 visible: !root.listing && CredentialViewModel.credentialListModel.count === 0
                 text: qsTr("暂无已签发的临时凭证")
                 font.pixelSize: 18
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
                 Layout.fillWidth: true
                 Layout.preferredHeight: 200
                 horizontalAlignment: Text.AlignHCenter
@@ -235,7 +234,7 @@ Dialog {
             }
 
             // 凭证列表
-            ScrollView {
+            SwbScrollView {
                 visible: !root.listing && CredentialViewModel.credentialListModel.count > 0
                 Layout.fillWidth: true
                 Layout.preferredHeight: 260
@@ -259,29 +258,29 @@ Dialog {
                                 Layout.fillWidth: true
                                 spacing: 6
 
-                                Label {
+                                SwbLabel {
                                     text: credentialId || ""
                                     font.bold: true
                                     font.family: "monospace"
-                                    color: palette.highlight
+                                    color: SwbTheme.foreground
                                     elide: Text.ElideMiddle
                                     Layout.fillWidth: true
                                 }
 
-                                Label {
+                                SwbLabel {
                                     text: qsTr("过期：%1").arg(root.formatExpiry(expiryUnix))
                                     font: FontHelper.smallFont
-                                    color: palette.placeholderText
+                                    color: SwbTheme.mutedForeground
                                 }
                             }
 
                             // 第二行：公钥指纹
-                            Label {
+                            SwbLabel {
                                 visible: (publicKeyFingerprint || "") !== ""
                                 text: qsTr("指纹：%1").arg(publicKeyFingerprint || "")
                                 font.family: "monospace"
                                 font.pixelSize: 11
-                                color: palette.placeholderText
+                                color: SwbTheme.mutedForeground
                                 elide: Text.ElideMiddle
                                 Layout.fillWidth: true
                             }
@@ -291,22 +290,26 @@ Dialog {
                                 Layout.fillWidth: true
                                 spacing: 6
 
-                                Label {
+                                SwbLabel {
                                     text: root.formatConstraints(groups, allowRelay, reusable)
                                     font: FontHelper.smallFont
-                                    color: palette.placeholderText
+                                    color: SwbTheme.mutedForeground
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
                                 }
 
-                                Button {
+                                SwbButton {
+                                    size: "sm"
+                                    variant: "outline"
                                     text: qsTr("编辑")
                                     enabled: !root.mutating
                                     onClicked: root.beginEdit(credentialId, expiryUnix,
                                                               groups, allowRelay,
                                                               allowedProxyCidrs, reusable)
                                 }
-                                Button {
+                                SwbButton {
+                                    size: "sm"
+                                    variant: "destructive"
                                     text: qsTr("撤销")
                                     enabled: !root.mutating
                                     onClicked: root.beginRevoke(credentialId)
@@ -324,17 +327,19 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                SwbButton {
                     text: qsTr("新增临时节点密钥")
                     enabled: !root.listing && !root.mutating
                     onClicked: generateCredentialDialog.open()
                 }
-                Button {
+                SwbButton {
+                    variant: "outline"
                     text: qsTr("刷新")
                     enabled: !root.listing && !root.mutating
                     onClicked: root.refreshList()
                 }
-                Button {
+                SwbButton {
+                    variant: "outline"
                     text: qsTr("关闭")
                     enabled: !root.mutating
                     onClicked: root.close()
@@ -347,13 +352,13 @@ Dialog {
             visible: root.viewState === "fetching"
             spacing: 10
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 160
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 text: qsTr("正在获取原密钥…")
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
             }
         }
 
@@ -362,11 +367,11 @@ Dialog {
             visible: root.viewState === "edit"
             spacing: 10
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: qsTr("编辑凭证")
                 font.bold: true
-                color: palette.windowText
+                color: SwbTheme.foreground
             }
 
             // 凭证 ID（只读）
@@ -374,12 +379,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("凭证 ID")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     text: root.editCredentialId
                     readOnly: true
                     Layout.fillWidth: true
@@ -391,16 +395,16 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 4
 
-                Label {
+                SwbLabel {
                     text: qsTr("密钥（credential_secret）")
-                    color: palette.placeholderText
+                    color: SwbTheme.mutedForeground
                 }
                 // 密码输入框：默认隐藏，可点击眼睛图标切换明文
                 Item {
                     Layout.fillWidth: true
                     implicitHeight: secretField.implicitHeight
 
-                    TextField {
+                    SwbTextField {
                         id: secretField
                         anchors.fill: parent
                         rightPadding: secretToggle.implicitWidth + 8
@@ -409,7 +413,6 @@ Dialog {
                             : qsTr("正在获取原密钥…")
                         selectByMouse: true
                         font.family: "monospace"
-                        color: palette.windowText
                         echoMode: root.secretVisible ? TextInput.Normal : TextInput.Password
                     }
 
@@ -428,17 +431,15 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("有效期（秒）")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                SpinBox {
+                SwbSpinBox {
                     id: editTtlSpin
                     Layout.fillWidth: true
                     from: 1
                     to: 2592000
-                    editable: true
                     value: {
                         var remain = Math.floor((root.editExpiryUnix - Date.now() / 1000) / 60) * 60
                         return Math.max(1, Math.min(2592000, remain))
@@ -451,12 +452,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("ACL 组")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     id: editGroupsField
                     text: root.editGroupsText
                     Layout.fillWidth: true
@@ -466,7 +466,7 @@ Dialog {
             }
 
             // 允许中继
-            CheckBox {
+            SwbCheckBox {
                 id: editAllowRelayCheck
                 text: qsTr("允许通过该凭证节点中继数据")
                 checked: root.editAllowRelay
@@ -477,12 +477,11 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Label {
+                SwbLabel {
                     text: qsTr("允许代理 CIDR")
                     Layout.preferredWidth: 130
-                    color: palette.windowText
                 }
-                TextField {
+                SwbTextField {
                     id: editCidrsField
                     text: root.editCidrsText
                     Layout.fillWidth: true
@@ -492,7 +491,7 @@ Dialog {
             }
 
             // 可复用
-            CheckBox {
+            SwbCheckBox {
                 id: editReusableCheck
                 text: qsTr("允许多个节点并发复用该凭证")
                 checked: root.editReusable
@@ -505,14 +504,14 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                SwbButton {
+                    variant: "outline"
                     text: qsTr("返回")
                     enabled: !root.mutating
                     onClicked: root.viewState = "list"
                 }
-                Button {
+                SwbButton {
                     text: root.mutating ? qsTr("保存中…") : qsTr("保存")
-                    highlighted: true
                     enabled: !root.mutating && !root.fetchingSecret && root.editCredentialId !== ""
                     onClicked: root.submitEdit()
                 }
@@ -524,16 +523,16 @@ Dialog {
             visible: root.viewState === "success"
             spacing: 10
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
                 color: theme.statusGreen
             }
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: root.resultText
-                color: palette.windowText
+                color: SwbTheme.foreground
                 wrapMode: Text.WordWrap
             }
 
@@ -543,9 +542,8 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                SwbButton {
                     text: qsTr("完成")
-                    highlighted: true
                     onClicked: {
                         root.close()
                     }
@@ -558,16 +556,16 @@ Dialog {
             visible: root.viewState === "error"
             spacing: 10
 
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: root.resultTitle
                 font.bold: true
                 color: theme.statusRed
             }
-            Label {
+            SwbLabel {
                 Layout.fillWidth: true
                 text: root.resultText
-                color: palette.windowText
+                color: SwbTheme.foreground
                 wrapMode: Text.WordWrap
             }
 
@@ -577,7 +575,8 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                SwbButton {
+                    variant: "outline"
                     text: qsTr("返回")
                     onClicked: root.viewState = "list"
                 }

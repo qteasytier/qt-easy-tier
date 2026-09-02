@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+# The control library depends on Qt Quick, so consumers must find the same Qt installation.
+include(CMakeFindDependencyMacro)
+find_dependency(Qt6 COMPONENTS Quick)
+
+# Installed QML module directory; shared-library consumers must add it to the runtime QML import path.
+set_and_check(SwbControls_QML_IMPORT_PATH "@PACKAGE_SWB_INSTALL_QMLDIR@")
+
+# Import SwbControls and its QML plugin targets.
+include("${CMAKE_CURRENT_LIST_DIR}/SwbControlsTargets.cmake")
+
+# Qt's executable finalizer links a static QML module's plugin by the *unqualified* linktarget
+# name recorded in the installed qmldir (SwbControlsplugin). The namespaced export only defines
+# Swb::SwbControlsplugin, so expose the bare alias the finalizer looks up; otherwise it warns that
+# the link target "does not exist in the current scope" and skips the plugin.
+if(TARGET Swb::SwbControlsplugin AND NOT TARGET SwbControlsplugin)
+    add_library(SwbControlsplugin ALIAS Swb::SwbControlsplugin)
+endif()
+
+# Static builds propagate the plugin's static registration (Q_IMPORT_PLUGIN) through the backing target.
+# Consumers can link Swb::SwbControls without handling shared and static builds differently.
+# Shared-library plugins load at runtime and do not need to be linked here.
+get_target_property(_swb_type Swb::SwbControls TYPE)
+if(_swb_type STREQUAL "STATIC_LIBRARY" AND TARGET Swb::SwbControlsplugin)
+    set_property(TARGET Swb::SwbControls APPEND PROPERTY
+        INTERFACE_LINK_LIBRARIES Swb::SwbControlsplugin)
+endif()
+
+check_required_components(SwbControls)

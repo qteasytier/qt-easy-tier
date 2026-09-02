@@ -1,9 +1,9 @@
-/* @brief 自定义 Tab 控件：水平标签栏 + 滑动高亮指示条 + StackLayout 内容区，子组件通过 tabTitle 属性自动注册 */
+/* @brief 自定义 Tab 控件：基于 SwbTabBar（line 变体）+ StackLayout 内容区，子组件通过 tabTitle 属性自动注册 */
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import SwbControls
 
-// 自定义 Tab 控件：水平标签栏 + 滑动高亮指示条 + StackLayout 内容区
+// 自定义 Tab 控件：SwbTabBar 下划线变体 + StackLayout 内容区
 // 子组件通过 tabTitle 属性自动注册为标签页
 /* @brief Tab 控件根布局，包含标签栏、分隔线和内容区 */
 ColumnLayout {
@@ -15,82 +15,37 @@ ColumnLayout {
     default property alias contentData: stack.data
     spacing: 0
 
-    // 标签栏区域
-    Item {
+    // 标签栏区域；与 root.currentIndex 双向同步（带防回环守卫）
+    SwbTabBar {
+        id: tabBar
         Layout.fillWidth: true
-        implicitHeight: tabRow.implicitHeight
+        variant: "line"
 
-        RowLayout {
-            id: tabRow
-            anchors.fill: parent
-            spacing: 0
-
-            Repeater {
-                model: tabsModel
-
-                delegate: Rectangle {
-                    id: tabBtn
-                    property bool isSelected: root.currentIndex === index
-
-                    Layout.fillWidth: true
-                    implicitWidth: Math.max(72, tabLabel.implicitWidth + 32)
-                    implicitHeight: 36
-                    // 悬停时的背景反馈（非选中态）
-                    color: tabMouse.containsMouse && !isSelected
-                        ? Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.06)
-                        : "transparent"
-
-                    Label {
-                        id: tabLabel
-                        anchors.centerIn: parent
-                        text: model.title
-                        color: tabBtn.isSelected ? palette.highlight : palette.windowText
-                        font.bold: tabBtn.isSelected
-
-                        // 选中态颜色渐变过渡
-                        Behavior on color {
-                            ColorAnimation { duration: 180; easing.type: Easing.InOutQuad }
-                        }
-                    }
-
-                    MouseArea {
-                        id: tabMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.currentIndex = index
-                    }
-                }
-            }
+        onCurrentIndexChanged: {
+            if (currentIndex !== root.currentIndex)
+                root.currentIndex = currentIndex
         }
 
-        // 高亮指示条：随 currentIndex 滑动
-        Rectangle {
-            id: highlightBar
-            height: 2
-            y: parent.height - height
-            color: palette.highlight
+        Repeater {
+            model: tabsModel
 
-            // 每个标签宽度 = 总宽 / 标签数
-            readonly property real tabWidth: tabsModel.count > 0 ? parent.width / tabsModel.count : 0
-            x: root.currentIndex * tabWidth
-            width: tabWidth
-
-            // 滑动动画
-            Behavior on x {
-                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
-            }
-            Behavior on width {
-                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+            delegate: SwbTabButton {
+                text: model.title
+                width: Math.max(72, implicitWidth)
             }
         }
+    }
+
+    onCurrentIndexChanged: {
+        if (tabBar.currentIndex !== currentIndex)
+            tabBar.currentIndex = currentIndex
     }
 
     // 标签栏底部分隔线
     Rectangle {
         Layout.fillWidth: true
         height: 1
-        color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.12)
+        color: SwbTheme.border
     }
 
     // 内容区：通过 StackLayout 按索引切换

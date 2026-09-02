@@ -1,0 +1,8 @@
+<RCC>
+    <!-- SwbTheme 明暗切换专属图标资源,随主程序一起编译;
+         由根 CMakeLists.txt 加入 appQtEasyTier 源列表(见 PATCHES.md) -->
+    <qresource prefix="/swb/theme">
+        <file alias="sun.svg">sun.svg</file>
+        <file alias="moon.svg">moon.svg</file>
+    </qresource>
+</RCC>

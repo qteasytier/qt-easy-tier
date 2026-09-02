@@ -1,17 +1,17 @@
-/* @brief 从收藏导入节点对话框：展示收藏节点和公共节点列表，支持多选导入到当前配置的服务器列表 */
+/* @brief 从收藏导入节点对话框：展示收藏节点和公共节点列表，支持多选导入到当前配置的服务器列表，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 // 从收藏导入节点对话框
 // 展示收藏节点和公共节点列表，支持多选导入
 /* @brief 导入节点对话框，通过 ImportNodesViewModel 获取可选节点，按分区展示 */
-Dialog {
+SwbDialog {
     id: root
     title: qsTr("从收藏导入节点")
     standardButtons: Dialog.Ok | Dialog.Cancel
-    modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
 
@@ -44,25 +44,34 @@ Dialog {
             section.delegate: Rectangle {
                 width: listView.width
                 height: 32
-                color: palette.alternateBase
+                color: SwbTheme.secondary
 
-                Label {
+                SwbLabel {
                     anchors.left: parent.left
                     anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     text: section
                     font.bold: true
                     font.pixelSize: 13
-                    color: palette.highlight
+                    color: SwbTheme.foreground
                 }
             }
 
             delegate: Rectangle {
+                id: importRow
+
                 width: listView.width
                 height: 48
-                // 斑马条纹背景
-                color: index % 2 === 0 ? "transparent"
-                       : Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.04)
+                color: rowHover.hovered ? SwbTheme.withAlpha(SwbTheme.foreground, 0.04)
+                     : "transparent"
+
+                Behavior on color {
+                    ColorAnimation { duration: SwbTheme.animationDuration }
+                }
+
+                HoverHandler {
+                    id: rowHover
+                }
 
                 RowLayout {
                     anchors.fill: parent
@@ -71,7 +80,7 @@ Dialog {
                     spacing: 6
 
                     // 勾选框：直接写回 model.checked
-                    CheckBox {
+                    SwbCheckBox {
                         id: itemCheck
                         checked: model.checked
                         onCheckedChanged: ImportNodesViewModel.setChecked(index, checked)
@@ -81,7 +90,7 @@ Dialog {
                         Layout.fillWidth: true
                         spacing: 1
 
-                        Label {
+                        SwbLabel {
                             text: model.name + (model.publicKey ? qsTr("【安全】") : "")
                             font.pixelSize: 13
                             font.bold: model.publicKey !== ""
@@ -89,10 +98,10 @@ Dialog {
                             Layout.fillWidth: true
                         }
 
-                        Label {
+                        SwbLabel {
                             text: model.uri
                             font.pixelSize: 10
-                            color: palette.placeholderText
+                            color: SwbTheme.mutedForeground
                             font.family: "monospace"
                             elide: Text.ElideMiddle
                             Layout.fillWidth: true
@@ -100,6 +109,8 @@ Dialog {
                     }
                 }
             }
+
+            ScrollBar.vertical: SwbScrollBar {}
         }
 
         // 空列表占位提示
@@ -107,10 +118,10 @@ Dialog {
             anchors.fill: parent
             visible: ImportNodesViewModel.count === 0
 
-            Label {
+            SwbLabel {
                 anchors.centerIn: parent
                 text: qsTr("暂无收藏节点和公共节点")
-                color: palette.placeholderText
+                color: SwbTheme.mutedForeground
                 font.pixelSize: 13
                 visible: ImportNodesViewModel.count === 0
             }

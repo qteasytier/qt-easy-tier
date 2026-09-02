@@ -12,21 +12,23 @@
  * - NetworkPageViewModel 当前页面状态
  * - FontHelper           小字体辅助
  *
- * 所有颜色使用系统 palette，不硬编码 hex 色值。
+ * Swb 控件迁移页：选中项以 accent 底色块表达（无边框），运行状态以状态色指示条表达。
  */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 /* @brief 实例列表根容器，包含配置列表和操作按钮 */
 Rectangle {
     id: root
 
-    // 使用系统窗口背景色
-    color: palette.window
+    color: SwbTheme.background
     implicitWidth: 200
     implicitHeight: 400
+
+    Theme { id: theme }
 
     /* 选中指定配置实例，触发右侧面板加载 */
     signal configSelected(string instanceName)
@@ -70,18 +72,17 @@ Rectangle {
     // ============================================
     // 删除确认对话框
     // ============================================
-    Dialog {
+    SwbDialog {
         id: deleteDialog
         title: qsTr("删除配置")
         standardButtons: Dialog.Yes | Dialog.No
-        modal: true
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(360, parent ? parent.width - 48 : 320)
 
         property string messageText: ""
 
-        Label {
+        SwbLabel {
             text: deleteDialog.messageText
             wrapMode: Text.WordWrap
             width: parent ? parent.width : 320
@@ -99,17 +100,15 @@ Rectangle {
     // ============================================
     // 重命名对话框
     // ============================================
-    Dialog {
+    SwbDialog {
         id: renameDialog
         title: qsTr("重命名配置")
         standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
-        // 弹出层居中，避免覆盖底层
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
 
-        TextField {
+        SwbTextField {
             id: renameField
             width: parent.width
             placeholderText: qsTr("请输入新的配置名称")
@@ -143,18 +142,18 @@ Rectangle {
         spacing: 12
 
         // 标题
-        Label {
+        SwbLabel {
             text: qsTr("实例列表")
             font.pixelSize: 24
             font.bold: true
-            color: palette.highlight
+            color: SwbTheme.foreground
         }
 
         // 空状态提示
-        Label {
+        SwbLabel {
             visible: configListView.count === 0
             text: qsTr("暂无网络配置，点击下方按钮新建")
-            color: palette.placeholderText
+            color: SwbTheme.mutedForeground
             Layout.fillWidth: true
             Layout.topMargin: 20
             horizontalAlignment: Text.AlignHCenter
@@ -169,18 +168,27 @@ Rectangle {
             spacing: 4
             model: ConfigListModel
 
-            ScrollBar.vertical: ScrollBar {}
+            ScrollBar.vertical: SwbScrollBar {}
 
-            // 列表项代理
+            // 列表项代理：卡片式条目（popover 底 + 1px 边框与右侧 Card 同语言），
+            // 悬停/选中时边框加深为 ring，选中项叠加 accent 底色块
             delegate: Rectangle {
+                id: itemRoot
+
                 width: configListView.width
                 height: 50
-                radius: 6
-                color: palette.base
-                // 选中时使用高亮色边框
-                border.color: isSelected ? palette.highlight
-                    : Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.12)
-                border.width: isSelected ? 1.5 : 1
+                radius: SwbTheme.radiusSm
+                color: itemRoot.isSelected ? SwbTheme.accent : SwbTheme.popover
+                border.width: 1
+                border.color: (itemRoot.isSelected || itemHover.hovered)
+                              ? SwbTheme.ring : SwbTheme.border
+
+                Behavior on color {
+                    ColorAnimation { duration: SwbTheme.animationDuration }
+                }
+                Behavior on border.color {
+                    ColorAnimation { duration: SwbTheme.animationDuration }
+                }
 
                 property string instanceName: model.instanceName
                 property string labelText: model.displayName || model.instanceName
@@ -194,7 +202,12 @@ Rectangle {
                 readonly property bool isSelected:
                     NetworkPageViewModel.currentInstanceName === instanceName
 
-                // 左侧运行状态指示条
+                HoverHandler {
+                    id: itemHover
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                // 左侧运行状态指示条（状态色：运行=绿，过渡=橙，错误=红）
                 Rectangle {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -203,7 +216,10 @@ Rectangle {
                     anchors.bottomMargin: 4
                     width: 3
                     radius: 2
-                    color: isRunning ? palette.highlight : "transparent"
+                    visible: isRunning || isBusy || runState === 4
+                    color: runState === 4 ? theme.statusRed
+                         : isBusy ? theme.statusOrange
+                         : theme.statusGreen
                 }
 
                 // 单击选中/右键菜单/长按菜单
@@ -221,14 +237,15 @@ Rectangle {
                         }
                     }
 
-                    Menu {
+                    SwbMenu {
                         id: contextMenu
-                        MenuItem {
+                        SwbMenuItem {
                             text: qsTr("重命名")
                             onTriggered: root.requestRename(instanceName, labelText)
                         }
-                        MenuItem {
+                        SwbMenuItem {
                             text: qsTr("删除")
+                            variant: "destructive"
                             onTriggered: root.requestDelete(instanceName, labelText)
                         }
                     }
@@ -251,17 +268,16 @@ Rectangle {
                         spacing: 2
                         Layout.leftMargin: 6
 
-                        Label {
+                        SwbLabel {
                             text: labelText
                             font.bold: true
-                            // 外部实例名称用高亮色突出显示，本地实例用常规文字色
-                            color: isExternal ? palette.highlight : palette.windowText
+                            color: SwbTheme.foreground
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
 
                         // 运行状态文案（完整状态，区分启动/停止过渡与错误）
-                        Label {
+                        SwbLabel {
                             text: {
                                 if (isExternal)
                                     return qsTr("运行中 · 外部实例")
@@ -276,7 +292,10 @@ Rectangle {
                                 return qsTr("未运行")
                             }
                             font: FontHelper.smallFont
-                            color: (isRunning || isBusy || runState === 4) ? palette.highlight : palette.placeholderText
+                            color: runState === 4 ? theme.statusRed
+                                 : isBusy ? theme.statusOrange
+                                 : isRunning ? theme.statusGreen
+                                 : SwbTheme.mutedForeground
                         }
                     }
 
@@ -307,15 +326,16 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 6
 
-            Button {
+            SwbButton {
                 Layout.fillWidth: true
                 text: qsTr("新建配置")
                 onClicked: root.createRequested()
             }
 
-            Button {
+            SwbButton {
                 Layout.fillWidth: true
                 text: qsTr("导入配置")
+                variant: "outline"
                 onClicked: importRequested()
             }
         }

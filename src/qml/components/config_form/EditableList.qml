@@ -1,7 +1,9 @@
-/* @brief 可编辑列表组件：通用列表 + 添加/删除功能，适合管理字符串列表（如端口、监听地址、CIDR 等） */
+/* @brief 可编辑列表组件：通用列表 + 添加/删除功能，适合管理字符串列表（如端口、监听地址、CIDR 等），Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtEasyTier
+import SwbControls
 
 // 可编辑列表组件：通用列表 + 添加/删除功能
 // 通过 model 属性绑定外部 ListModel，适合管理字符串列表（如端口、端点等）
@@ -29,14 +31,17 @@ ColumnLayout {
 
     spacing: 4
 
+    // 状态色(添加按钮文字统一用 statusGreen)
+    Theme { id: theme }
+
     ListModel { id: listModel }
 
     ListView {
         id: listView
         Layout.fillWidth: true
-        // 根据项数动态计算高度，空列表时高度为 0
-        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 40 + 4
-        spacing: 2
+        // 根据项数动态计算高度，空列表时高度为 0（行高 38，分隔线风格无行距）
+        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 38
+        spacing: 0
         model: listModel
         interactive: false
 
@@ -49,19 +54,13 @@ ColumnLayout {
         }
     }
 
-    Button {
+    SwbButton {
         id: addButton
         Layout.fillWidth: true
-        flat: true
+        variant: "ghost"
+        size: "sm"
         text: root.addDialogTitle
-        contentItem: Label {
-            text: addButton.text
-            color: palette.highlight
-            renderType: Text.NativeRendering
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
+        textColor: theme.statusGreen
         onClicked: {
             addDialog.fieldText = root.defaultAddValue
             addDialog.open()
@@ -69,11 +68,10 @@ ColumnLayout {
     }
 
     // 添加项对话框
-    Dialog {
+    SwbDialog {
         id: addDialog
         title: root.addDialogTitle
         standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
@@ -81,7 +79,7 @@ ColumnLayout {
         // 暴露输入框文本便于外部预设
         property alias fieldText: editField.text
 
-        TextField {
+        SwbTextField {
             id: editField
             width: parent.width
             placeholderText: root.defaultAddValue

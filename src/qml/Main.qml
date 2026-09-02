@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtEasyTier
+import SwbControls
 
 // 主窗口：整个应用的 QML 入口
 // 负责窗口属性、侧边栏、页面容器和底部状态栏的基本布局组合
@@ -19,7 +20,8 @@ Window {
     minimumHeight: 300
     title: qsTr("QtEasyTier")
 
-    color: palette.window
+    // 与 Swb 控件试点页的页面底色保持一致，避免暗色模式下前后景割裂
+    color: SwbTheme.background
 
     Theme { id: theme }
 
@@ -36,7 +38,7 @@ Window {
             Sidebar {
                 id: sidebar
 
-                Layout.preferredWidth: 64
+                Layout.preferredWidth: 56
                 Layout.fillHeight: true
                 currentIndex: 0
 
@@ -61,14 +63,14 @@ Window {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.15)
+            color: SwbTheme.border
         }
 
         // 底部状态栏：显示后端连接状态
         Rectangle {
             Layout.fillWidth: true
             height: 24
-            color: palette.alternateBase
+            color: SwbTheme.secondary
 
             RowLayout {
                 anchors.fill: parent
@@ -90,7 +92,7 @@ Window {
                 Label {
                     text: BackendStatusViewModel.statusText
                     font.pixelSize: 11
-                    color: palette.windowText
+                    color: SwbTheme.foreground
                 }
 
                 // 弹簧占位，把后续元素推到右侧

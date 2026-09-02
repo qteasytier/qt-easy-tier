@@ -32,6 +32,9 @@ ConfigEditorViewModel::ConfigEditorViewModel(ConfigCommandService *commandServic
     m_autoSaveTimer.setSingleShot(true);
     m_autoSaveTimer.setInterval(kAutoSaveDelayMs);
     connect(&m_autoSaveTimer, &QTimer::timeout, this, &ConfigEditorViewModel::autoSaveTimeout);
+
+    // 表单结构元数据进程内不变，构造时构建一次缓存
+    m_formSections = buildFormSections();
 }
 
 // ==================== 内部辅助方法 ====================
@@ -112,6 +115,169 @@ void ConfigEditorViewModel::flushAutoSave()
 QString ConfigEditorViewModel::currentInstanceName() const { return m_conf.instanceName(); }
 bool ConfigEditorViewModel::hasUnsavedChanges() const { return m_hasUnsavedChanges; }
 QStringList ConfigEditorViewModel::errorMessages() const { return m_errorMessages; }
+
+// ==================== 表单元数据与反射读写 ====================
+
+QVariantList ConfigEditorViewModel::formSections() const
+{
+    return m_formSections;
+}
+
+QVariant ConfigEditorViewModel::fieldValue(const QString &key) const
+{
+    return property(key.toUtf8().constData());
+}
+
+bool ConfigEditorViewModel::setFieldValue(const QString &key, const QVariant &value)
+{
+    // 反射写入具名属性：不存在或只读的 key 返回 false，其余语义（值比较、
+    // markDirty、防抖自动保存、NOTIFY）全部由具名 setter 提供
+    return setProperty(key.toUtf8().constData(), value);
+}
+
+/**
+ * @brief 构建表单结构元数据
+ *
+ * 分组、字段顺序、显示名与控件类型沿用原 NetworkOptions.qml 的静态布局，
+ * 由 QML 薄壳按 type 分发到对应渲染器。字段间联动禁用（dhcp→ipv4、
+ * 白名单开关→输入框）是 UI 逻辑，不在此描述，由 QML 侧实现。
+ */
+QVariantList ConfigEditorViewModel::buildFormSections() const
+{
+    // ---- 字段描述辅助（lambda 捕获 this 以支持 tr() 中文源）----
+    auto switchField = [&](const QString &key, const QString &title) {
+        return QVariantMap{{"key", key}, {"title", title}, {"type", QStringLiteral("switch")}};
+    };
+    auto textField = [&](const QString &key, const QString &title, const QString &placeholder = {}) {
+        QVariantMap f{{"key", key}, {"title", title}, {"type", QStringLiteral("textField")}};
+        if (!placeholder.isEmpty())
+            f.insert("placeholder", placeholder);
+        return f;
+    };
+    auto passwordField = [&](const QString &key, const QString &title, const QString &placeholder = {}) {
+        QVariantMap f{{"key", key}, {"title", title}, {"type", QStringLiteral("password")}};
+        if (!placeholder.isEmpty())
+            f.insert("placeholder", placeholder);
+        return f;
+    };
+    auto comboField = [&](const QString &key, const QString &title, const QVariantList &options) {
+        return QVariantMap{{"key", key}, {"title", title},
+                           {"type", QStringLiteral("comboBox")}, {"options", options}};
+    };
+    auto spinField = [&](const QString &key, const QString &title, int from, int to) {
+        return QVariantMap{{"key", key}, {"title", title},
+                           {"type", QStringLiteral("spinBox")}, {"from", from}, {"to", to}};
+    };
+    auto listField = [&](const QString &key, const QString &title, const QString &type,
+                         const QString &addTitle = {}, const QString &addDefault = {}, bool dedupe = false) {
+        QVariantMap f{{"key", key}, {"title", title}, {"type", type}};
+        if (!addTitle.isEmpty())
+            f.insert("addTitle", addTitle);
+        if (!addDefault.isEmpty())
+            f.insert("addDefault", addDefault);
+        if (dedupe)
+            f.insert("dedupe", true);
+        return f;
+    };
+    auto actionField = [&](const QString &type) {
+        return QVariantMap{{"key", QString()}, {"title", QString()}, {"type", type}};
+    };
+    auto card = [&](const QString &tab, const QString &cardKey, const QString &cardTitle,
+                    QVariantList fields) {
+        return QVariantMap{{"tab", tab}, {"cardKey", cardKey},
+                           {"cardTitle", cardTitle}, {"fields", fields}};
+    };
+    auto option = [&](const QString &text, const QString &value) {
+        return QVariantMap{{"text", text}, {"value", value}};
+    };
+
+    // ---- 下拉选项表（从原 QML 硬编码下沉）----
+    const QVariantList kEncryptionAlgorithms = {
+        option("aes-gcm", "aes-gcm"), option("xor", "xor"),
+        option("chacha20", "chacha20"), option("aes-gcm256", "aes-gcm256"),
+    };
+    const QVariantList kDefaultProtocols = {
+        option(tr("不指定"), QString()), option("udp", "udp"), option("tcp", "tcp"),
+        option("wg", "wg"), option("ws", "ws"), option("wss", "wss"),
+    };
+
+    // ---- 基础设置页：身份与网络基本信息 + 初始节点 ----
+    const QVariantList basicCards = {
+        card(QStringLiteral("basic"), QStringLiteral("basicIdentity"), QString(), {
+            textField(QStringLiteral("hostname"), tr("主机名")),
+            textField(QStringLiteral("networkName"), tr("网络名称")),
+            passwordField(QStringLiteral("networkSecret"), tr("网络密钥")),
+            switchField(QStringLiteral("dhcp"), tr("DHCP")),
+            textField(QStringLiteral("ipv4"), tr("虚拟 IPv4")),
+            switchField(QStringLiteral("latencyFirst"), tr("低延迟优先")),
+            switchField(QStringLiteral("privateMode"), tr("私有模式")),
+        }),
+        card(QStringLiteral("basic"), QStringLiteral("basicServers"), tr("初始节点（服务器）"), {
+            listField(QStringLiteral("servers"), QString(), QStringLiteral("serverList")),
+        }),
+    };
+
+    // ---- 高级设置页：传输协议 / P2P / 性能与系统 / 网络服务 / 安全模式 ----
+    const QVariantList advancedCards = {
+        card(QStringLiteral("advanced"), QStringLiteral("advTransport"), tr("传输协议"), {
+            switchField(QStringLiteral("enableKcpProxy"), tr("启用 KCP 代理")),
+            switchField(QStringLiteral("disableKcpInput"), tr("禁用 KCP 输入")),
+            switchField(QStringLiteral("enableQuicProxy"), tr("启用 QUIC 代理")),
+            switchField(QStringLiteral("disableQuicInput"), tr("禁用 QUIC 输入")),
+            switchField(QStringLiteral("disableRelayKcp"), tr("禁止转发 KCP")),
+            switchField(QStringLiteral("disableRelayQuic"), tr("禁止转发 QUIC")),
+            switchField(QStringLiteral("enableRelayForeignNetworkKcp"), tr("允许转发其他网络 KCP")),
+            switchField(QStringLiteral("enableRelayForeignNetworkQuic"), tr("允许转发其他网络 QUIC")),
+            switchField(QStringLiteral("enableEncryption"), tr("启用加密")),
+            comboField(QStringLiteral("encryptionAlgorithm"), tr("加密算法"), kEncryptionAlgorithms),
+            comboField(QStringLiteral("defaultProtocol"), tr("默认连接协议"), kDefaultProtocols),
+        }),
+        card(QStringLiteral("advanced"), QStringLiteral("advP2p"), tr("P2P 连接"), {
+            switchField(QStringLiteral("p2pOnly"), tr("仅 P2P")),
+            switchField(QStringLiteral("disableP2p"), tr("禁用 P2P")),
+            switchField(QStringLiteral("needP2p"), tr("需要 P2P")),
+            switchField(QStringLiteral("lazyP2p"), tr("按需 P2P")),
+            switchField(QStringLiteral("disableUdpHolePunching"), tr("禁用 UDP 打洞")),
+            switchField(QStringLiteral("disableTcpHolePunching"), tr("禁用 TCP 打洞")),
+            switchField(QStringLiteral("disableUpnp"), tr("禁用 UPnP")),
+            switchField(QStringLiteral("disableSymHolePunching"), tr("禁用对称 NAT 打洞")),
+            switchField(QStringLiteral("relayAllPeerRpc"), tr("转发 RPC 包")),
+            switchField(QStringLiteral("bindDevice"), tr("仅使用物理网卡")),
+        }),
+        card(QStringLiteral("advanced"), QStringLiteral("advPerformance"), tr("性能与系统"), {
+            switchField(QStringLiteral("multiThread"), tr("启用多线程")),
+            switchField(QStringLiteral("useSmoltcp"), tr("使用用户态协议栈")),
+            switchField(QStringLiteral("noTun"), tr("不创建 TUN")),
+            switchField(QStringLiteral("enableIpv6"), tr("启用 IPv6")),
+            spinField(QStringLiteral("mtu"), tr("MTU"), 576, 1500),
+            textField(QStringLiteral("devName"), tr("TUN 设备名")),
+        }),
+        card(QStringLiteral("advanced"), QStringLiteral("advServices"), tr("网络服务"), {
+            switchField(QStringLiteral("enableExitNode"), tr("启用出口节点")),
+            switchField(QStringLiteral("systemForwarding"), tr("系统转发（子网代理禁用内置 NAT）")),
+            switchField(QStringLiteral("acceptDns"), tr("启用魔法 DNS")),
+            switchField(QStringLiteral("enableForeignNetworkWhitelist"), tr("启用网络白名单")),
+            textField(QStringLiteral("foreignNetworkWhitelist"), QString(), tr("多个网络用空格分开")),
+            listField(QStringLiteral("listenAddresses"), tr("监听地址"), QStringLiteral("stringList"),
+                      tr("添加监听地址"), QStringLiteral("tcp://0.0.0.0:11010"), true),
+            listField(QStringLiteral("proxyNetworks"), tr("代理子网"), QStringLiteral("proxyNetworkList")),
+            listField(QStringLiteral("customRoutes"), tr("自定义路由"), QStringLiteral("stringList"),
+                      tr("添加自定义路由规则"), QStringLiteral("0.0.0.0/24"), true),
+            listField(QStringLiteral("exitNodes"), tr("出口节点列表"), QStringLiteral("stringList"),
+                      tr("添加出口节点地址"), QStringLiteral("10.126.126.1"), true),
+        }),
+        card(QStringLiteral("advanced"), QStringLiteral("advSecurity"), tr("安全模式"), {
+            switchField(QStringLiteral("secureModeEnabled"), tr("启用安全模式")),
+            passwordField(QStringLiteral("localPrivateKey"), tr("节点私钥Base64"), tr("可选，留空使用随机密钥")),
+            actionField(QStringLiteral("keyActions")),
+            listField(QStringLiteral("credentialFile"), tr("临时密钥文件(.json)"), QStringLiteral("filePath")),
+        }),
+    };
+
+    QVariantList sections = basicCards;
+    sections.append(advancedCards);
+    return sections;
+}
 
 // ==================== 元数据 ====================
 

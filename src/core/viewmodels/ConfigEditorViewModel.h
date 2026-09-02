@@ -4,8 +4,7 @@
  *
  * 本类是配置编辑器的核心 ViewModel，负责：
  * 1. 将 NetworkConf 的每个字段暴露为独立的 Q_PROPERTY，供 QML 双向绑定
- * 2. 管理编辑状态（未保存变更追踪 / 错误消息列表）
- * 3. 通过 NetworkConfigRepository 实现配置的加载、保存、取消、清除
+ * 2. 通过 NetworkConfigRepository 实现配置的加载、保存、取消、清除
  *
  * 设计特点：
  * - 每个字段都有独立的 getter/setter/NOTIFY 信号，QML 可按需绑定单个字段
@@ -43,6 +42,23 @@ class ConfigEditorViewModel : public QObject {
 
     /// 操作结果的错误消息列表（空列表表示无错误，QML 据此显示/隐藏错误提示）
     Q_PROPERTY(QStringList errorMessages READ errorMessages NOTIFY errorMessagesChanged FINAL)
+
+    /**
+     * @brief 表单结构元数据（CONSTANT，构造时一次性构建）
+     *
+     * 供 QML 薄壳动态渲染配置编辑页，实现数据与 UI 分离：
+     * 每个元素为一张卡片分组，形如
+     *   { tab: "basic"|"advanced", cardKey, cardTitle, fields: [字段描述...] }
+     * 字段描述形如
+     *   { key, title, type, placeholder?, options?, from?, to?, addTitle?, addDefault?, dedupe? }
+     * - key 与本类具名 Q_PROPERTY 同名，值经 fieldValue/setFieldValue 反射读写
+     * - type 为渲染器类型字符串：switch / textField / password / comboBox / spinBox /
+     *   stringList / serverList / proxyNetworkList / filePath / keyActions
+     * - options 为 {text, value} 下拉选项表；from/to 为数值范围；addTitle/addDefault/dedupe
+     *   为字符串列表编辑器的添加对话框元数据
+     * 字段间的联动禁用（dhcp→ipv4、白名单开关→输入框）不属于数据元数据，由 QML 侧实现
+     */
+    Q_PROPERTY(QVariantList formSections READ formSections CONSTANT FINAL)
 
     // ==================== 元数据 ====================
 
@@ -176,6 +192,9 @@ public:
     QString currentInstanceName() const;
     bool hasUnsavedChanges() const;
     QStringList errorMessages() const;
+
+    /// 表单结构元数据（见 Q_PROPERTY 注释；CONSTANT，进程内不变）
+    QVariantList formSections() const;
 
     // ==================== 元数据 getter/setter ====================
     QString displayName() const;         void setDisplayName(const QString &v);
@@ -330,6 +349,26 @@ public:
     Q_INVOKABLE bool resetToDefaults();
 
     /**
+     * @brief 按字段名读取当前值（反射直达具名 Q_PROPERTY）
+     *
+     * @param key 字段名（与本类具名属性同名，如 "hostname"、"servers"）
+     * @return 字段当前值；key 不存在时返回无效 QVariant
+     */
+    Q_INVOKABLE QVariant fieldValue(const QString &key) const;
+
+    /**
+     * @brief 按字段名写入新值（反射直达具名属性的 WRITE setter）
+     *
+     * 自动继承具名 setter 的全部语义：值比较去重、markDirty、
+     * 300ms 防抖自动保存、NOTIFY 信号刷新 QML 绑定。
+     *
+     * @param key 字段名
+     * @param value 新值（QVariant 自动转换为属性类型）
+     * @return true 写入成功；key 不存在或属性只读时返回 false
+     */
+    Q_INVOKABLE bool setFieldValue(const QString &key, const QVariant &value);
+
+    /**
      * @brief 同步外部重命名的显示名称到当前编辑快照
      *
      * 仅当 instanceName 是当前编辑实例时更新 m_conf.displayName；
@@ -450,7 +489,11 @@ private:
      * 需要通知 QML 侧所有绑定的属性重新读取当前值。
      * 不逐个比较新旧值——因为整个对象已替换，最优策略是全量发射。
      */
+    /// 一次性发射所有字段变更信号
     void emitCurrentChanged();
+
+    /// 构建表单结构元数据（构造时调用一次，结果缓存到 m_formSections）
+    QVariantList buildFormSections() const;
 
     /// 配置命令服务（非本类所有，生命周期由外部管理）
     ConfigCommandService *m_commandService;
@@ -466,4 +509,7 @@ private:
 
     /// 操作结果错误消息列表（空列表表示无错误）
     QStringList m_errorMessages;
+
+    /// 表单结构元数据缓存（构造时由 buildFormSections 填充，之后不变）
+    QVariantList m_formSections;
 };

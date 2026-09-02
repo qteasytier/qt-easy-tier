@@ -9,6 +9,7 @@
  * - clear 清空编辑器前刷写待保存修改
  * - flushAutoSave 手动立即刷写
  */
+#include <QSet>
 #include <QSignalSpy>
 #include <QTest>
 #include <QTemporaryDir>
@@ -302,6 +303,100 @@ private slots:
         const auto loaded = m_repo->load(QStringLiteral("inst-del"));
         QVERIFY(loaded.has_value());
         QCOMPARE(loaded->hostname, QString());
+    }
+
+    /// 目标：formSections 元数据结构完整——每个卡片归属合法标签页，
+    /// 每个字段 key 均对应本类存在的 Q_PROPERTY，控件类型合法，
+    /// comboBox 必带非空 options，spinBox 必带 from/to
+    void formSections_metadataIsCompleteAndKeysResolve() {
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+
+        const QVariantList sections = editor.formSections();
+        QVERIFY(sections.size() >= 6);
+
+        const QStringList validTabs = { QStringLiteral("basic"), QStringLiteral("advanced") };
+        const QStringList validTypes = {
+            QStringLiteral("switch"), QStringLiteral("textField"), QStringLiteral("password"),
+            QStringLiteral("comboBox"), QStringLiteral("spinBox"),
+            QStringLiteral("stringList"), QStringLiteral("serverList"),
+            QStringLiteral("proxyNetworkList"), QStringLiteral("filePath"), QStringLiteral("keyActions"),
+        };
+
+        const QMetaObject *meta = editor.metaObject();
+        int boundFieldCount = 0;
+        QSet<QString> seenKeys;
+        for (const auto &sectionVar : sections) {
+            const QVariantMap section = sectionVar.toMap();
+            QVERIFY(validTabs.contains(section.value(QStringLiteral("tab")).toString()));
+            QVERIFY(!section.value(QStringLiteral("cardKey")).toString().isEmpty());
+            const QVariantList fields = section.value(QStringLiteral("fields")).toList();
+            QVERIFY(!fields.isEmpty());
+
+            for (const auto &fieldVar : fields) {
+                const QVariantMap field = fieldVar.toMap();
+                const QString type = field.value(QStringLiteral("type")).toString();
+                QVERIFY2(validTypes.contains(type), qPrintable(type));
+                const QString key = field.value(QStringLiteral("key")).toString();
+
+                if (type == QStringLiteral("keyActions")) {
+                    // 动作行无数据绑定，无 key
+                    QVERIFY(key.isEmpty());
+                    continue;
+                }
+
+                QVERIFY2(!key.isEmpty(), qPrintable(type));
+                QVERIFY2(!seenKeys.contains(key), qPrintable(QStringLiteral("重复 key: %1").arg(key)));
+                seenKeys.insert(key);
+                // key 必须能反射到本类的 Q_PROPERTY（fieldValue/setFieldValue 的前提）
+                QVERIFY2(meta->indexOfProperty(key.toUtf8().constData()) >= 0,
+                         qPrintable(QStringLiteral("key 无对应属性: %1").arg(key)));
+                QVERIFY(editor.fieldValue(key).isValid());
+
+                if (type == QStringLiteral("comboBox"))
+                    QVERIFY(field.value(QStringLiteral("options")).toList().size() >= 2);
+                if (type == QStringLiteral("spinBox")) {
+                    QVERIFY(field.value(QStringLiteral("from")).toInt()
+                            < field.value(QStringLiteral("to")).toInt());
+                }
+                ++boundFieldCount;
+            }
+        }
+
+        // 47 个带数据绑定的字段（48 个配置字段中 displayName 不进表单）
+        QCOMPARE(boundFieldCount, 47);
+    }
+
+    /// 目标：setFieldValue 反射写回等价于具名 setter——值生效、自动保存、
+    /// 未知 key 返回 false
+    void setFieldValue_writesThroughAndAutoSaves() {
+        insertConfig(QStringLiteral("inst-reflect"), QStringLiteral("反射写入测试"));
+
+        ConfigCommandService commandService(m_repo.get(), this);
+        ConfigEditorViewModel editor(&commandService, this);
+        editor.loadConfig(QStringLiteral("inst-reflect"));
+
+        QVERIFY(editor.setFieldValue(QStringLiteral("hostname"), QStringLiteral("via-reflect")));
+        QCOMPARE(editor.hostname(), QStringLiteral("via-reflect"));
+
+        QVERIFY(editor.setFieldValue(QStringLiteral("mtu"), 1200));
+        QCOMPARE(editor.mtu(), 1200);
+
+        QVERIFY(editor.setFieldValue(
+            QStringLiteral("listenAddresses"),
+            QVariantList{QStringLiteral("tcp://0.0.0.0:11010"), QStringLiteral("udp://0.0.0.0:11011")}));
+        QCOMPARE(editor.listenAddresses().size(), 2);
+
+        // 未知 key 与只读属性写入失败
+        QVERIFY(!editor.setFieldValue(QStringLiteral("no_such_field"), 1));
+        QVERIFY(!editor.setFieldValue(QStringLiteral("currentInstanceName"), QStringLiteral("x")));
+
+        // 防抖自动保存后仓库中即为反射写入的值
+        QTest::qWait(kWaitForAutoSaveMs);
+        const auto loaded = m_repo->load(QStringLiteral("inst-reflect"));
+        QVERIFY(loaded.has_value());
+        QCOMPARE(loaded->hostname, QStringLiteral("via-reflect"));
+        QCOMPARE(loaded->mtu, 1200);
     }
 };
 

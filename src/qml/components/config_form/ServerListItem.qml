@@ -1,7 +1,9 @@
-/* @brief 服务器地址列表组件：管理 uri + publicKey 列表，支持添加、删除和去重检测 */
+/* @brief 服务器地址列表组件：管理 uri + publicKey 列表，支持添加、删除和去重检测，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtEasyTier
+import SwbControls
 
 // 服务器地址列表组件：管理 uri + publicKey 列表
 // 支持添加、删除、去重检测
@@ -19,27 +21,49 @@ ColumnLayout {
 
     spacing: 4
 
+    // 状态色(添加按钮文字统一用 statusGreen)
+    Theme { id: theme }
+
     ListModel { id: listModel }
 
     ListView {
         id: listView
         Layout.fillWidth: true
-        // 动态计算高度
-        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 40 + 4
-        spacing: 2
+        // 动态计算高度（行高 38，分隔线风格无行距）
+        Layout.preferredHeight: listModel.count === 0 ? 0 : listModel.count * 38
+        spacing: 0
         model: listModel
         interactive: false
 
         delegate: Rectangle {
+            id: serverRow
+
             required property int index
             required property var model
 
             width: ListView.view.width
             height: 38
-            // 斑马条纹背景
-            color: index % 2 === 0 ? "transparent"
-                                   : Qt.rgba(palette.windowText.r, palette.windowText.g, palette.windowText.b, 0.04)
-            radius: 4
+            color: rowHover.hovered ? SwbTheme.withAlpha(SwbTheme.foreground, 0.04)
+                 : "transparent"
+            radius: SwbTheme.radiusSm
+
+            Behavior on color {
+                ColorAnimation { duration: SwbTheme.animationDuration }
+            }
+
+            HoverHandler {
+                id: rowHover
+            }
+
+            // 行底分隔线（最后一行不显示）
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: SwbTheme.border
+                visible: serverRow.index < listView.count - 1
+            }
 
             RowLayout {
                 anchors.fill: parent
@@ -47,7 +71,7 @@ ColumnLayout {
                 anchors.rightMargin: 4
                 spacing: 4
 
-                Label {
+                SwbLabel {
                     text: model.uri + (model.publicKey ? qsTr("【安全】") : "")
                     font.bold: model.publicKey !== ""
                     Layout.fillWidth: true
@@ -64,19 +88,13 @@ ColumnLayout {
         }
     }
 
-    Button {
+    SwbButton {
         id: addButton
         Layout.fillWidth: true
-        flat: true
+        variant: "ghost"
+        size: "sm"
         text: qsTr("添加服务器地址")
-        contentItem: Label {
-            text: addButton.text
-            color: palette.highlight
-            renderType: Text.NativeRendering
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
+        textColor: theme.statusGreen
         onClicked: {
             addDialog.uriText = ""
             addDialog.publicKeyText = ""
@@ -85,11 +103,10 @@ ColumnLayout {
     }
 
     // 添加服务器地址对话框
-    Dialog {
+    SwbDialog {
         id: addDialog
         title: qsTr("添加服务器地址")
         standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
@@ -102,21 +119,21 @@ ColumnLayout {
             width: parent ? parent.width : 360
             spacing: 8
 
-            Label {
+            SwbLabel {
                 text: qsTr("服务器地址（必填）")
             }
 
-            TextField {
+            SwbTextField {
                 id: uriField
                 Layout.fillWidth: true
                 placeholderText: "tcp://example.qtet.cn:11010"
             }
 
-            Label {
+            SwbLabel {
                 text: qsTr("服务器公钥（选填）")
             }
 
-            TextField {
+            SwbTextField {
                 id: publicKeyField
                 Layout.fillWidth: true
                 placeholderText: qsTr("留空表示不使用公钥验证")

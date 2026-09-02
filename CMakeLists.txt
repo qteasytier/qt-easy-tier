@@ -44,6 +44,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
     Concurrent
     Svg
     QuickDialogs2
+    QuickEffects
 )
 
 if(COMMAND qt_policy)
@@ -59,6 +60,14 @@ qt_standard_project_setup(REQUIRES 6.8)
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/importedcontent)
 endif()
+
+# SWB-QML-UI（shadcn 风格纯 QML 组件库，模块 URI 为 SwbControls），
+# 本地修改记录见 ThirdParty/SWB-QML-UI/PATCHES.md。
+# 按上游 README 静态集成方式：BUILD_SHARED_LIBS=OFF 使 SwbControls 及其
+# QML 插件成为静态库，全部编译产物链入可执行文件，部署不再携带 libSwbControls.so；
+# 静态集成需同时链接自动生成的 SwbControlsplugin（QML 插件与类型注册）。
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(ThirdParty/SWB-QML-UI)
 
 function(add_qtet_library name)
     qt_add_library(${name} STATIC ${ARGN})
@@ -97,6 +106,7 @@ endif()
 qt_add_executable(appQtEasyTier
     src/main.cpp
     assets/resources.qrc
+    ThirdParty/SWB-QML-UI/assets/theme.qrc
     ${QTET_WINDOWS_RC}
 )
 
@@ -122,6 +132,8 @@ target_link_libraries(appQtEasyTier PRIVATE
     Qt6::Concurrent
     Qt6::Svg
     Qt6::QuickDialogs2
+    SwbControls
+    SwbControlsplugin
     qtet_appsupport
 )
 
@@ -129,61 +141,37 @@ if(BUILD_WITH_DDE)
     target_compile_definitions(appQtEasyTier PRIVATE QTET_WITH_DDE)
 endif()
 
-set(QTET_QML_FILES
-    src/qml/Main.qml
-    src/qml/components/Sidebar.qml
-    src/qml/components/SidebarItem.qml
-    src/qml/components/PageContainer.qml
-    src/qml/components/EditableList.qml
-    src/qml/components/QtETabWidget.qml
-    src/qml/components/ServerListItem.qml
-    src/qml/components/ProxyNetworkListItem.qml
-    src/qml/components/Theme.qml
-    src/qml/pages/InstanceList.qml
-    src/qml/pages/NetworkPage.qml
-    src/qml/pages/NetworkOptions.qml
-    src/qml/pages/NetworkRuningStatus.qml
-    src/qml/pages/SettingsPage.qml
-    src/qml/pages/FavoriteNodesPage.qml
-    src/qml/pages/LogPage.qml
-)
+# ============================================
+# QML 源:按目录组织(src/qml/*/CMakeLists.txt 各自收集,参考 SWB-QML-UI 的方式)
+# 列表元素为相对 src/qml/ 的路径,兼作 QT_RESOURCE_ALIAS(qrc:/QtEasyTier/...)
+# ============================================
+set(QTET_QML_FILES Main.qml)
+set(QTET_QML_FILES_ABS "")
+set(QTET_QML_MASK_SHARED "")
+set(QTET_QML_MASK_DDE "")
+add_subdirectory(src/qml/components)
+add_subdirectory(src/qml/pages)
+add_subdirectory(src/qml/dde)
 
 # Card/IconToolButton/EditableListItem/ErrorDialog/ImportNodesDialog/
 # GenerateCredentialDialog/CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
 if(BUILD_WITH_DDE)
-    list(APPEND QTET_QML_FILES
-        src/qml/dde/components/IconToolButton.qml
-        src/qml/dde/components/Card.qml
-        src/qml/dde/components/EditableListItem.qml
-        src/qml/dde/components/ErrorDialog.qml
-        src/qml/dde/components/ImportNodesDialog.qml
-        src/qml/dde/components/GenerateCredentialDialog.qml
-        src/qml/dde/components/CredentialManageDialog.qml
-        src/qml/dde/DdeMain.qml
-        src/qml/dde/AppAboutDialog.qml
-    )
+    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_DDE})
 else()
-    list(APPEND QTET_QML_FILES
-        src/qml/components/Card.qml
-        src/qml/components/IconToolButton.qml
-        src/qml/components/EditableListItem.qml
-        src/qml/components/ErrorDialog.qml
-        src/qml/components/ImportNodesDialog.qml
-        src/qml/components/GenerateCredentialDialog.qml
-        src/qml/components/CredentialManageDialog.qml
-    )
+    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_SHARED})
 endif()
 
-foreach(qml_file IN LISTS QTET_QML_FILES)
-    file(RELATIVE_PATH qml_resource_alias "${CMAKE_CURRENT_SOURCE_DIR}/src/qml" "${CMAKE_CURRENT_SOURCE_DIR}/${qml_file}")
-    set_source_files_properties(${qml_file} PROPERTIES QT_RESOURCE_ALIAS "${qml_resource_alias}")
+foreach(qml_rel IN LISTS QTET_QML_FILES)
+    set_source_files_properties("${CMAKE_SOURCE_DIR}/src/qml/${qml_rel}"
+        PROPERTIES QT_RESOURCE_ALIAS "${qml_rel}")
+    list(APPEND QTET_QML_FILES_ABS "${CMAKE_SOURCE_DIR}/src/qml/${qml_rel}")
 endforeach()
 
 qt_add_qml_module(appQtEasyTier
     URI QtEasyTier
     VERSION 1.0
     RESOURCE_PREFIX "/"
-    QML_FILES ${QTET_QML_FILES}
+    QML_FILES ${QTET_QML_FILES_ABS}
 )
 
 enable_testing()
