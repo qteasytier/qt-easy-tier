@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(QtEasyTier VERSION 3.2.0 LANGUAGES CXX)
+project(QtEasyTier VERSION 3.2.1 LANGUAGES CXX)
 set(EASYTIER_FFI_VER 2.6.4)
 set(QTET_DAEMON_VER 0.1.1)
 
