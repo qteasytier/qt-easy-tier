@@ -29,21 +29,27 @@ Rectangle {
     /* 点击导航项时发出 */
     signal clicked
 
-    color: root.selected ? palette.button
-                         : root.hovered ? root.hoverBackground
-                                        : root.normalBackground
+    // 背景层：内缩 3px 的圆角矩形，与旧版选中背景几何一致
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 3
+        radius: 5
+        color: root.selected ? palette.button
+                             : root.hovered ? root.hoverBackground
+                                            : root.normalBackground
 
-    Behavior on color {
-        ColorAnimation {
-            duration: 140
-            easing.type: Easing.OutQuad
+        Behavior on color {
+            ColorAnimation {
+                duration: 140
+                easing.type: Easing.OutQuad
+            }
         }
     }
 
     // 图标 + 标签纵向排列
     Column {
         anchors.left: parent.left
-        anchors.leftMargin: 3
+        anchors.leftMargin: 6
         anchors.right: parent.right
         anchors.rightMargin: 3
         anchors.verticalCenter: parent.verticalCenter
