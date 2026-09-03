@@ -88,7 +88,7 @@ jobs:
       - name: Build deb package
         working-directory: ${{ github.workspace }}/build/Output
         run: |
-          bash "${{ github.workspace }}/assets/package/linux/build_deb.sh" \
+          bash "${{ github.workspace }}/package/linux/build_deb.sh" \
             -v "${{ needs.release-info.outputs.version }}" \
             -a "${{ matrix.arch }}"
 
@@ -171,7 +171,7 @@ jobs:
             "/DBuildOutputDir=$buildOutput" `
             "/DPackageOutputDir=$packageOutput" `
             "/DSourceRootDir=$sourceRoot" `
-            "assets\package\windows\package.iss"
+            "package\windows\package.iss"
 
       - name: Create zip package
         shell: pwsh

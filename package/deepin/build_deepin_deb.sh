@@ -5,7 +5,7 @@ set -euo pipefail
 # 用法: build_deepin_deb.sh -v <版本号> [-a <架构>]
 # 产物: qteasytier-dde_v<版本号>_deepin_<架构>.deb
 #
-# 与 assets/package/linux/build_deb.sh 的区别：
+# 与 package/linux/build_deb.sh 的区别：
 #   - 额外收集 DDE 托盘插件（Output/Plugins/libqtetDdeTrayPlugin.so，与 dcc-setting 图标，安装到 dde-dock 标准目录；
 #   - DEBIAN/control 的 Depends 补充 DTK6 / dde-tray-loader 运行时依赖；
 #   - desktop 文件带 X-Deepin-Vendor 字段。
@@ -56,7 +56,7 @@ esac
 
 OUTPUT_DIR="$(pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ASSETS_DIR="$(cd "$SCRIPT_DIR/../../" && pwd)"
+ASSETS_DIR="$(cd "$SCRIPT_DIR/../../assets" && pwd)"
 PLUGIN_DIR="$OUTPUT_DIR/Plugins"
 
 PACKAGE_NAME="qteasytier-dde"

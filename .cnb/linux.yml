@@ -70,7 +70,7 @@
   name: package-deb
   script: |
     cd build/Output
-    bash ../../assets/package/linux/build_deb.sh -v "$QTET_VERSION" -a "$QTET_BUILD_ARCH"
+    bash ../../package/linux/build_deb.sh -v "$QTET_VERSION" -a "$QTET_BUILD_ARCH"
 
 # 上传 commit 附件（master / PR）：不指定 tag/commit，插件默认取 $CNB_COMMIT 挂到
 # 当前提交，构建页面即可"附件签出"下载 .deb 安装包。

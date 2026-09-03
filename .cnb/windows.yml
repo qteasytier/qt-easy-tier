@@ -138,7 +138,7 @@
     $buildOut = Join-Path $root 'build\Output'
     $packageOut = Join-Path $root 'build\Package'
     New-Item -ItemType Directory -Path $packageOut -Force | Out-Null
-    $iss = Join-Path $root 'assets\package\windows\package.iss'
+    $iss = Join-Path $root 'package\windows\package.iss'
     & ISCC "/DMyAppVersion=$version" "/DBuildOutputDir=$buildOut" "/DPackageOutputDir=$packageOut" "/DSourceRootDir=$root" $iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup 打包失败，退出码 $LASTEXITCODE" }
 

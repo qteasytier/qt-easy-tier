@@ -47,7 +47,7 @@ esac
 
 OUTPUT_DIR="$(pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ASSETS_DIR="$(cd "$SCRIPT_DIR/../../" && pwd)"
+ASSETS_DIR="$(cd "$SCRIPT_DIR/../../assets" && pwd)"
 
 PACKAGE_NAME="qteasytier"
 BUILD_DIR="$OUTPUT_DIR/${PACKAGE_NAME}_${ARCH}"
