@@ -1,7 +1,7 @@
-# 配置表单渲染器(数据驱动配置表单)与被渲染器专用的列表编辑器组件。
+# 共享前端(SwbControls 风格)的配置表单渲染器(数据驱动配置表单)
+# 与被渲染器专用的列表编辑器组件:仅非 DDE 构建编入。
+# DDE 构建使用 dde/config_form/ 下的 DTK 版渲染器。
 # 列表元素为相对 src/qml/ 的路径,由根 CMake 统一设置 QT_RESOURCE_ALIAS。
-# 注意:EditableListItem/ImportNodesDialog 是 DDE 蒙版组件,
-# DDE 构建时由 dde/components/ 下同名组件替换(见根 CMakeLists 的分支)。
 
 set(_config_form_qml
     components/config_form/FormField.qml
@@ -21,13 +21,6 @@ set(_config_form_qml
     components/config_form/ProxyNetworkListItem.qml
     components/config_form/ImportNodesDialog.qml
 )
-list(APPEND QTET_QML_FILES ${_config_form_qml})
+list(APPEND QTET_QML_SHARED_FILES ${_config_form_qml})
 
-# 蒙版组件共享版(仅非 DDE 构建):DDE 构建用 dde/components/ 同名版本替换
-list(APPEND QTET_QML_MASK_SHARED
-    components/config_form/EditableListItem.qml
-    components/config_form/ImportNodesDialog.qml
-)
-
-set(QTET_QML_FILES ${QTET_QML_FILES} PARENT_SCOPE)
-set(QTET_QML_MASK_SHARED ${QTET_QML_MASK_SHARED} PARENT_SCOPE)
+set(QTET_QML_SHARED_FILES ${QTET_QML_SHARED_FILES} PARENT_SCOPE)

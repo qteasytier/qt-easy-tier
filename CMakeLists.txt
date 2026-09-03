@@ -64,11 +64,10 @@ endif()
 
 # SWB-QML-UI（shadcn 风格纯 QML 组件库，模块 URI 为 SwbControls），
 # 本地修改记录见 ThirdParty/SWB-QML-UI/PATCHES.md。
-# 按上游 README 静态集成方式：BUILD_SHARED_LIBS=OFF 使 SwbControls 及其
-# QML 插件成为静态库，全部编译产物链入可执行文件，部署不再携带 libSwbControls.so；
-# 静态集成需同时链接自动生成的 SwbControlsplugin（QML 插件与类型注册）。
-set(BUILD_SHARED_LIBS OFF)
-add_subdirectory(ThirdParty/SWB-QML-UI)
+if(NOT BUILD_WITH_DDE)
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(ThirdParty/SWB-QML-UI)
+endif()
 
 function(add_qtet_library name)
     qt_add_library(${name} STATIC ${ARGN})
@@ -104,10 +103,16 @@ if(WIN32)
     set_source_files_properties("${QTET_WINDOWS_RC}" PROPERTIES GENERATED TRUE)
 endif()
 
+# SwbControls 主题图标资源（月/太阳等）仅共享前端构建嵌入
+set(QTET_APP_EXTRA_SOURCES "")
+if(NOT BUILD_WITH_DDE)
+    list(APPEND QTET_APP_EXTRA_SOURCES ThirdParty/SWB-QML-UI/assets/theme.qrc)
+endif()
+
 qt_add_executable(appQtEasyTier
     src/main.cpp
     assets/resources.qrc
-    ThirdParty/SWB-QML-UI/assets/theme.qrc
+    ${QTET_APP_EXTRA_SOURCES}
     ${QTET_WINDOWS_RC}
 )
 
@@ -123,6 +128,12 @@ set_target_properties(appQtEasyTier PROPERTIES
 qtet_configure_daemon()
 qtet_attach_daemon_to_app(appQtEasyTier)
 
+# SwbControls 静态库仅共享前端构建链接；DDE 前端不引用 SwbControls
+set(QTET_APP_EXTRA_LIBS "")
+if(NOT BUILD_WITH_DDE)
+    list(APPEND QTET_APP_EXTRA_LIBS SwbControls SwbControlsplugin)
+endif()
+
 target_link_libraries(appQtEasyTier PRIVATE
     Qt6::Core
     Qt6::Sql
@@ -133,8 +144,7 @@ target_link_libraries(appQtEasyTier PRIVATE
     Qt6::Concurrent
     Qt6::Svg
     Qt6::QuickDialogs2
-    SwbControls
-    SwbControlsplugin
+    ${QTET_APP_EXTRA_LIBS}
     qtet_appsupport
 )
 
@@ -145,23 +155,32 @@ endif()
 # ============================================
 # QML 源:按目录组织(src/qml/*/CMakeLists.txt 各自收集,参考 SWB-QML-UI 的方式)
 # 列表元素为相对 src/qml/ 的路径,兼作 QT_RESOURCE_ALIAS(qrc:/QtEasyTier/...)
+#
+# 前端整树条件选择(不再使用同名蒙版替换):
+#   - BUILD_WITH_DDE=ON  编入 dde/ 完整 DTK 前端树(DdeMain + 自有 pages/
+#     components/config_form,全部 org.deepin.dtk 控件实现)
+#   - BUILD_WITH_DDE=OFF 编入 Main.qml + 共享 components/pages 树(SwbControls)
+# 两棵树存在同名类型(NetworkPage/Card/Sidebar 等),同一模块内重名类型会
+# 冲突,绝不混编,只能整树二选一。
+# Theme.qml(纯 QtObject 状态色)与 PageContainer.qml(纯 QtQuick 页面容器)
+# 不依赖任何控件库,由两种前端共用,无条件编入;PageContainer 按类型名引用
+# 页面,DDE 构建下自动解析到 dde/pages/ 同名页面。
 # ============================================
-set(QTET_QML_FILES Main.qml)
+set(QTET_QML_FILES
+    components/Theme.qml
+    components/PageContainer.qml
+)
 set(QTET_QML_FILES_ABS "")
-set(QTET_QML_MASK_SHARED "")
-set(QTET_QML_MASK_DDE "")
+set(QTET_QML_SHARED_FILES "")
+set(QTET_QML_DDE_FILES "")
 add_subdirectory(src/qml/components)
 add_subdirectory(src/qml/pages)
 add_subdirectory(src/qml/dde)
 
-# Card/IconToolButton/EditableListItem/ErrorDialog/ImportNodesDialog/
-# CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
-# (GenerateCredentialDialog 仅存于 DDE 蒙版集:共享版新增凭证功能已并入
-#  CredentialManageDialog,DDE 版仍为独立生成对话框)
 if(BUILD_WITH_DDE)
-    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_DDE})
+    list(APPEND QTET_QML_FILES ${QTET_QML_DDE_FILES})
 else()
-    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_SHARED})
+    list(APPEND QTET_QML_FILES Main.qml ${QTET_QML_SHARED_FILES})
 endif()
 
 foreach(qml_rel IN LISTS QTET_QML_FILES)
@@ -188,7 +207,10 @@ qt_add_translations(appQtEasyTier
 )
 
 # lupdate 覆盖扫描：qt_add_translations 只扫描 app target 源（QML + main.cpp），
-# qtet_appcore / qtet_system_tray 中的 tr() 不在其中，这里显式补扫
+# qtet_appcore / qtet_system_tray 中的 tr() 不在其中，这里显式补扫。
+# QML 侧同时覆盖共享树与 DDE 树（.ts 服务两种前端）；不用按构建模式的
+# QTET_QML_FILES（单树扫描会把另一棵树的同源条目标记为 vanished）。
+file(GLOB_RECURSE QTET_LUPDATE_QML "${CMAKE_SOURCE_DIR}/src/qml/*.qml")
 add_custom_target(update-translations
     COMMAND Qt6::lupdate
             "${CMAKE_SOURCE_DIR}/src/main.cpp"
@@ -197,7 +219,7 @@ add_custom_target(update-translations
             "${CMAKE_SOURCE_DIR}/src/core/settings"
             "${CMAKE_SOURCE_DIR}/src/app"
             "${CMAKE_SOURCE_DIR}/src/system_tray"
-            ${QTET_QML_FILES_ABS}
+            ${QTET_LUPDATE_QML}
             -ts
             "${CMAKE_SOURCE_DIR}/translations/QtEasyTier_zh_TW.ts"
             "${CMAKE_SOURCE_DIR}/translations/QtEasyTier_en.ts"

@@ -81,7 +81,7 @@ main.cpp → DatabaseConnection → QQmlApplicationEngine → AppServices
 - ViewModel 负责暴露 QML 可绑定属性/信号/槽、转换数据、协调页面动作、调用应用服务；不应拼 daemon payload、写持久化细节、承载平台逻辑或自建静态 singleton。
 - 运行状态展示模型 `NodeInfoModel` / `RuntimeLogModel` 属于应用核心层（`src/core/runtime/`），由 `VpnRuntimeService` 持有并填充。
 - QML singleton `DangerousOperationViewModel` 是兼容注册名，实际注册对象是应用服务 `DangerousOperationService`。
-- 新 QML 文件加入其所在目录（`src/qml/components/`、`src/qml/components/config_form/`、`src/qml/pages/`、`src/qml/dde/`）的 `CMakeLists.txt`；根 `CMakeLists.txt` 按目录聚合各列表。UI 统一使用 SwbControls（`import SwbControls`），不再从 C++ 注入 QQuickStyle。
+- 新 QML 文件加入其所在目录（`src/qml/components/`、`src/qml/components/config_form/`、`src/qml/pages/`、`src/qml/dde/` 及其子目录）的 `CMakeLists.txt`；根 `CMakeLists.txt` 按目录聚合各列表并按 `BUILD_WITH_DDE` 整树二选一。共享前端使用 SwbControls（`import SwbControls`），DDE 前端使用 `org.deepin.dtk` 控件；两种前端都不从 C++ 注入 QQuickStyle。
 
 ### 应用核心：src/core
 
@@ -200,54 +200,45 @@ qtet_config / qtet_log
 
 ## 附录：DDE 布局移植（可选）
 
-`BUILD_WITH_DDE=ON`（默认关闭）时，主界面由 `main.cpp` 加载 `qrc:/QtEasyTier/dde/DdeMain.qml`（DTK `ApplicationWindow` + `TitleBar`），而非共享的 `Main.qml`。同一套页面与业务层逻辑复用，仅窗口壳与部分对话框换用 DTK 主题（共享页面为 SwbControls 风格）。
+`BUILD_WITH_DDE=ON`（默认关闭）时，主界面由 `main.cpp` 加载 `qrc:/QtEasyTier/dde/DdeMain.qml`（DTK `ApplicationWindow` + `TitleBar`）。DDE 前端是 `src/qml/dde/` 下的**完整独立 DTK UI 树**（自有 `pages/`、`components/`、`config_form/`，全部 `org.deepin.dtk` 控件实现，不依赖 SwbControls）；共享前端（`Main.qml` + `components/` + `pages/`，SwbControls 风格）保持原样。业务层与 ViewModel 完全复用，仅 UI 壳不同。
 
-### 蒙版替换机制
+### 前端整树条件选择
 
-同名组件放在 `src/qml/dde/components/` 下，经目录 `CMakeLists.txt` 收集到蒙版集合变量，由根 `CMakeLists.txt` 按构建模式二选一编入，在 DDE 构建中覆盖共享同名类型：
+两棵树存在同名类型（`NetworkPage`、`Card`、`Sidebar`、`FormField` 等），同一 QML 模块内重名类型会冲突，**绝不混编**，由根 `CMakeLists.txt` 按构建模式整树二选一：
 
 ```cmake
-# 各目录把共享版登记进 QTET_QML_MASK_SHARED（如 src/qml/components/CMakeLists.txt）
-list(APPEND QTET_QML_MASK_SHARED
-    components/Card.qml
-    ...
-)
-# DDE 版与 DDE 专属文件登记进 QTET_QML_MASK_DDE（src/qml/dde/CMakeLists.txt）
-set(QTET_QML_MASK_DDE
-    dde/DdeMain.qml
-    dde/components/Card.qml
-    ...
-    PARENT_SCOPE
-)
-# 根 CMakeLists.txt 聚合时二选一
+# 根 CMakeLists.txt：无条件共用件 + 按模式选树
+set(QTET_QML_FILES components/Theme.qml components/PageContainer.qml)  # 两种前端共用
+add_subdirectory(src/qml/components)   # 收集 QTET_QML_SHARED_FILES（含 config_form/）
+add_subdirectory(src/qml/pages)        # 收集 QTET_QML_SHARED_FILES
+add_subdirectory(src/qml/dde)          # 收集 QTET_QML_DDE_FILES（含 dde/pages/、dde/config_form/）
 if(BUILD_WITH_DDE)
-    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_DDE})
+    list(APPEND QTET_QML_FILES ${QTET_QML_DDE_FILES})
 else()
-    list(APPEND QTET_QML_FILES ${QTET_QML_MASK_SHARED})
+    list(APPEND QTET_QML_FILES Main.qml ${QTET_QML_SHARED_FILES})
 endif()
 ```
 
-- DDE 版与共享版类型名必须一致（类型由文件名决定），才能被蒙版替换。
-- 需要蒙版替换的组件，其共享版只能进入 `QTET_QML_MASK_SHARED`（不得进常规 `QTET_QML_FILES`），否则 DDE 模式下同类型重复注册会加载失败。
-- `src/qml/dde/DdeMain.qml`、`src/qml/dde/AppAboutDialog.qml` 只由 DDE 集合加入，无共享对应文件。
+- `Theme.qml`（纯 QtObject 状态色）与 `PageContainer.qml`（纯 QtQuick 页面容器/切换动画）不依赖控件库，无条件编入；`PageContainer` 按类型名引用页面，DDE 构建下自动解析到 `dde/pages/` 同名页面，两种前端共享同一份切换动画。
+- DDE 构建不编译任何 `import SwbControls` 的文件：`ThirdParty/SWB-QML-UI` 子目录、其 `theme.qrc` 与 `SwbControls`/`SwbControlsplugin` 链接均包在 `if(NOT BUILD_WITH_DDE)` 内。
 - 列表元素为相对 `src/qml/` 的路径，兼作 `QT_RESOURCE_ALIAS`。
 
 ### DTK 对话框要点
 
-- 独立对话框用 `D.DialogWindow`（继承 `Window`），标题栏用 `header: D.DialogTitleBar`；它有独立的窗口边框与关闭按钮，不是主窗口内嵌弹层。
+- 独立对话框用 `DialogWindow`（继承 `Window`），标题栏用 `header: DialogTitleBar`；全部使用 `modality: Qt.ApplicationModal`（模态独立窗，虽是外部窗口但更符合 DTK 风格），不是主窗口内嵌弹层。
 - `DialogWindow` 的默认属性 `content` 是 `contentLoader.children`，**只接受 `Item`**。`Connections` / `Timer` / `Theme` 等 `QtObject` 不能直接放在顶层，需以命名属性声明（如 `property Theme theme: Theme { }`）或移入内容 `Item` 内。
-- 嵌套的 `DialogWindow`（`Window` 非 `Item`）不能作另一 `DialogWindow` 的 content 子项，须以命名属性挂载（如 `property var revokeConfirmDialog: D.DialogWindow { ... }`）。
+- 嵌套的 `DialogWindow`（`Window` 非 `Item`）不能作另一 `DialogWindow` 的 content 子项，须以命名属性挂载（如 `property ConfirmDialog revokeConfirmDialog: ConfirmDialog { ... }`）。
 - `DialogWindow` 高度由内容 `childrenRect` 自动决定，宽度需显式设置。内容布局用 `anchors.left/right: parent` + `anchors.leftMargin/rightMargin` 铺满并控制左右边距（`Layout.fillWidth` / `Layout.margins` 只在父为布局容器时生效）。
-- 没有 `standardButtons` / `onOpened` / `onAccepted`：底部按钮用 `RowLayout + Item{fillWidth}` 右对齐；数据刷新/状态重置在自定义 `open()` 中完成，关闭逻辑监听 `onVisibleChanged` 补发 `closed` 信号（兼容共享版 `QQC.Dialog.onClosed`）。
-- 控件优先用 DTK 原生（`D.Label` / `D.Button` / `D.TextField` / `D.CheckBox` / `D.SpinBox` / `D.ListView` / `D.DialogTitleBar`），并遵循 DTK 默认字体（如 `D.CheckBox` 默认 `fontManager.t8`），不在页面中硬编码字号。
+- 没有 `standardButtons` / `onOpened` / `onAccepted`：底部按钮用 `RowLayout + Item{fillWidth}` 右对齐（主操作 `RecommandButton`，危险操作 `WarningButton`）；数据刷新/状态重置在自定义 `open()` 中完成，关闭逻辑监听 `onVisibleChanged` 补发 `closed` 信号（兼容共享版 `QQC.Dialog.onClosed`）。简单确认/输入对话框统一从 `dde/components/ConfirmDialog.qml` 基座实例化（`message` / `inputMode` / `danger` / `accepted` / `rejected`）。
+- 控件优先用 DTK 原生（`Label` / `Button` / `RecommandButton` / `WarningButton` / `TextField` / `CheckBox` / `Switch` / `ComboBox` / `SpinBox` / `Menu` / `DialogTitleBar`）；`org.deepin.dtk` 没有 `TextArea`，多行文本用 `QQC.TextArea` + DTK 风格自绘背景；列表用 `QQC.ListView`；滚动用 `Flickable` + DTK `ScrollBar`；页签用自绘 `dde/components/TabHeader.qml`（不用 Chameleon 风格注入）。
 - `QtQuick.Controls` 以 `import QtQuick.Controls as QQC` 别名限量引用，避免与 DTK 的 `ApplicationWindow`/`Label` 同名歧义。
 
-### 新增 DDE 组件流程
+### 新增 DDE 组件/页面流程
 
-1. 在 `src/qml/dde/components/` 新建同名组件，接口与共享版保持一致（属性、信号、`open()/close()`）。
-2. 若是蒙版替换，将其加入 CMake 的 `if(BUILD_WITH_DDE)` 分支，并从共享基础列表移除对应共享版。
-3. 在桌面环境验证主题、窗口布局与交互，能用 `QT_QPA_PLATFORM=offscreen` 做无头启动检查 QML 加载错误。
-4. 保持与共享版相同的功能与接口，DDE 版只是 UI 壳层的主题化复刻。
+1. 在 `src/qml/dde/` 对应子目录（`components/` / `pages/` / `config_form/`）新建文件，逻辑与共享版对应文件保持等价（同名类型、相同信号与 `open()/close()` 接口）。
+2. 把文件登记进所在目录 `CMakeLists.txt` 的 `QTET_QML_DDE_FILES`。
+3. 跨子目录引用类型（如 `dde/pages/` 用 `dde/components/` 的 `Card`）需显式 `import QtEasyTier`；同目录类型隐式解析。
+4. 无 DTK 环境的开发机上 `BUILD_WITH_DDE=ON` 仍可完整编译验证（DDE 前端纯 QML，C++ 不链 DTK），配合 `qmllint` 做语法级检查；运行级验证在 deepin 环境或 CNB deepin 流水线进行。
 
 ## 附录：DDE 托盘插件（可选）
 
