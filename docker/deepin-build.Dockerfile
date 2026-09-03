@@ -15,7 +15,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ---- 系统依赖（通用 Linux 镜像列表 + Qt6 开发包 + DTK6 + DDE 托盘插件开发包） ----
 # libdtk6declarative-dev 依赖并带入 libdtk6core-dev/libdtk6gui-dev；
 # qml6-module-qtquick-controls2-styles-chameleon 提供 org.deepin.dtk QML 模块
-# （构建 QML 编译与运行测试所需）。
+# （构建 QML 编译与运行测试所需）；
+# qt6-tools-dev + qt6-l10n-tools 提供 Qt6LinguistTools CMake 配置与
+# lupdate/lrelease（qt_add_translations 国际化构建所需）。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       build-essential cmake ninja-build git bash file dpkg-dev ca-certificates \
@@ -34,6 +36,7 @@ RUN apt-get update \
       python3 \
       qml6-module-qtquick-dialogs \
       qt6-base-dev qt6-declarative-dev qt6-svg-dev libqt6sql6-sqlite \
+      qt6-tools-dev qt6-l10n-tools \
       libdtk6core-dev libdtk6gui-dev libdtk6declarative-dev \
       qml6-module-qtquick-controls2-styles-chameleon \
       dde-tray-loader-dev \
