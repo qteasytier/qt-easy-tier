@@ -1,10 +1,8 @@
 /* @file CredentialManageDialog.qml (DDE)
- * @brief DDE 版管理临时节点密钥对话框：DTK DialogWindow 重写，对齐共享版新交互
- *        （查询/新增/编辑/撤销当前实例已签发的安全模式临时凭证，新增与编辑共用一套表单）
+ * @brief DDE 版管理临时节点密钥对话框：查询/新增/编辑/撤销安全模式临时凭证
  *
- * 相对旧 DDE 版：独立的 GenerateCredentialDialog 已删除，签发流程并入本对话框
- * 的“新增”表单（submitEdit 统一走 generate/upsert）；嵌套的撤销确认对话框
- * 以命名属性挂载（DialogWindow 不能作另一 DialogWindow 的 content 子项）。
+ * 新增与编辑共用一套表单（submitEdit 统一走 generate/upsert）；嵌套的撤销
+ * 确认对话框以命名属性挂载（DialogWindow 不能作另一 DialogWindow 的 content 子项）。
  */
 import QtQuick
 import QtQuick.Layouts
@@ -124,6 +122,12 @@ DialogWindow {
         return parts.join("  |  ")
     }
 
+    /* 按"过期时刻 - 当前时刻"计算有效期预填值（秒，钳制到 SpinBox 范围） */
+    function clampTtl(expiryUnix) {
+        var remain = Math.floor((expiryUnix - Date.now() / 1000) / 60) * 60
+        return Math.max(editTtlSpin.from, Math.min(editTtlSpin.to, remain))
+    }
+
     /* 进入新增模式：表单重置为签发默认值，直接展示表单（无需取原密钥） */
     function beginCreate() {
         creating = true
@@ -157,6 +161,7 @@ DialogWindow {
         editCidrsField.text = editCidrsText
         editAllowRelayCheck.checked = editAllowRelay
         editReusableCheck.checked = editReusable
+        editTtlSpin.value = clampTtl(editExpiryUnix)
         viewState = "fetching"
         CredentialViewModel.prepareEdit(VpnRuntimeService.activeInstanceName, editCredentialId)
     }
@@ -259,6 +264,7 @@ DialogWindow {
                 root.resultText = changed ? qsTr("凭证「%1」已更新。").arg(root.editCredentialId)
                                           : qsTr("凭证「%1」内容无变化。").arg(root.editCredentialId)
                 root.viewState = "success"
+                root.refreshList()
             }
 
             function onUpsertFailed(message) {
@@ -274,6 +280,7 @@ DialogWindow {
                     ? qsTr("凭证「%1」已撤销。").arg(root.revokeId)
                     : qsTr("凭证「%1」不存在，可能已被撤销。").arg(root.revokeId)
                 root.viewState = "success"
+                root.refreshList()
             }
 
             function onRevokedFailed(message) {
@@ -464,7 +471,7 @@ DialogWindow {
 
                 Label {
                     text: qsTr("凭证 ID")
-                    // 标签列三向钉死同一宽度：保证各行输入框左缘对齐（英文标签较长）
+                    // 标签列钉死固定宽度，保证各行输入框左缘对齐
                     Layout.preferredWidth: 140
                     Layout.minimumWidth: 140
                     Layout.maximumWidth: 140
@@ -533,10 +540,6 @@ DialogWindow {
                     Layout.fillWidth: true
                     from: 1
                     to: 2592000
-                    value: {
-                        var remain = Math.floor((root.editExpiryUnix - Date.now() / 1000) / 60) * 60
-                        return Math.max(1, Math.min(2592000, remain))
-                    }
                 }
             }
 

@@ -1,5 +1,5 @@
 /* @file FavoriteNodesPage.qml (DDE)
- * @brief DDE 版节点收藏页面：DTK 控件重写，管理常用节点的增删改查，支持节点名称/URI/公钥的编辑和清空操作
+ * @brief DDE 版节点收藏页面：管理常用节点的增删改查（名称/URI/公钥）与导入导出、清空
  *
  * 页面对话框（导入方式选择 / URL 导入 / 节点编辑 / 删除与清空确认）均为模态 DialogWindow。
  */
@@ -9,8 +9,6 @@ import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-// 节点收藏页面：管理常用节点的增删改查
-/* @brief 收藏页面根容器，包含节点列表和添加/清空按钮 */
 Rectangle {
     id: root
 
@@ -417,11 +415,11 @@ Rectangle {
         property string nodeName: ""
         property int nodeId: -1
 
-        title: qsTr("确认删除")
+        headerTitle: qsTr("确认删除")
         danger: true
         confirmText: qsTr("删除")
         message: nodeName !== ""
-            ? qsTr("确定要删除节点 \"%1\" 吗？").arg(nodeName)
+            ? qsTr("确定要删除节点「%1」吗？").arg(nodeName)
             : ""
 
         onAccepted: {

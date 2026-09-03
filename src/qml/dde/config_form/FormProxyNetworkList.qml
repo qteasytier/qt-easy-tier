@@ -1,17 +1,14 @@
 /* @file FormProxyNetworkList.qml (DDE)
- * @brief DDE 版代理子网列表字段渲染器：包装 DDE ProxyNetworkListItem，allow 协议缺省时回退为 tcp/udp/icmp */
+ * @brief DDE 版代理子网列表字段渲染器：包装 ProxyNetworkListItem，allow 缺省回退 tcp/udp/icmp
+ *
+ * ViewModel 侧 allow 为字符串数组，ProxyNetworkListItem 的 ListModel 侧存
+ * 逗号字符串（Qt6 ListModel 数组角色读写不可靠），在 reload/commit 边界做转换。
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/*
- * 代理子网列表渲染器（数据驱动，DTK 控件版）
- * allow 为空时以 ["tcp","udp","icmp"] 兜底（与 ViewModel 侧归一化保持一致）。
- * ViewModel 侧 allow 为字符串数组，ProxyNetworkListItem 的 ListModel 侧存逗号字符串
- * （Qt6 ListModel 数组角色读写不可靠），在 reload/commit 边界做转换。
- */
-/* @brief 代理子网列表渲染器根布局 */
 ColumnLayout {
     id: root
 

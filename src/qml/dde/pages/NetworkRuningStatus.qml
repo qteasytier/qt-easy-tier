@@ -1,8 +1,8 @@
 /* @file NetworkRuningStatus.qml (DDE)
- * @brief DDE 版网络运行状态页面：DTK 控件重写，通过自定义页签展示当前网络的节点信息列表和运行日志，支持日志导出
+ * @brief DDE 版网络运行状态页面：页签展示节点信息列表与运行日志，支持日志导出
  *
- * 页签用 DTK 下划线页签头（TabHeader）；管理临时节点密钥对话框经 Loader 懒加载
- * （dde/components/CredentialManageDialog，模态 DialogWindow）。
+ * 页签用 TabHeader（DTK 下划线页签头）；管理临时节点密钥对话框经 Loader
+ * 懒加载（CredentialManageDialog，模态 DialogWindow）。
  */
 import QtQuick
 import QtQuick.Layouts
@@ -10,8 +10,6 @@ import QtQuick.Dialogs
 import QtEasyTier
 import org.deepin.dtk
 
-// 网络运行状态页面：展示当前网络的节点信息与运行日志
-/* @brief 运行状态根容器，包含节点信息 Tab、运行日志 Tab 与页面级导出日志按钮 */
 ColumnLayout {
     id: root
 

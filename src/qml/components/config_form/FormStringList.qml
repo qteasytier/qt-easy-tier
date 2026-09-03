@@ -50,7 +50,7 @@ ColumnLayout {
         Layout.fillWidth: true
         addDialogTitle: root.field.addTitle ?? qsTr("添加项")
         defaultAddValue: root.field.addDefault ?? ""
-        checkDuplicates: root.field.deduge ?? false
+        checkDuplicates: root.field.dedupe ?? false
         onChanged: root.commit()
         onDuplicateDetected: function(msg) { AppState.showError(msg) }
     }

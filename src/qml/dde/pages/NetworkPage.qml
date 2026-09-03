@@ -1,9 +1,6 @@
 /* @file NetworkPage.qml (DDE)
- * @brief DDE 版网络页面：DTK 控件重写，配置管理与网络运行的入口页面，根据后端连接状态切换显示连接提示或完整功能面板
+ * @brief DDE 版网络页面：按后端连接状态切换连接提示或完整功能面板（配置列表 + 编辑/运行状态）
  *
- * 根据后端连接状态显示不同视图：
- *   未连接 → 连接提示
- *   已连接 → 左侧配置列表 + 右侧配置编辑或运行状态
  * 页面对话框（导入方式选择 / URL 导入）为模态 DialogWindow。
  */
 import QtQuick
@@ -12,7 +9,6 @@ import QtQuick.Dialogs
 import QtEasyTier
 import org.deepin.dtk
 
-/* @brief 网络页面根容器，管理左侧面板和右侧内容区的布局 */
 Rectangle {
     id: root
 

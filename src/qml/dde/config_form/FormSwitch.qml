@@ -1,5 +1,6 @@
 /* @file FormSwitch.qml (DDE)
- * @brief DDE 版开关字段渲染器：左侧 DTK Label 占满剩余宽度、右侧 DTK Switch，上下留呼吸边距缓解行间密集 */
+ * @brief DDE 版开关字段渲染器：左侧标签占满剩余宽度、右侧 Switch
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier

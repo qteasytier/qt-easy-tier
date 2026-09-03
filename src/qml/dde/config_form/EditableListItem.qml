@@ -1,8 +1,7 @@
 /* @file EditableListItem.qml (DDE)
  * @brief DDE 版可编辑列表条目：DTK ItemDelegate 原生高亮，文本 + 编辑/删除按钮
  *
- * 与共享版接口一致：itemIndex/itemText 属性 + editRequested/removeRequested 信号
- * （编辑/删除回调时以索引定位）。
+ * 与共享版接口一致：itemIndex/itemText 属性 + editRequested/removeRequested 信号。
  */
 import QtQuick
 import QtQuick.Layouts

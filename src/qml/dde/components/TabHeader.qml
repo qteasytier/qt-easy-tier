@@ -1,11 +1,9 @@
 /* @file TabHeader.qml (DDE)
- * @brief DDE 下划线风格页签头：DTK 配色自绘，替代共享版 SwbTabBar(line)
+ * @brief DDE 下划线风格页签头：页签均分宽度，选中项高亮、下划线滑动指示
  *
- * tabs 为标题文本数组（元素用 qsTr 字面量，engine.retranslate() 会让数组
- * 绑定重求值实现语言即时切换）；页签项均分整行宽度，点击切换 currentIndex：
- * 选中项文字高亮加粗（颜色渐变过渡），下划线指示条以滑动动画移动到当前页签，
- * 整行自带底部分隔线。与 StackLayout 的 currentIndex 绑定配合使用
- * （不用 Chameleon 风格注入，不引入 QQC TabBar）。
+ * tabs 为标题文本数组（qsTr 字面量，retranslate 即时切换）。与 StackLayout
+ * 的 currentIndex 绑定配合使用；不用 Chameleon 风格注入与 QQC TabBar
+ * （本环境 QQC C++ 插件类型不可用）。
  */
 import QtQuick
 import QtQuick.Layouts

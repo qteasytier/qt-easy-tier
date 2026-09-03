@@ -1,7 +1,7 @@
 /* @file ImportNodesDialog.qml (DDE)
- * @brief DDE 版节点导入对话框：DTK DialogWindow（独立顶层窗），接口与共享版一致
+ * @brief DDE 版节点导入对话框：勾选收藏/公共节点后经 nodesSelected 返回
  *
- * 参照 ErrorDialog：标题栏用 DialogTitleBar，取消/关闭发出 closed（兼容共享版 onClosed）。
+ * 接口与共享版一致：取消/关闭发出 closed（兼容共享版 onClosed）。
  */
 import QtQuick
 import QtQuick.Layouts

@@ -1,11 +1,11 @@
 /* @file LogPage.qml (DDE)
- * @brief DDE 版运行日志页面：DTK 控件重写，展示应用运行日志，支持按级别筛选（全部/信息/警告/错误）和清空操作 */
+ * @brief DDE 版运行日志页面：按级别筛选（全部/信息/警告/错误）展示应用日志，支持清空
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/* @brief 日志页面根容器，包含筛选栏和日志列表 */
 Rectangle {
     id: root
 

@@ -1,5 +1,6 @@
 /* @file FormKeyActions.qml (DDE)
- * @brief DDE 版密钥操作动作行渲染器：随机生成私钥 / 实时显示公钥，公钥展示为模态 DialogWindow（可复制） */
+ * @brief DDE 版密钥操作动作行渲染器：随机生成私钥 / 实时显示公钥（模态对话框，可复制）
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier

@@ -1,5 +1,6 @@
 /* @file FormPassword.qml (DDE)
- * @brief DDE 版密码字段渲染器：DTK TextField 密码模式 + 眼睛按钮切换明文，明文可见性为渲染器内部 UI 状态 */
+ * @brief DDE 版密码字段渲染器：密码模式 TextField + 眼睛按钮切换明文
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
@@ -18,7 +19,7 @@ RowLayout {
 
     Label {
         text: root.field.title
-        // 标签列三向钉死同一宽度：保证各行输入框左缘对齐（英文标签较长，110 不够用）
+        // 标签列钉死固定宽度，保证各行输入框左缘对齐
         Layout.preferredWidth: 140
         Layout.minimumWidth: 140
         Layout.maximumWidth: 140

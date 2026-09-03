@@ -1,11 +1,9 @@
 /* @file ConfirmDialog.qml (DDE)
  * @brief DDE 通用模态确认/输入对话框基座：DTK DialogWindow 独立顶层窗
  *
- * 两种形态：
- *  - 纯确认（默认）：message 正文 + 取消/确定按钮（danger 时确定用 WarningButton）；
- *  - 输入模式（inputMode）：正文下附带单行输入框，回车即确定，确定时回写 inputText。
- * 页面级对话框（删除确认、重命名、URL 导入等）统一从本基座实例化，
- * 保持 DDE 前端“模态 DialogWindow + DialogTitleBar + 右下角按钮组”的统一风格。
+ * 两种形态：纯确认（message + 取消/确定，danger 时确定用 WarningButton）、
+ * 输入模式（inputMode，正文下单行输入框，确定时回写 inputText）。
+ * 页面级确认/重命名/导入对话框统一从本基座实例化。
  */
 import QtQuick
 import QtQuick.Layouts

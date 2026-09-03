@@ -1,10 +1,9 @@
 /* @file Sidebar.qml (DDE)
  * @brief DDE 版侧边栏导航：DTK 图标 rail + 底部语言切换按钮
  *
- * 相对共享版：导航结构与交互等价（纯图标 + 悬停提示 + 选中态、itemClicked
- * 信号切换页面）。差异：主题切换不入侧边栏——DDE 前端主题由标题栏 DTK
- * ThemeMenu（系统级主题）接管，settings3.json 的 themeMode 在 DDE 构建下
- * 无 UI 入口；语言按钮经 LanguageController 持久化并即时重译。
+ * 与共享版导航结构等价（itemClicked 信号切换页面）。DDE 主题由标题栏
+ * ThemeMenu 接管（themeMode 无侧边栏入口）；语言按钮经 LanguageController
+ * 持久化并即时重译。
  */
 import QtQuick
 import QtQuick.Layouts

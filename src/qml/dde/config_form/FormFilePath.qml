@@ -1,5 +1,6 @@
 /* @file FormFilePath.qml (DDE)
- * @brief DDE 版文件路径字段渲染器：顶部标签 + DTK 路径输入框 + 选择按钮，内嵌 JSON 文件选择对话框 */
+ * @brief DDE 版文件路径字段渲染器：标签 + 路径输入框 + 文件选择按钮
+ */
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Layouts
@@ -40,7 +41,6 @@ ColumnLayout {
         }
     }
 
-    // 文件选择对话框（FileMode 选择的必然是文件）
     FileDialog {
         id: fileDialog
         title: qsTr("选择临时密钥文件")

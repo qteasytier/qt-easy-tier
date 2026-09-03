@@ -1,5 +1,8 @@
 /* @file ProxyNetworkListItem.qml (DDE)
- * @brief DDE 版代理子网列表组件：管理 cidr + mappedCidr + allow 列表（allow 以逗号字符串角色存储），支持添加、编辑、删除和去重检测，DTK 控件版 */
+ * @brief DDE 版代理子网列表组件：cidr + mappedCidr + allow 的添加/编辑/删除与去重
+ *
+ * allow 以逗号字符串角色存储（Qt6 ListModel 数组角色读写不可靠），兼容数组入参。
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
@@ -99,7 +102,7 @@ ColumnLayout {
 
                     Label {
                         Layout.fillWidth: true
-                        text: qsTr("协议: ") + root.allowText(model.allow)
+                        text: qsTr("协议：") + root.allowText(model.allow)
                         color: palette.placeholderText
                         font.pixelSize: 11
                         elide: Text.ElideRight

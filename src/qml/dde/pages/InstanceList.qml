@@ -1,22 +1,11 @@
 /* @file InstanceList.qml (DDE)
- * @brief DDE 版实例列表：DTK 控件重写，显示网络配置实例、支持新建/导入配置、右键菜单（重命名/删除）及配置启动/停止控制
- *
- * 主要功能：
- * - 显示网络配置列表（ListView），支持选中、播放/停止切换
- * - 新建/导入配置入口
- * - 右键菜单（重命名、删除）及对应模态 DialogWindow
- *
- * 依赖的单例：
- * - ConfigListModel      配置列表数据模型
- * - NetworkPageViewModel 当前页面状态
- * - FontHelper           小字体辅助
+ * @brief DDE 版实例列表：网络配置实例的选择、新建/导入、右键重命名/删除与启动/停止控制
  */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/* @brief 实例列表根容器，包含配置列表和操作按钮 */
 Rectangle {
     id: root
 
@@ -291,7 +280,6 @@ Rectangle {
                         buttonSize: 36
                         flat: true
                         enabled: !isBusy
-                        opacity: enabled ? 1.0 : 0.4
                         Layout.alignment: Qt.AlignVCenter
                         onClicked: {
                             root.selectInstance(instanceName)

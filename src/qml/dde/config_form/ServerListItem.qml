@@ -1,16 +1,13 @@
 /* @file ServerListItem.qml (DDE)
- * @brief DDE 版服务器地址列表组件：管理 uri + publicKey 列表，支持添加、编辑、删除和去重检测，DTK 控件版
+ * @brief DDE 版服务器地址列表组件：uri + publicKey 列表的添加/编辑/删除与 uri 去重
  *
- * 行样式沿用共享版（悬停浅色反馈 + 行底分隔线），添加/编辑对话框为模态 DialogWindow。
+ * 行样式沿用共享版（悬停反馈 + 行底分隔线）；添加/编辑对话框为模态 DialogWindow。
  */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-// 服务器地址列表组件：管理 uri + publicKey 列表
-// 支持添加、编辑、删除、去重检测
-/* @brief 服务器列表根布局，包含 ListView、添加按钮和添加/编辑对话框 */
 ColumnLayout {
     id: root
 

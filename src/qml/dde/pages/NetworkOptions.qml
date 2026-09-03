@@ -1,21 +1,9 @@
 /* @file NetworkOptions.qml (DDE)
- * @brief DDE 版网络配置编辑器薄壳：DTK 控件重写，按 ConfigEditorViewModel.formSections 元数据动态渲染两标签页表单，页面自身只保留布局骨架与页面级动作
+ * @brief DDE 版网络配置编辑器薄壳：按 ConfigEditorViewModel.formSections 元数据渲染两页签表单
  *
- * 架构：数据与 UI 分离——
- * - 字段清单、显示名、控件类型、下拉选项、数值范围、分组结构全部由
- *   ConfigEditorViewModel.formSections（CONSTANT 元数据）提供；
- * - 本页面仅按 tab 过滤卡片分组，经 FormField 分发器渲染各字段
- *   （渲染器实现位于 dde/config_form/，经 QtEasyTier 显式导入解析）；
- * - 字段值统一经 ConfigEditorViewModel[fieldKey] 读、setFieldValue(key, value) 写，
- *   继承 ViewModel 的防抖自动保存；
- * - 字段间联动禁用（dhcp→ipv4、白名单开关→输入框）属 UI 逻辑，在本壳实现；
- * - 页面级动作（导出/清空、确认与展示对话框，均为模态 DialogWindow）保留在本壳。
- *
- * 依赖的单例：
- * - ConfigEditorViewModel  表单元数据、字段读写、即时保存（防抖 300ms）
- * - ConfigListModel        导出配置
- * - AppState               错误提示、主目录路径
- * - FontHelper             小字体
+ * 字段元数据/读写/防抖保存全部由 ViewModel 提供，本壳仅做页签分组、
+ * FormField 分发渲染（dde/config_form/ 渲染器）与字段联动禁用
+ * （dhcp→ipv4、白名单开关→输入框）、页面级导出/清空动作。
  */
 import QtQuick
 import QtQuick.Dialogs
@@ -23,7 +11,6 @@ import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/* @brief 配置编辑器根布局，包含 Tab 页签和底部操作栏 */
 ColumnLayout {
     id: root
 

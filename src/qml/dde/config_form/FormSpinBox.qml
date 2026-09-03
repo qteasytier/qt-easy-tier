@@ -1,5 +1,6 @@
 /* @file FormSpinBox.qml (DDE)
- * @brief DDE 版数值字段渲染器：范围来自字段元数据 from/to，值经 setFieldValue 写回 */
+ * @brief DDE 版数值字段渲染器：范围来自元数据 from/to，值经 setFieldValue 写回
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
@@ -16,7 +17,7 @@ RowLayout {
 
     Label {
         text: root.field.title
-        // 标签列三向钉死同一宽度：保证各行输入框左缘对齐（英文标签较长，110 不够用）
+        // 标签列钉死固定宽度，保证各行输入框左缘对齐
         Layout.preferredWidth: 140
         Layout.minimumWidth: 140
         Layout.maximumWidth: 140

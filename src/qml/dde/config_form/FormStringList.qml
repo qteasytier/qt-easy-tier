@@ -1,16 +1,14 @@
 /* @file FormStringList.qml (DDE)
- * @brief DDE 版字符串列表字段渲染器：包装 DDE EditableList，按字段 key 与 ViewModel 泛化加载/写回 */
+ * @brief DDE 版字符串列表字段渲染器：包装 EditableList，按字段 key 泛化加载/写回
+ *
+ * ViewModel 值变化（实例切换/加载）时重建本地列表；写回相同内容时
+ * ViewModel 不发信号，无自反循环。
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/*
- * 字符串列表渲染器（数据驱动，DTK 控件版）
- * ViewModel 值变化（实例切换/加载）时重建本地列表，组件 onChanged 时整体写回。
- * 写回相同内容时 ViewModel 不发信号，无自反循环。
- */
-/* @brief 字符串列表渲染器根布局 */
 ColumnLayout {
     id: root
 
@@ -50,7 +48,7 @@ ColumnLayout {
         Layout.fillWidth: true
         addDialogTitle: root.field.addTitle ?? qsTr("添加项")
         defaultAddValue: root.field.addDefault ?? ""
-        checkDuplicates: root.field.deduge ?? false
+        checkDuplicates: root.field.dedupe ?? false
         onChanged: root.commit()
         onDuplicateDetected: function(msg) { AppState.showError(msg) }
     }

@@ -1,5 +1,6 @@
 /* @file FormComboBox.qml (DDE)
- * @brief DDE 版下拉选择字段渲染器：选项表来自字段元数据 options({text,value})，按 value 匹配当前索引 */
+ * @brief DDE 版下拉选择字段渲染器：选项来自元数据 options({text,value})，按 value 匹配当前索引
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
@@ -16,7 +17,7 @@ RowLayout {
 
     Label {
         text: root.field.title
-        // 标签列三向钉死同一宽度：保证各行输入框左缘对齐（英文标签较长，110 不够用）
+        // 标签列钉死固定宽度，保证各行输入框左缘对齐
         Layout.preferredWidth: 140
         Layout.minimumWidth: 140
         Layout.maximumWidth: 140

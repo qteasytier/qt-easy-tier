@@ -1,16 +1,13 @@
 /* @file EditableList.qml (DDE)
- * @brief DDE 版可编辑列表组件：通用列表 + 添加/编辑/删除功能，适合管理字符串列表（如端口、监听地址、CIDR 等），DTK 控件版
+ * @brief DDE 版可编辑列表组件：字符串列表的添加/编辑/删除（端口、监听地址等）
  *
- * 添加/编辑对话框为模态 DialogWindow（独立顶层窗）：校验失败（空值/重复）时保持窗口打开。
+ * 添加/编辑对话框为模态 DialogWindow：校验失败（空值/重复）时保持窗口打开。
  */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-// 可编辑列表组件：通用列表 + 添加/编辑/删除功能
-// 通过 model 属性绑定外部 ListModel，适合管理字符串列表（如端口、端点等）
-/* @brief 可编辑列表根布局，包含 ListView、添加按钮和添加/编辑对话框 */
 ColumnLayout {
     id: root
 
@@ -27,7 +24,7 @@ ColumnLayout {
     /* 列表数据发生增删变更时通知外部 */
     signal changed()
 
-    /* 添加按钮和对话框的标题文本 */
+    /* 添加按钮与对话框共用标题；编辑标题由此推导（"添加"前缀替换为"编辑"） */
     property string addDialogTitle: qsTr("添加项")
     /* 添加新项时对话框输入框的默认填充值 */
     property string defaultAddValue: ""
@@ -85,7 +82,6 @@ ColumnLayout {
         /* 当前对话框模式：-1 添加，>=0 为正在编辑的列表项索引 */
         property int editingIndex: -1
 
-        /* 标题随模式切换（DialogWindow.title 由 DialogTitleBar 呈现） */
         function open() {
             hadShown = true
             visible = true

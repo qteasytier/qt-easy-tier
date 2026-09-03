@@ -1,7 +1,7 @@
 /* @file SettingsPage.qml (DDE)
- * @brief DDE 版设置页面：DTK 控件重写，管理应用行为设置（自启/回连）、日志设置、版本信息和关于链接
+ * @brief DDE 版设置页面：应用行为（自启/回连等）、日志设置、版本信息与危险操作
  *
- * 相对共享版无主题设置项：DDE 前端主题由标题栏 DTK ThemeMenu（系统级主题）接管。
+ * DDE 主题由标题栏 ThemeMenu 接管，故无主题设置项；
  * 危险操作确认对话框均为模态 DialogWindow（ConfirmDialog 基座）。
  */
 import QtQuick
@@ -9,8 +9,6 @@ import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-// 设置页面：应用行为、日志、版本信息和关于
-/* @brief 设置页面根容器，以 Card 分区展示各类设置 */
 Rectangle {
     id: root
 

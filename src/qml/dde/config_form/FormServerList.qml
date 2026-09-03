@@ -1,16 +1,11 @@
 /* @file FormServerList.qml (DDE)
- * @brief DDE 版服务器列表字段渲染器：包装 DDE ServerListItem，附“从收藏导入”入口（含去重）与导入对话框 */
+ * @brief DDE 版服务器列表字段渲染器：包装 ServerListItem，附"从收藏导入"入口（uri 去重）
+ */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-/*
- * 服务器列表渲染器（数据驱动，DTK 控件版）
- * 按 key 泛化服务器加载/写回逻辑；“从收藏导入”按钮与
- * ImportNodesDialog（含 uri 去重追加）一并内聚于此。
- */
-/* @brief 服务器列表渲染器根布局 */
 ColumnLayout {
     id: root
 

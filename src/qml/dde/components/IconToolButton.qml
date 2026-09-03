@@ -1,9 +1,8 @@
 /* @file IconToolButton.qml (DDE)
- * @brief DDE 版统一图标工具按钮：IconImage 实时着色，图标色随 DTK 主题亮暗自动切换
+ * @brief DDE 版统一图标工具按钮：IconImage 实时着色，图标色随 DTK 主题亮暗切换
  *
- * 与共享版（SwbControls）同款技术：QtQuick.Controls.impl 的 IconImage 对单色
- * SVG 按 color 属性实时着色（光栅层面，无 shader 后处理）。默认取 palette
- * 前景色（DTK 主题驱动，亮暗即时切换），选中态用高亮对比色保证可读性。
+ * 与共享版（SwbControls）同款技术：QtQuick.Controls.impl 的 IconImage 对
+ * 单色 SVG 按 color 实时着色。默认取主题前景色，选中态用高亮对比色。
  */
 import QtQuick
 import QtQuick.Controls.impl
@@ -18,11 +17,17 @@ D.ToolButton {
     property int iconSize: 18
     property int buttonSize: 32
 
-    /* 图标着色：显式 iconTint > 选中态高亮对比色 > 主题前景色（随亮暗切换） */
-    readonly property color effectiveTint:
-        iconTint.a > 0 ? iconTint
-        : checked ? palette.highlightedText
-        : palette.windowText
+    /* 图标着色：显式 iconTint > 选中态白色（dtk 高亮底色上）> 主题前景色。
+     * 注：不读 palette —— dtk ToolButton 的 palette 会从 contentItem 反向同步，
+     * contentItem 内 IconImage.color 再读 palette 即成绑定环；故以 DTK 全局
+     * 主题类型推导前景色（dtk 前景即随亮暗主题黑白切换，语义等效）。 */
+    readonly property color effectiveTint: {
+        if (iconTint.a > 0)
+            return iconTint
+        if (checked)
+            return "#ffffff"
+        return D.DTK.themeType === D.ApplicationHelper.DarkType ? "#ffffff" : "#000000"
+    }
 
     padding: 0
     leftPadding: 0
