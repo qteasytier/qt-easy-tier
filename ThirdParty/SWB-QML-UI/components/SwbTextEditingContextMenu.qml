@@ -148,17 +148,56 @@ SwbMenu {
         }
     }
 
-    UndoAction { editor: control.editor }
-    RedoAction { editor: control.editor }
+    // Local patch (upstream uses the Qt 6.9-only UndoAction/RedoAction/
+    // CutAction/CopyAction/PasteAction/DeleteAction/SelectAllAction types):
+    // plain Actions calling the editor's long-standing editing API keep the
+    // menu fully functional on Qt 6.8.
+    Action {
+        text: qsTr("撤销")
+        icon.name: "edit-undo"
+        enabled: control.editor.canUndo
+        onTriggered: control.editor.undo()
+    }
+    Action {
+        text: qsTr("重做")
+        icon.name: "edit-redo"
+        enabled: control.editor.canRedo
+        onTriggered: control.editor.redo()
+    }
 
     SwbMenuSeparator { theme: control.theme }
 
-    CutAction { editor: control.editor }
-    CopyAction { editor: control.editor }
-    PasteAction { editor: control.editor }
-    DeleteAction { editor: control.editor }
+    Action {
+        text: qsTr("剪切")
+        icon.name: "edit-cut"
+        enabled: control.editor.selectedText !== "" && !control.editor.readOnly
+        onTriggered: control.editor.cut()
+    }
+    Action {
+        text: qsTr("复制")
+        icon.name: "edit-copy"
+        enabled: control.editor.selectedText !== ""
+        onTriggered: control.editor.copy()
+    }
+    Action {
+        text: qsTr("粘贴")
+        icon.name: "edit-paste"
+        enabled: control.editor.canPaste
+        onTriggered: control.editor.paste()
+    }
+    Action {
+        text: qsTr("删除")
+        icon.name: "edit-delete"
+        enabled: control.editor.selectedText !== "" && !control.editor.readOnly
+        onTriggered: control.editor.remove(control.editor.selectionStart, control.editor.selectionEnd)
+    }
 
     SwbMenuSeparator { theme: control.theme }
 
-    SelectAllAction { editor: control.editor }
+    Action {
+        text: qsTr("全选")
+        icon.name: "edit-select-all"
+        enabled: control.editor.length > 0
+        onTriggered: control.editor.selectAll()
+    }
 }

@@ -19,7 +19,10 @@ option(BUILD_SHARED_LIBS "构建动态库（关则静态库）" ON)
 # Build the example by default only when this is the top-level project.
 option(SWB_BUILD_EXAMPLES "编译示例程序" ${PROJECT_IS_TOP_LEVEL})
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickEffects)
+# [QtEasyTier 补丁] 移除 QuickEffects 组件：SwbProgressBar 已改为不依赖
+# QtQuick.Effects（见源码补丁），且 aqt 默认归档与 deepin crimson 源的 Qt 6.8
+# 均不含 Qt6QuickEffects 开发配置。
+find_package(Qt6 REQUIRED COMPONENTS Quick)
 # [QtEasyTier 补丁] 上游为 REQUIRES 6.10；本仓库与 CI 基于 Qt 6.8。
 # 库内实际使用的版本敏感 API（Popup.popupType、T.ContextMenu、QtQuick.VectorImage）
 # 均自 Qt 6.8 起可用（VectorImage 在 6.8 为 tech preview），故降级为 6.8。

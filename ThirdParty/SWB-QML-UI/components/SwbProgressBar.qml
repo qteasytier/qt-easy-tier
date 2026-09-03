@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Effects
 
 ProgressBar {
     id: control
@@ -32,7 +31,10 @@ ProgressBar {
             Behavior on width { NumberAnimation { duration: control.theme.animationDuration; easing.type: Easing.OutCubic } }
         }
 
-        // The effect renders this hidden source through the rounded track mask.
+        // Local patch (upstream uses QtQuick.Effects MultiEffect with a rounded
+        // mask here): this source rectangle is already rounded and clipped by
+        // itself, so rendering it directly keeps the visual almost identical
+        // while dropping the QtQuick.Effects dependency entirely.
         Rectangle {
             id: indeterminateSource
 
@@ -40,7 +42,7 @@ ProgressBar {
             radius: height / 2
             color: "transparent"
             clip: true
-            visible: false
+            visible: control.indeterminate
 
             Rectangle {
                 id: sweep
@@ -64,24 +66,6 @@ ProgressBar {
                     loops: Animation.Infinite
                 }
             }
-        }
-
-        Rectangle {
-            id: progressMask
-
-            anchors.fill: parent
-            radius: height / 2
-            color: "white"
-            visible: false
-            layer.enabled: true
-        }
-
-        MultiEffect {
-            anchors.fill: parent
-            visible: control.indeterminate
-            source: indeterminateSource
-            maskEnabled: true
-            maskSource: progressMask
         }
     }
 }

@@ -76,7 +76,6 @@ qt_add_qml_module(SwbControls
 
 target_link_libraries(SwbControls PRIVATE
     Qt6::Quick
-    Qt6::QuickEffects
 )
 
 # ---- Installation rules for cmake --install and find_package(SwbControls) ----

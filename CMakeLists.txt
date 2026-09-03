@@ -33,6 +33,10 @@ option(BUILD_WITH_DDE_TRAY_PLUGIN "构建 DDE 托盘网络状态插件" OFF)
 
 include(cmake/QtEasyTierDaemon.cmake)
 
+# 注意不要求 QuickEffects（QtQuick.Effects/MultiEffect）：仓库 src/ 零使用，
+# SWB 库的 SwbProgressBar 已打补丁移除该依赖（见 ThirdParty/SWB-QML-UI/PATCHES.md）；
+# 且 aqt 默认归档（CNB linux 镜像 / install-qt-action）与 deepin crimson 源的
+# Qt 6.8 均不含 Qt6QuickEffects 开发配置。
 find_package(Qt6 6.8 REQUIRED COMPONENTS
     Core
     Sql
@@ -44,7 +48,6 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
     Concurrent
     Svg
     QuickDialogs2
-    QuickEffects
     LinguistTools
 )
 
@@ -210,6 +213,7 @@ qt_add_translations(appQtEasyTier
 # qtet_appcore / qtet_system_tray 中的 tr() 不在其中，这里显式补扫。
 # QML 侧同时覆盖共享树与 DDE 树（.ts 服务两种前端）；不用按构建模式的
 # QTET_QML_FILES（单树扫描会把另一棵树的同源条目标记为 vanished）。
+# 注意不扫描 ThirdParty/（vendored 外部库的 qsTr 文案不纳入宿主翻译体系）。
 file(GLOB_RECURSE QTET_LUPDATE_QML "${CMAKE_SOURCE_DIR}/src/qml/*.qml")
 add_custom_target(update-translations
     COMMAND Qt6::lupdate
