@@ -7,7 +7,6 @@
  * 无 UI 入口；语言按钮经 LanguageController 持久化并即时重译。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk

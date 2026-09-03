@@ -4,7 +4,6 @@
  * 行样式沿用共享版（悬停浅色反馈 + 行底分隔线），添加/编辑对话框为模态 DialogWindow。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -27,7 +26,7 @@ ColumnLayout {
 
     ListModel { id: listModel }
 
-    QQC.ListView {
+    ListView {
         id: listView
         Layout.fillWidth: true
         // 动态计算高度（行高 38，分隔线风格无行距）
@@ -97,7 +96,7 @@ ColumnLayout {
         }
     }
 
-    Button {
+    LinkButton {
         id: addButton
         Layout.fillWidth: true
         text: qsTr("添加服务器地址")
@@ -118,7 +117,6 @@ ColumnLayout {
         property int editingIndex: -1
 
         function open() {
-            dialogTitleBar.title = editingIndex >= 0 ? qsTr("编辑服务器地址") : qsTr("添加服务器地址")
             hadShown = true
             visible = true
             requestActivate()
@@ -177,8 +175,7 @@ ColumnLayout {
         }
 
         header: DialogTitleBar {
-            id: dialogTitleBar
-            title: qsTr("添加服务器地址")
+            title: addDialog.editingIndex >= 0 ? qsTr("编辑服务器地址") : qsTr("添加服务器地址")
         }
 
         ColumnLayout {

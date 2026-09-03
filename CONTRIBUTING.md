@@ -230,8 +230,8 @@ endif()
 - 嵌套的 `DialogWindow`（`Window` 非 `Item`）不能作另一 `DialogWindow` 的 content 子项，须以命名属性挂载（如 `property ConfirmDialog revokeConfirmDialog: ConfirmDialog { ... }`）。
 - `DialogWindow` 高度由内容 `childrenRect` 自动决定，宽度需显式设置。内容布局用 `anchors.left/right: parent` + `anchors.leftMargin/rightMargin` 铺满并控制左右边距（`Layout.fillWidth` / `Layout.margins` 只在父为布局容器时生效）。
 - 没有 `standardButtons` / `onOpened` / `onAccepted`：底部按钮用 `RowLayout + Item{fillWidth}` 右对齐（主操作 `RecommandButton`，危险操作 `WarningButton`）；数据刷新/状态重置在自定义 `open()` 中完成，关闭逻辑监听 `onVisibleChanged` 补发 `closed` 信号（兼容共享版 `QQC.Dialog.onClosed`）。简单确认/输入对话框统一从 `dde/components/ConfirmDialog.qml` 基座实例化（`message` / `inputMode` / `danger` / `accepted` / `rejected`）。
-- 控件优先用 DTK 原生（`Label` / `Button` / `RecommandButton` / `WarningButton` / `TextField` / `CheckBox` / `Switch` / `ComboBox` / `SpinBox` / `Menu` / `DialogTitleBar`）；`org.deepin.dtk` 没有 `TextArea`，多行文本用 `QQC.TextArea` + DTK 风格自绘背景；列表用 `QQC.ListView`；滚动用 `Flickable` + DTK `ScrollBar`；页签用自绘 `dde/components/TabHeader.qml`（不用 Chameleon 风格注入）。
-- `QtQuick.Controls` 以 `import QtQuick.Controls as QQC` 别名限量引用，避免与 DTK 的 `ApplicationWindow`/`Label` 同名歧义。
+- 控件**全部用 DTK 原生**：`Label` / `Button` / `RecommandButton` / `WarningButton` / `TextField` / `TextArea` / `CheckBox` / `Switch` / `ComboBox` / `SpinBox` / `ListView` / `Menu` / `DialogTitleBar` 均来自 `org.deepin.dtk`；滚动用 `Flickable` + DTK `ScrollBar`；页签用自绘 `dde/components/TabHeader.qml`（不用 Chameleon 风格注入）。
+- 禁止 `import QtQuick.Controls`（QQC）：DDE 前端不依赖原生 Qt 控件套件，避免与 DTK 的 `ApplicationWindow`/`Label` 同名歧义及环境差异。文件同时 import `QtQuick` 与 `org.deepin.dtk` 时，裸 `ListView` 解析为 DTK 类型（同名的 `QtQuick.ListView` 不参与解析）；delegate 内的 `ListView.view` 附加属性仍可用。
 
 ### 新增 DDE 组件/页面流程
 

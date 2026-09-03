@@ -5,7 +5,6 @@
  * （dde/components/CredentialManageDialog，模态 DialogWindow）。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtEasyTier
@@ -73,7 +72,7 @@ ColumnLayout {
                 }
 
                 // 节点信息列表
-                QQC.ListView {
+                ListView {
                     id: nodeListView
                     visible: VpnRuntimeService.nodeInfoModel.count > 0
                     Layout.fillWidth: true
@@ -195,8 +194,7 @@ ColumnLayout {
                     verticalAlignment: Text.AlignVCenter
                 }
 
-                // 日志只读文本：Flickable 承载滚动 + QQC.TextArea 无背景纯文本形态
-                // （org.deepin.dtk 无 TextArea，自绘背景按需；日志展示用无背景）
+                // 日志只读文本：Flickable 承载滚动 + TextArea 无背景纯文本形态
                 Flickable {
                     id: logScrollView
                     visible: VpnRuntimeService.runtimeLogModel.count > 0
@@ -208,7 +206,7 @@ ColumnLayout {
 
                     ScrollBar.vertical: ScrollBar {}
 
-                    QQC.TextArea {
+                    TextArea {
                         id: runtimeLogTextArea
                         width: logScrollView.width
                         text: VpnRuntimeService.runtimeLogModel.plainText

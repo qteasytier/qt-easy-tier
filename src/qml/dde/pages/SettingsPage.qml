@@ -5,7 +5,6 @@
  * 危险操作确认对话框均为模态 DialogWindow（ConfirmDialog 基座）。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -363,7 +362,7 @@ Rectangle {
     ConfirmDialog {
         id: installDialog
 
-        title: qsTr("安装后端")
+        headerTitle: qsTr("安装后端")
         confirmText: qsTr("继续")
         message: qsTr("将把后端 qtet-daemon 注册为系统服务并启动，需要管理员权限。\n\n是否继续？")
 
@@ -374,7 +373,7 @@ Rectangle {
     ConfirmDialog {
         id: uninstallDialog
 
-        title: qsTr("卸载后端")
+        headerTitle: qsTr("卸载后端")
         danger: true
         confirmText: qsTr("卸载")
         message: qsTr("将停止并卸载后端 qtet-daemon 系统服务，需要管理员权限。\n卸载后将无法连接 EasyTier VPN。\n\n是否继续？")
@@ -386,7 +385,7 @@ Rectangle {
     ConfirmDialog {
         id: clearConfirmDialog
 
-        title: qsTr("清空配置")
+        headerTitle: qsTr("清空配置")
         danger: true
         confirmText: qsTr("清空")
         message: qsTr("卸载配置需要先停止所有运行中的网络配置，然后清空全部数据（网络配置、收藏节点、日志、全局设置）。\n此操作不可恢复，操作完成后需要重启本程序。\n\n是否继续？")

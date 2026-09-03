@@ -1,7 +1,6 @@
 /* @file ProxyNetworkListItem.qml (DDE)
  * @brief DDE 版代理子网列表组件：管理 cidr + mappedCidr + allow 列表（allow 以逗号字符串角色存储），支持添加、编辑、删除和去重检测，DTK 控件版 */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -41,7 +40,7 @@ ColumnLayout {
 
     ListModel { id: listModel }
 
-    QQC.ListView {
+    ListView {
         id: listView
         Layout.fillWidth: true
         // 动态计算高度（行高 42，分隔线风格无行距）
@@ -126,7 +125,7 @@ ColumnLayout {
         }
     }
 
-    Button {
+    LinkButton {
         id: addButton
         Layout.fillWidth: true
         text: qsTr("添加代理子网")
@@ -147,7 +146,6 @@ ColumnLayout {
         property int editingIndex: -1
 
         function open() {
-            dialogTitleBar.title = editingIndex >= 0 ? qsTr("编辑代理子网") : qsTr("添加代理子网")
             hadShown = true
             visible = true
             requestActivate()
@@ -230,8 +228,7 @@ ColumnLayout {
         }
 
         header: DialogTitleBar {
-            id: dialogTitleBar
-            title: qsTr("添加代理子网")
+            title: addDialog.editingIndex >= 0 ? qsTr("编辑代理子网") : qsTr("添加代理子网")
         }
 
         ColumnLayout {

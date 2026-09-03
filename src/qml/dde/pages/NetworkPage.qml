@@ -7,7 +7,6 @@
  * 页面对话框（导入方式选择 / URL 导入）为模态 DialogWindow。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtEasyTier
@@ -224,8 +223,8 @@ Rectangle {
                     text: qsTr("粘贴 qtet:// 开头的配置 URL：")
                 }
 
-                // 多行 URL 输入：QQC.TextArea + DTK 风格自绘背景（org.deepin.dtk 无 TextArea）
-                QQC.TextArea {
+                // 多行 URL 输入：DTK TextArea，自绘背景覆盖为表单风格边框
+                TextArea {
                     id: importUrlField
                     Layout.fillWidth: true
                     Layout.preferredHeight: 80

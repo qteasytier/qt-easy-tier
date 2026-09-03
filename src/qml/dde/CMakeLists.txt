@@ -13,6 +13,7 @@ set(QTET_QML_DDE_FILES
     dde/components/ErrorDialog.qml
     dde/components/ConfirmDialog.qml
     dde/components/TabHeader.qml
+    dde/components/LinkButton.qml
     dde/components/CredentialManageDialog.qml
 )
 

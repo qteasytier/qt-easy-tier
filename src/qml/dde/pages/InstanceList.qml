@@ -12,7 +12,6 @@
  * - FontHelper           小字体辅助
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -73,7 +72,7 @@ Rectangle {
     ConfirmDialog {
         id: deleteDialog
 
-        title: qsTr("删除配置")
+        headerTitle: qsTr("删除配置")
         danger: true
         confirmText: qsTr("删除")
         message: root.pendingDeleteLabel !== ""
@@ -99,7 +98,7 @@ Rectangle {
     ConfirmDialog {
         id: renameDialog
 
-        title: qsTr("重命名配置")
+        headerTitle: qsTr("重命名配置")
         inputMode: true
         confirmText: qsTr("保存")
         inputPlaceholder: qsTr("请输入新的配置名称")
@@ -145,7 +144,7 @@ Rectangle {
         }
 
         // 配置列表
-        QQC.ListView {
+        ListView {
             id: configListView
             Layout.fillWidth: true
             Layout.fillHeight: true

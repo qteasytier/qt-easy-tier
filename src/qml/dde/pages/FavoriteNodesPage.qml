@@ -4,7 +4,6 @@
  * 页面对话框（导入方式选择 / URL 导入 / 节点编辑 / 删除与清空确认）均为模态 DialogWindow。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtEasyTier
@@ -58,7 +57,7 @@ Rectangle {
         }
 
         // 节点列表
-        QQC.ListView {
+        ListView {
             id: nodeListView
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -199,10 +198,11 @@ Rectangle {
                 }
             }
 
-            // 清空列表按钮：危险操作，仅在有节点时可用
-            WarningButton {
+            // 清空列表按钮：危险操作（红色链接样式），仅在有节点时可用
+            LinkButton {
                 Layout.fillWidth: true
                 text: qsTr("清空节点列表")
+                textColor: appTheme.statusRed
                 enabled: FavoriteNodeViewModel.count > 0
                 onClicked: clearConfirmDialog.open()
             }
@@ -266,7 +266,7 @@ Rectangle {
     ConfirmDialog {
         id: importUrlDialog
 
-        title: qsTr("从 URL 导入节点")
+        headerTitle: qsTr("从 URL 导入节点")
         inputMode: true
         confirmText: qsTr("导入")
         message: qsTr("节点 JSON 地址（http/https）")
@@ -313,7 +313,6 @@ Rectangle {
         width: 440
 
         function open() {
-            dialogTitleBar.title = root.editMode ? qsTr("编辑节点") : qsTr("添加节点")
             hadShown = true
             visible = true
             requestActivate()
@@ -348,8 +347,7 @@ Rectangle {
         }
 
         header: DialogTitleBar {
-            id: dialogTitleBar
-            title: qsTr("添加节点")
+            title: root.editMode ? qsTr("编辑节点") : qsTr("添加节点")
         }
 
         ColumnLayout {
@@ -436,7 +434,7 @@ Rectangle {
     ConfirmDialog {
         id: clearConfirmDialog
 
-        title: qsTr("确认清空")
+        headerTitle: qsTr("确认清空")
         danger: true
         confirmText: qsTr("清空")
         message: qsTr("确定要清空所有节点吗？此操作不可恢复。")

@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
+import org.deepin.dtk
 
 /*
  * 代理子网列表渲染器（数据驱动，DTK 控件版）

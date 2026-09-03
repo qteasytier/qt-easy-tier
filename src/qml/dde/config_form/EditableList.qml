@@ -4,7 +4,6 @@
  * 添加/编辑对话框为模态 DialogWindow（独立顶层窗）：校验失败（空值/重复）时保持窗口打开。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -45,7 +44,7 @@ ColumnLayout {
 
     ListModel { id: listModel }
 
-    QQC.ListView {
+    ListView {
         id: listView
         Layout.fillWidth: true
         // 根据项数动态计算高度，空列表时高度为 0（行高 38，分隔线风格无行距）
@@ -66,7 +65,7 @@ ColumnLayout {
         }
     }
 
-    Button {
+    LinkButton {
         id: addButton
         Layout.fillWidth: true
         text: root.addDialogTitle
@@ -88,7 +87,6 @@ ColumnLayout {
 
         /* 标题随模式切换（DialogWindow.title 由 DialogTitleBar 呈现） */
         function open() {
-            dialogTitleBar.title = editingIndex >= 0 ? root.editDialogTitle() : root.addDialogTitle
             hadShown = true
             visible = true
             requestActivate()
@@ -148,8 +146,7 @@ ColumnLayout {
         }
 
         header: DialogTitleBar {
-            id: dialogTitleBar
-            title: root.addDialogTitle
+            title: addDialog.editingIndex >= 0 ? root.editDialogTitle() : root.addDialogTitle
         }
 
         ColumnLayout {

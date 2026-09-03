@@ -4,8 +4,6 @@
  * 相对 Main.qml：根窗口与标题栏走 DTK；页面容器、侧边栏、状态栏、错误弹窗逻辑等价。
  */
 import QtQuick
-// QtQuick.Controls 仅以 QQC 别名限量使用（避免与 dtk 的 ApplicationWindow/Label 同名歧义）
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -144,7 +142,7 @@ ApplicationWindow {
                          : appTheme.statusRed
                 }
 
-                QQC.Label {
+                Label {
                     text: BackendStatusViewModel.statusText
                     font.pixelSize: 11
                     color: palette.windowText

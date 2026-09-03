@@ -2,15 +2,16 @@
  * @brief DDE 下划线风格页签头：DTK 配色自绘，替代共享版 SwbTabBar(line)
  *
  * tabs 为标题文本数组（元素用 qsTr 字面量，engine.retranslate() 会让数组
- * 绑定重求值实现语言即时切换）；点击切换 currentIndex，选中项文字高亮加粗
- * 并带底部下划线指示条，整行自带底部分隔线。与 StackLayout 的
- * currentIndex 绑定配合使用（不用 Chameleon 风格注入，不引入 QQC TabBar）。
+ * 绑定重求值实现语言即时切换）；页签项均分整行宽度，点击切换 currentIndex：
+ * 选中项文字高亮加粗（颜色渐变过渡），下划线指示条以滑动动画移动到当前页签，
+ * 整行自带底部分隔线。与 StackLayout 的 currentIndex 绑定配合使用
+ * （不用 Chameleon 风格注入，不引入 QQC TabBar）。
  */
 import QtQuick
 import QtQuick.Layouts
 import org.deepin.dtk
 
-/* @brief 页签头根容器：横向排列的页签项 + 底部分隔线 */
+/* @brief 页签头根容器：均分宽度的页签项 + 滑动下划线 + 底部分隔线 */
 Item {
     id: root
 
@@ -19,15 +20,20 @@ Item {
     /* 当前选中页签索引 */
     property int currentIndex: 0
 
+    /* 当前选中页签项（依赖 tabRepeater.count：delegate 全部创建完成后自动求值，
+     * 保证初始状态下指示条就能定位到选中页签；itemAt 本身无通知，不能直接用于绑定） */
+    readonly property Item currentItem: tabRepeater.count > 0 ? tabRepeater.itemAt(currentIndex) : null
+
     implicitHeight: 38
 
     RowLayout {
-        anchors.left: parent.left
-        anchors.leftMargin: 16
-        anchors.right: parent.right
-        spacing: 32
+        id: rowLayout
+        anchors.fill: parent
+        spacing: 0
 
         Repeater {
+            id: tabRepeater
+
             model: root.tabs
 
             delegate: Item {
@@ -37,7 +43,8 @@ Item {
                 required property string modelData
                 required property int index
 
-                implicitWidth: tabLabel.implicitWidth
+                /* 页签项均分整行宽度 */
+                Layout.fillWidth: true
                 Layout.fillHeight: true
 
                 Label {
@@ -46,16 +53,11 @@ Item {
                     text: tabItem.modelData
                     font.bold: tabItem.index === root.currentIndex
                     color: tabItem.index === root.currentIndex ? palette.highlight : palette.windowText
-                }
 
-                // 选中页签底部下划线指示条
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 2
-                    visible: tabItem.index === root.currentIndex
-                    color: palette.highlight
+                    // 选中/取消选中时文字颜色平滑过渡
+                    Behavior on color {
+                        ColorAnimation { duration: 150 }
+                    }
                 }
 
                 TapHandler {
@@ -63,9 +65,27 @@ Item {
                 }
             }
         }
+    }
 
-        // 弹簧占位，页签保持左对齐自然宽度
-        Item { Layout.fillWidth: true }
+    // 滑动下划线指示条：位置/宽度跟随当前页签，切换时平滑移动
+    // （放在 root 而非 RowLayout 内，避免被布局管理覆盖 x/width；
+    //   RowLayout 与 root 同几何，页签项 x/width 可直接使用）
+    Rectangle {
+        id: indicator
+
+        anchors.bottom: parent.bottom
+        height: 2
+        color: palette.highlight
+
+        x: root.currentItem ? root.currentItem.x : 0
+        width: root.currentItem ? root.currentItem.width : 0
+
+        Behavior on x {
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
+        Behavior on width {
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
     }
 
     // 底部分隔线（贯穿整宽，作为页签区与内容区的界线）

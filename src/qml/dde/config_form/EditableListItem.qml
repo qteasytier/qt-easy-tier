@@ -9,7 +9,7 @@ import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
 
-D.ItemDelegate {
+ItemDelegate {
     id: root
 
     required property int itemIndex

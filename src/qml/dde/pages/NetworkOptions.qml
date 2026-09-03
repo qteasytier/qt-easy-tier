@@ -18,7 +18,6 @@
  * - FontHelper             小字体
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtEasyTier
@@ -245,7 +244,7 @@ ColumnLayout {
     ConfirmDialog {
         id: resetConfirmDialog
 
-        title: qsTr("清空配置")
+        headerTitle: qsTr("清空配置")
         danger: true
         confirmText: qsTr("清空")
         message: ConfigEditorViewModel.displayName !== ""
@@ -347,8 +346,8 @@ ColumnLayout {
                 text: qsTr("复制以下 URL 即可分享配置：")
             }
 
-            // 只读多行 URL 展示：QQC.TextArea + DTK 风格自绘背景
-            QQC.TextArea {
+            // 只读多行 URL 展示：DTK TextArea，自绘背景覆盖为表单风格边框
+            TextArea {
                 id: exportUrlField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100

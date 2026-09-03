@@ -4,7 +4,6 @@
  * 参照 ErrorDialog：标题栏用 DialogTitleBar，取消/关闭发出 closed（兼容共享版 onClosed）。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk 1.0 as D
@@ -19,7 +18,7 @@ D.DialogWindow {
 
     // 用户点击确定后发出，携带选中的节点数组
     signal nodesSelected(var nodes)
-    // 窗口关闭（含标题栏 X）时发出，兼容共享版 QQC.Dialog.onClosed
+    // 窗口关闭（含标题栏 X）时发出，兼容共享版 Dialog.onClosed
     signal closed()
 
     // 真正打开过标记：仅在 open→close 结束才发 closed
@@ -56,7 +55,7 @@ D.DialogWindow {
         anchors.rightMargin: 18
         spacing: 12
 
-        QQC.ListView {
+        D.ListView {
             id: listView
             Layout.fillWidth: true
             Layout.topMargin: 20

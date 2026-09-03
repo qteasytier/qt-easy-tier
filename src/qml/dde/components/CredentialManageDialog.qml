@@ -7,7 +7,6 @@
  * 以命名属性挂载（DialogWindow 不能作另一 DialogWindow 的 content 子项）。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import QtEasyTier
 import org.deepin.dtk
@@ -61,7 +60,7 @@ DialogWindow {
 
     /* 撤销确认对话框（嵌套 DialogWindow 须以命名属性挂载，不能作 content 子项） */
     property ConfirmDialog revokeConfirmDialog: ConfirmDialog {
-        title: qsTr("撤销凭证")
+        headerTitle: qsTr("撤销凭证")
         danger: true
         confirmText: qsTr("撤销")
         message: root.revokeId !== ""
@@ -322,7 +321,7 @@ DialogWindow {
             }
 
             // 凭证列表
-            QQC.ListView {
+            ListView {
                 id: credentialListView
                 visible: !root.listing && CredentialViewModel.credentialListModel.count > 0
                 Layout.fillWidth: true

@@ -8,7 +8,6 @@
  * 保持 DDE 前端“模态 DialogWindow + DialogTitleBar + 右下角按钮组”的统一风格。
  */
 import QtQuick
-import QtQuick.Controls as QQC
 import QtQuick.Layouts
 import org.deepin.dtk
 
@@ -17,7 +16,13 @@ DialogWindow {
 
     modality: Qt.ApplicationModal
 
+    /* Window.title 恒空（对齐 ErrorDialog）：标题只经 headerTitle 呈现于应用内标题栏，
+     * 避免窗管未启用 NoTitlebar 时系统标题栏与应用内标题栏重复显示同一标题 */
+    title: ""
     width: 420
+
+    /* 标题栏文案（呈现于 DialogTitleBar；不写 Window.title） */
+    property string headerTitle: ""
 
     /* 正文消息（支持换行，空串时不占位） */
     property string message: ""
@@ -34,10 +39,10 @@ DialogWindow {
     property string inputText: ""
     property string inputPlaceholder: ""
 
-    /* 确定/取消信号（命名沿用 QQC.Dialog 的 onAccepted/onRejected 习惯） */
+    /* 确定/取消信号（命名沿用共享版 Dialog 的 onAccepted/onRejected 习惯） */
     signal accepted()
     signal rejected()
-    /* 窗口关闭（含标题栏 X）时发出，兼容共享版 QQC.Dialog.onClosed */
+    /* 窗口关闭（含标题栏 X）时发出，兼容共享版 Dialog.onClosed */
     signal closed()
 
     /* 真正打开过标记：仅在 open→close 结束才发 closed */
@@ -74,7 +79,7 @@ DialogWindow {
     }
 
     header: DialogTitleBar {
-        title: root.title
+        title: root.headerTitle
     }
 
     // DialogWindow 高度由内容自动决定，内容以 anchors 铺满并控制左右边距
@@ -101,7 +106,7 @@ DialogWindow {
             onAccepted: root._accept()
 
             // Esc 关窗（DialogWindow 不内建 standardButtons 语义）
-            QQC.Shortcut {
+            Shortcut {
                 sequence: "Escape"
                 onActivated: root.close()
             }

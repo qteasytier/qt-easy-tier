@@ -48,7 +48,7 @@ ColumnLayout {
     }
 
     // 从已收藏的服务器节点中导入
-    Button {
+    LinkButton {
         text: qsTr("从收藏导入")
         Layout.fillWidth: true
         onClicked: importNodesDialog.open()
