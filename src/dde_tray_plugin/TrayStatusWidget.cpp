@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QPalette>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 namespace {
@@ -43,7 +44,8 @@ TrayStatusWidget::TrayStatusWidget(TrayStatusService *service, QWidget *parent)
 {
     setWindowTitle(tr("QtEasyTier 网络状态"));
     setMinimumWidth(360);
-    setMaximumHeight(600);
+    // 面板整体最大高度固定为 500px，实例较多时由列表滚动区承载
+    setMaximumHeight(500);
     setStyleSheet(QStringLiteral(R"(
 QLabel#panelTitle {
     font-size: 22px;
@@ -112,18 +114,32 @@ void TrayStatusWidget::refreshView()
     headerLayout->addStretch();
     m_layout->addWidget(header);
 
+    // 实例列表滚动区：实例较多时在固定高度面板内滚动展示
+    auto *scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // 滚动区及其内容背景透明，融入面板底色，仅实例卡片保留蒙版背景
+    scroll->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
+    auto *listContent = new QWidget(scroll);
+    listContent->setStyleSheet(QStringLiteral("background: transparent;"));
+    auto *listLayout = new QVBoxLayout(listContent);
+    listLayout->setContentsMargins(0, 0, 0, 0);
+    scroll->setWidget(listContent);
+    m_layout->addWidget(scroll, 1);
+
     // 空状态提示（纯文字不可点击）
     if (snapshot.instances.isEmpty()) {
-        m_layout->addSpacing(8);
-        auto *empty = new QLabel(tr("暂无运行实例"), this);
+        listLayout->addSpacing(8);
+        auto *empty = new QLabel(tr("暂无运行实例"), listContent);
         empty->setObjectName(QStringLiteral("emptyHint"));
         empty->setAlignment(Qt::AlignHCenter);
-        m_layout->addWidget(empty);
+        listLayout->addWidget(empty);
     }
 
-    // 实例卡片列表（仿主程序 InstanceList 卡片式设计）
+    // 实例卡片列表（仿主程序 InstanceList 卡片式设计，置于滚动区内）
     for (const auto &instance : snapshot.instances) {
-        auto *card = new QFrame(this);
+        auto *card = new QFrame(listContent);
         card->setObjectName(QStringLiteral("instanceCard"));
         // 背景：主题 base 色 30% 透明蒙版；
         const QColor baseColor = palette().color(QPalette::Base);
@@ -185,12 +201,12 @@ void TrayStatusWidget::refreshView()
             });
             cardLayout->addWidget(button);
         }
-        m_layout->addWidget(card);
+        listLayout->addWidget(card);
     }
 
-    m_layout->addStretch();
+    listLayout->addStretch();
 
-    // 后端与运行实例汇总，置于实例列表下方（不显示总连接数）
+    // 后端与运行实例汇总，置于滚动区下方（不显示总连接数）
     m_layout->addSpacing(12);
     const QString daemonText = snapshot.daemonState == DaemonClient::ConnectionState::Connected
         ? tr("已连接")
