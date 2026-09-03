@@ -13,6 +13,7 @@ public:
         bool hideServerNodes = false; // 运行状态页隐藏公共服务器节点
         int logLevel = 1;             // 日志级别 (0-3)
         int maxLogEntries = 100;      // 最大日志条数 (1-1000)
+        QString themeMode = QStringLiteral("auto"); // 界面主题模式 (auto/light/dark)
     };
 
     /** @brief 构造函数 @param filePath 设置文件路径，默认为 AppConfigLocation/settings3.json */

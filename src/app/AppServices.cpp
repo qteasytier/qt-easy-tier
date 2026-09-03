@@ -66,7 +66,7 @@ AppServices::AppServices(const QSqlDatabase &database,
     m_appState = new AppState(parentObject);
     m_updateCheckService = new UpdateCheckService(parentObject);
     // 设置 ViewModel：直接协调本地设置、daemon 自动回连与版本更新检查
-    m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, parentObject);
+    m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, QString(), parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。

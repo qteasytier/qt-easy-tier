@@ -41,6 +41,7 @@ SettingsStore::Settings SettingsStore::load(const Settings &defaults) const
     settings.hideServerNodes = obj.value(QLatin1String("hideServerNodes")).toBool(settings.hideServerNodes);
     settings.logLevel = obj.value(QLatin1String("logLevel")).toInt(settings.logLevel);
     settings.maxLogEntries = obj.value(QLatin1String("maxLogEntries")).toInt(settings.maxLogEntries);
+    settings.themeMode = obj.value(QLatin1String("themeMode")).toString(settings.themeMode);
     // 对加载的值做规范化（限制范围）
     return normalized(settings);
 }
@@ -56,6 +57,7 @@ bool SettingsStore::save(const Settings &settings) const
     obj[QStringLiteral("hideServerNodes")] = normalizedSettings.hideServerNodes;
     obj[QStringLiteral("logLevel")] = normalizedSettings.logLevel;
     obj[QStringLiteral("maxLogEntries")] = normalizedSettings.maxLogEntries;
+    obj[QStringLiteral("themeMode")] = normalizedSettings.themeMode;
 
     // 确保目标目录存在
     QDir dir(QFileInfo(m_filePath).path());
@@ -92,5 +94,10 @@ SettingsStore::Settings SettingsStore::normalized(Settings settings)
         settings.maxLogEntries = 1;
     if (settings.maxLogEntries > 1000)
         settings.maxLogEntries = 1000;
+    // themeMode 仅接受 auto/light/dark，非法值（含手改配置文件产生的脏值）重置为 auto
+    if (settings.themeMode != QLatin1String("auto")
+            && settings.themeMode != QLatin1String("light")
+            && settings.themeMode != QLatin1String("dark"))
+        settings.themeMode = QStringLiteral("auto");
     return settings;
 }

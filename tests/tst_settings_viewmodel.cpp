@@ -100,6 +100,37 @@ private slots:
         QVERIFY(AutoStartHelper::isAutoStartEnabled());
     }
 
+    /// 目标：setThemeMode() 即时落盘 settings3.json，新实例可恢复；非法值回退 auto；同值幂等
+    void setThemeMode_persistsAndRestores()
+    {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString path = QDir(tempDir.path()).filePath(QStringLiteral("settings3.json"));
+
+        {
+            SettingsViewModel vm(nullptr, nullptr, path);
+            QCOMPARE(vm.themeMode(), QStringLiteral("auto"));
+
+            QSignalSpy spy(&vm, &SettingsViewModel::themeModeChanged);
+            vm.setThemeMode(QStringLiteral("dark"));
+            QCOMPARE(vm.themeMode(), QStringLiteral("dark"));
+            QCOMPARE(spy.count(), 1);
+            // 同值设置幂等：不发信号
+            vm.setThemeMode(QStringLiteral("dark"));
+            QCOMPARE(spy.count(), 1);
+        }
+
+        // 新实例从 settings3.json 恢复持久化的 dark
+        {
+            SettingsViewModel vm(nullptr, nullptr, path);
+            QCOMPARE(vm.themeMode(), QStringLiteral("dark"));
+            // 非法主题值规范化回 auto 并落盘
+            vm.setThemeMode(QStringLiteral("blue"));
+            QCOMPARE(vm.themeMode(), QStringLiteral("auto"));
+        }
+        QCOMPARE(SettingsViewModel(nullptr, nullptr, path).themeMode(), QStringLiteral("auto"));
+    }
+
     /// 目标：refreshAutoStart() 重新发射属性通知，供 QML 重新读取系统状态
     void refreshAutoStart_emitsSignal()
     {

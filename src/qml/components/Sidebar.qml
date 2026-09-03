@@ -1,6 +1,7 @@
 /* @brief 侧边栏导航组件：参照 SWB-QML-UI 示例的图标 rail 风格，SwbToolButton 导航项 + 底部明暗主题切换 */
 import QtQuick
 import QtQuick.Layouts
+import QtEasyTier
 import SwbControls
 
 // 侧边栏导航：64px 纯图标 rail（示例项目模式）
@@ -17,11 +18,15 @@ Rectangle {
 
     /*
       主题模式：auto=跟随系统（默认）/ light / dark。
+      数据源为 SettingsViewModel.themeMode（持久化到 settings3.json，启动时自动恢复）；
+      切换按钮只写 ViewModel，经 NOTIFY 回推本属性后统一在 onThemeModeChanged 生效。
       SwbTheme.darkMode 默认绑定 Application.styleHints.colorScheme，系统深浅色
       变化会实时生效；但手动赋值会打断该绑定，故仅显式选择时覆盖，
       切回 auto 时通过 applyThemeMode() 重建响应式绑定恢复跟随。
     */
-    property string themeMode: "auto"
+    property string themeMode: SettingsViewModel.themeMode
+    onThemeModeChanged: applyThemeMode()
+    Component.onCompleted: applyThemeMode()
 
     /* 导航项被点击时发出，外部按索引切换对应页面 */
     signal itemClicked(int index)
@@ -106,10 +111,10 @@ Rectangle {
             font.bold: true
 
             onClicked: {
-                root.themeMode = root.themeMode === "auto" ? "light"
-                             : root.themeMode === "light" ? "dark"
-                             : "auto"
-                root.applyThemeMode()
+                // 三态循环写入 ViewModel：持久化 + NOTIFY 回推 themeMode → applyThemeMode
+                SettingsViewModel.themeMode = root.themeMode === "auto" ? "light"
+                                           : root.themeMode === "light" ? "dark"
+                                           : "auto"
             }
 
             SwbToolTip {

@@ -19,10 +19,12 @@
 
 SettingsViewModel::SettingsViewModel(DaemonApi *daemonApi,
                                      UpdateCheckService *updateCheckService,
+                                     const QString &settingsFilePath,
                                      QObject *parent)
     : QObject(parent)
     , m_daemonApi(daemonApi)
     , m_updateCheckService(updateCheckService)
+    , m_store(settingsFilePath.isEmpty() ? SettingsStore::defaultFilePath() : settingsFilePath)
 {
     load();
 
@@ -123,6 +125,7 @@ void SettingsViewModel::load()
     emit showExitPromptChanged();
     emit logLevelChanged();
     emit maxLogEntriesChanged();
+    emit themeModeChanged();
 }
 
 void SettingsViewModel::save()
@@ -288,6 +291,23 @@ void SettingsViewModel::setMaxLogEntries(int value)
     save();
 }
 
+QString SettingsViewModel::themeMode() const
+{
+    return m_themeMode;
+}
+
+void SettingsViewModel::setThemeMode(const QString &value)
+{
+    // 仅接受合法三态，非法值按规范化规则回退为 auto
+    const QString normalized = (value == QLatin1String("light") || value == QLatin1String("dark"))
+            ? value : QStringLiteral("auto");
+    if (m_themeMode == normalized)
+        return;
+    m_themeMode = normalized;
+    emit themeModeChanged();
+    save();
+}
+
 QString SettingsViewModel::frontendVersion() const
 {
     return QStringLiteral(QTET_FRONTEND_VERSION);
@@ -322,6 +342,7 @@ SettingsStore::Settings SettingsViewModel::settings() const
     settings.hideServerNodes = m_hideServerNodes;
     settings.logLevel = m_logLevel;
     settings.maxLogEntries = m_maxLogEntries;
+    settings.themeMode = m_themeMode;
     return settings;
 }
 
@@ -333,4 +354,5 @@ void SettingsViewModel::applySettings(const SettingsStore::Settings &settings)
     m_hideServerNodes = normalizedSettings.hideServerNodes;
     m_logLevel = normalizedSettings.logLevel;
     m_maxLogEntries = normalizedSettings.maxLogEntries;
+    m_themeMode = normalizedSettings.themeMode;
 }

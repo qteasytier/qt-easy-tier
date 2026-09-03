@@ -84,7 +84,9 @@ void TestLogHelper::testFiltering()
     QVERIFY(db->open());
     auto *repo = new LogRepository(db->database(), this);
     repo->clearAll();
-    auto *settings = new SettingsViewModel(nullptr, nullptr, this);
+    // 注入临时设置文件路径，避免测试写穿真实 ~/.config 下的 settings3.json
+    auto *settings = new SettingsViewModel(
+        nullptr, nullptr, QDir(m_tempDir.path()).filePath(QStringLiteral("settings3.json")), this);
     settings->setLogLevel(static_cast<int>(LogLevel::Info));
     settings->setMaxLogEntries(100);
     auto *sink = new RepositoryLogSink(repo, this);

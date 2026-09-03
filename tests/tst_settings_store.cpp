@@ -29,6 +29,7 @@ private slots:
         settings.hideServerNodes = true;
         settings.logLevel = 2;
         settings.maxLogEntries = 250;
+        settings.themeMode = QStringLiteral("dark");
 
         QVERIFY(store.save(settings));
 
@@ -38,10 +39,11 @@ private slots:
         QCOMPARE(loaded.hideServerNodes, true);
         QCOMPARE(loaded.logLevel, 2);
         QCOMPARE(loaded.maxLogEntries, 250);
+        QCOMPARE(loaded.themeMode, QStringLiteral("dark"));
     }
 
     /// 测试目标：验证加载时对非法数值进行钳位处理
-    /// logLevel 超出上限应钳位到 1，maxLogEntries 为 0 应钳位到 1
+    /// logLevel 超出上限应钳位到 1，maxLogEntries 为 0 应钳位到 1，themeMode 非法值重置为 auto
     void load_clampsInvalidNumericValues()
     {
         // 准备测试数据：写入包含非法数值的 JSON 文件
@@ -58,6 +60,7 @@ private slots:
         obj[QStringLiteral("hideServerNodes")] = true;
         obj[QStringLiteral("logLevel")] = 9;    // 超出上限
         obj[QStringLiteral("maxLogEntries")] = 0; // 非法值
+        obj[QStringLiteral("themeMode")] = QStringLiteral("blue"); // 非法主题值
         file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
         file.close();
 
@@ -69,6 +72,8 @@ private slots:
         // 检查非法数值已被钳位
         QCOMPARE(loaded.logLevel, 1);
         QCOMPARE(loaded.maxLogEntries, 1);
+        // 检查非法主题值已重置为默认 auto
+        QCOMPARE(loaded.themeMode, QStringLiteral("auto"));
     }
 
     /// 测试目标：JSON 中缺失 showExitPrompt 时默认返回 true

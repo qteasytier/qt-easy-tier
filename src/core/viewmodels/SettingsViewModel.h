@@ -62,6 +62,10 @@ class SettingsViewModel : public QObject {
 
     Q_PROPERTY(int logLevel READ logLevel WRITE setLogLevel NOTIFY logLevelChanged FINAL)
     Q_PROPERTY(int maxLogEntries READ maxLogEntries WRITE setMaxLogEntries NOTIFY maxLogEntriesChanged FINAL)
+
+    /// 界面主题模式（auto=跟随系统 / light=亮色 / dark=暗色），由侧边栏切换按钮读写
+    Q_PROPERTY(QString themeMode READ themeMode WRITE setThemeMode NOTIFY themeModeChanged FINAL)
+
     Q_PROPERTY(QString frontendVersion READ frontendVersion CONSTANT FINAL)
     Q_PROPERTY(QString easyTierVersion READ easyTierVersion CONSTANT FINAL)
 
@@ -70,10 +74,12 @@ public:
      * @brief 构造设置 ViewModel
      * @param daemonApi daemon API（非所有权，可为空）
      * @param updateCheckService 版本更新检查服务（非所有权，可为空）
+     * @param settingsFilePath 设置文件路径（空串使用默认 AppConfigLocation/settings3.json；测试注入临时路径用）
      * @param parent 父对象
      */
     explicit SettingsViewModel(DaemonApi *daemonApi = nullptr,
                                UpdateCheckService *updateCheckService = nullptr,
+                               const QString &settingsFilePath = QString(),
                                QObject *parent = nullptr);
 
     bool autoStart() const;
@@ -158,6 +164,8 @@ public:
     void setLogLevel(int value);
     int maxLogEntries() const;
     void setMaxLogEntries(int value);
+    QString themeMode() const;
+    void setThemeMode(const QString &value);
     QString frontendVersion() const;
     QString easyTierVersion() const;
 
@@ -172,6 +180,7 @@ signals:
     void showExitPromptChanged();
     void logLevelChanged();
     void maxLogEntriesChanged();
+    void themeModeChanged();
 
 private:
     SettingsStore::Settings settings() const;
@@ -196,4 +205,5 @@ private:
     bool m_showExitPrompt = true;
     int m_logLevel = 1;
     int m_maxLogEntries = 100;
+    QString m_themeMode = QStringLiteral("auto"); ///< 界面主题模式（auto/light/dark）
 };

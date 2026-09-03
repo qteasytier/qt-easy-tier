@@ -4,5 +4,7 @@
     <qresource prefix="/swb/theme">
         <file alias="sun.svg">sun.svg</file>
         <file alias="moon.svg">moon.svg</file>
+        <file alias="language.svg">language.svg</file>
+        <file alias="help.svg">help.svg</file>
     </qresource>
 </RCC>
