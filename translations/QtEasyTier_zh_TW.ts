@@ -60,19 +60,24 @@
 <context>
     <name>ConfigEditorViewModel</name>
     <message>
-        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="207"/>
-        <source>不指定</source>
-        <translation>不指定</translation>
-    </message>
-    <message>
-        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="214"/>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
         <source>主机名</source>
         <translation>主機名稱</translation>
+    </message>
+    <message>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
+        <source>留空使用系统设备名称</source>
+        <translation>留空使用系統設備名稱</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="215"/>
         <source>网络名称</source>
         <translation>網路名稱</translation>
+    </message>
+    <message>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="215"/>
+        <source>留空时默认为 default</source>
+        <translation>留空時預設為 default</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
@@ -253,6 +258,10 @@
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="260"/>
         <source>TUN 设备名</source>
         <translation>TUN 裝置名稱</translation>
+    </message>
+    <message>
+        <source>留空随机生成</source>
+        <translation>留空隨機產生</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="262"/>

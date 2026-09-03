@@ -46,6 +46,9 @@ void NetworkConf::applyDefaults(NetworkConf &conf)
     // 仅当加密算法为空时才设置默认值，避免覆盖用户已配置的值
     if (conf.encryptionAlgorithm.isEmpty())
         conf.encryptionAlgorithm = QStringLiteral("aes-gcm");
+    // 默认连接协议不再允许"未指定"：缺省归一为 tcp（与 EasyTier daemon 默认一致）
+    if (conf.defaultProtocol.isEmpty())
+        conf.defaultProtocol = QStringLiteral("tcp");
 }
 
 // ============================================================

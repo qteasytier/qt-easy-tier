@@ -326,6 +326,8 @@ private slots:
         const QMetaObject *meta = editor.metaObject();
         int boundFieldCount = 0;
         QSet<QString> seenKeys;
+        QVariantList defaultProtocolOptions;
+        QString networkNamePlaceholder;
         for (const auto &sectionVar : sections) {
             const QVariantMap section = sectionVar.toMap();
             QVERIFY(validTabs.contains(section.value(QStringLiteral("tab")).toString()));
@@ -355,6 +357,10 @@ private slots:
 
                 if (type == QStringLiteral("comboBox"))
                     QVERIFY(field.value(QStringLiteral("options")).toList().size() >= 2);
+                if (key == QStringLiteral("defaultProtocol"))
+                    defaultProtocolOptions = field.value(QStringLiteral("options")).toList();
+                if (key == QStringLiteral("networkName"))
+                    networkNamePlaceholder = field.value(QStringLiteral("placeholder")).toString();
                 if (type == QStringLiteral("spinBox")) {
                     QVERIFY(field.value(QStringLiteral("from")).toInt()
                             < field.value(QStringLiteral("to")).toInt());
@@ -365,6 +371,16 @@ private slots:
 
         // 47 个带数据绑定的字段（48 个配置字段中 displayName 不进表单）
         QCOMPARE(boundFieldCount, 47);
+
+        // 默认连接协议：不再提供"不指定"空值选项，首项即 tcp（存量空值配置的显示回退项）
+        QVERIFY(!defaultProtocolOptions.isEmpty());
+        for (const auto &optVar : defaultProtocolOptions)
+            QVERIFY(!optVar.toMap().value(QStringLiteral("value")).toString().isEmpty());
+        QCOMPARE(defaultProtocolOptions.first().toMap().value(QStringLiteral("value")).toString(),
+                 QStringLiteral("tcp"));
+
+        // 网络名称：必须带默认值提示（TOML 侧空值回退 default）
+        QVERIFY(!networkNamePlaceholder.isEmpty());
     }
 
     /// 目标：setFieldValue 反射写回等价于具名 setter——值生效、自动保存、

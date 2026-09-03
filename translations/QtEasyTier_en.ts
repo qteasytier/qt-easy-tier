@@ -60,19 +60,24 @@
 <context>
     <name>ConfigEditorViewModel</name>
     <message>
-        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="207"/>
-        <source>不指定</source>
-        <translation>Unspecified</translation>
-    </message>
-    <message>
-        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="214"/>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
         <source>主机名</source>
         <translation>Hostname</translation>
+    </message>
+    <message>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
+        <source>留空使用系统设备名称</source>
+        <translation>Leave empty to use the system device name</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="215"/>
         <source>网络名称</source>
         <translation>Network Name</translation>
+    </message>
+    <message>
+        <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="215"/>
+        <source>留空时默认为 default</source>
+        <translation>Defaults to &quot;default&quot; if left empty</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="216"/>
@@ -102,7 +107,7 @@
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="222"/>
         <source>初始节点（服务器）</source>
-        <translation>Initial Nodes (Servers)</translation>
+        <translation type="unfinished">First Peer Node(s)</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="229"/>
@@ -253,6 +258,10 @@
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="260"/>
         <source>TUN 设备名</source>
         <translation>TUN Device Name</translation>
+    </message>
+    <message>
+        <source>留空随机生成</source>
+        <translation>Leave empty to generate randomly</translation>
     </message>
     <message>
         <location filename="../src/core/viewmodels/ConfigEditorViewModel.cpp" line="262"/>

@@ -203,16 +203,18 @@ QVariantList ConfigEditorViewModel::buildFormSections() const
         option("aes-gcm", "aes-gcm"), option("xor", "xor"),
         option("chacha20", "chacha20"), option("aes-gcm256", "aes-gcm256"),
     };
+    // 默认连接协议：不提供"不指定"选项；未显式设置（空值）时 EasyTier 默认即 tcp，
+    // tcp 放在首位使存量空值配置在下拉框中默认显示为 tcp
     const QVariantList kDefaultProtocols = {
-        option(tr("不指定"), QString()), option("udp", "udp"), option("tcp", "tcp"),
-        option("wg", "wg"), option("ws", "ws"), option("wss", "wss"),
+        option("tcp", "tcp"), option("udp", "udp"), option("wg", "wg"),
+        option("ws", "ws"), option("wss", "wss"),
     };
 
     // ---- 基础设置页：身份与网络基本信息 + 初始节点 ----
     const QVariantList basicCards = {
         card(QStringLiteral("basic"), QStringLiteral("basicIdentity"), QString(), {
-            textField(QStringLiteral("hostname"), tr("主机名")),
-            textField(QStringLiteral("networkName"), tr("网络名称")),
+            textField(QStringLiteral("hostname"), tr("主机名"), tr("留空使用系统设备名称")),
+            textField(QStringLiteral("networkName"), tr("网络名称"), tr("留空时默认为 default")),
             passwordField(QStringLiteral("networkSecret"), tr("网络密钥")),
             switchField(QStringLiteral("dhcp"), tr("DHCP")),
             textField(QStringLiteral("ipv4"), tr("虚拟 IPv4")),
@@ -257,7 +259,7 @@ QVariantList ConfigEditorViewModel::buildFormSections() const
             switchField(QStringLiteral("noTun"), tr("不创建 TUN")),
             switchField(QStringLiteral("enableIpv6"), tr("启用 IPv6")),
             spinField(QStringLiteral("mtu"), tr("MTU"), 576, 1500),
-            textField(QStringLiteral("devName"), tr("TUN 设备名")),
+            textField(QStringLiteral("devName"), tr("TUN 设备名"), tr("留空随机生成")),
         }),
         card(QStringLiteral("advanced"), QStringLiteral("advServices"), tr("网络服务"), {
             switchField(QStringLiteral("enableExitNode"), tr("启用出口节点")),

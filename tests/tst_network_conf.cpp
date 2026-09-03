@@ -37,6 +37,8 @@ private slots:
         QCOMPARE(conf.bindDevice, true);
         QCOMPARE(conf.multiThread, true);
         QCOMPARE(conf.mtu, 1380);
+        // 默认连接协议缺省归一为 tcp（不再存在"未指定"状态）
+        QCOMPARE(conf.defaultProtocol, QStringLiteral("tcp"));
     }
 
     /// 测试目标: 验证 fieldMap 往返转换的一致性
@@ -148,12 +150,33 @@ private slots:
         // 默认布尔值不输出，非默认布尔值仍输出
         QVERIFY(!toml.contains("latency_first = false"));
         QVERIFY(!toml.contains("private_mode = true"));
-        QVERIFY(!toml.contains("[network_identity]"));
+        QVERIFY(toml.contains("network_name = \"default\""));
         QVERIFY(!toml.contains("enable_encryption = true"));
         QVERIFY(!toml.contains("no_tun = false"));
         QVERIFY(toml.contains("mtu = 1400"));
         QVERIFY(toml.contains("enable_kcp_proxy = true"));
         QVERIFY(!toml.contains("enable_quic_proxy = false"));
+    }
+
+    /// 测试目标: 验证网络名称的 TOML 兜底语义：
+    /// 未显式设置（空）时导出 network_name = "default"；显式设置时保留原值
+    void tomlNetworkNameFallback()
+    {
+        // 场景一：networkName 为空时导出回退 "default"
+        NetworkConf unnamed("unnamed");
+        unnamed.hostname = QStringLiteral("node");
+        const QString toml = NetworkConfToml::toToml(unnamed);
+        QVERIFY(toml.contains(QStringLiteral("network_name = \"default\"")));
+        // 导入侧把 "default" 读回为显式值
+        const auto restored = NetworkConfToml::fromToml(toml, "unnamed");
+        QCOMPARE(restored.networkName, QStringLiteral("default"));
+
+        // 场景二：显式设置时保留原值，不覆盖
+        NetworkConf named("named");
+        named.networkName = QStringLiteral("my-net");
+        const QString tomlNamed = NetworkConfToml::toToml(named);
+        QVERIFY(tomlNamed.contains(QStringLiteral("network_name = \"my-net\"")));
+        QVERIFY(!tomlNamed.contains(QStringLiteral("network_name = \"default\"")));
     }
 
     /// 测试目标: 验证 TOML 省略默认布尔值后反序列化仍恢复默认值

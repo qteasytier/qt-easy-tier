@@ -147,7 +147,7 @@ public:
     bool    enableExitNode = false;                    ///< 是否启用出口节点
     bool    systemForwarding = false;                  ///< 是否系统级转发
     bool    acceptDns = false;                         ///< 是否接受 DNS 请求
-    QString defaultProtocol;                           ///< 默认协议
+    QString defaultProtocol;                           ///< 默认协议（缺省 tcp，applyDefaults 兜底填充）
     QStringList exitNodes;                             ///< 出口节点列表
     bool    enableForeignNetworkWhitelist = false;     ///< 是否启用外部网络白名单
     QString foreignNetworkWhitelist;                   ///< 外部网络白名单

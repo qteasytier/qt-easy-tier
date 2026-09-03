@@ -137,14 +137,13 @@ QString toToml(const NetworkConf &conf, bool includeInstanceName)
     }
 
     // --- [network_identity] 节 ---
-    if (!conf.networkName.isEmpty() || !conf.networkSecret.isEmpty()) {
-        lines << QString{};
-        lines << QStringLiteral("[network_identity]");
-        if (!conf.networkName.isEmpty())
-            lines << QStringLiteral("network_name = %1").arg(esc(conf.networkName));
-        if (!conf.networkSecret.isEmpty())
-            lines << QStringLiteral("network_secret = %1").arg(esc(conf.networkSecret));
-    }
+    // 网络名称在 TOML 侧必须设置：未显式设置时回退为 "default"（与 EasyTier 默认网络名一致）
+    lines << QString{};
+    lines << QStringLiteral("[network_identity]");
+    lines << QStringLiteral("network_name = %1")
+                 .arg(esc(conf.networkName.isEmpty() ? QStringLiteral("default") : conf.networkName));
+    if (!conf.networkSecret.isEmpty())
+        lines << QStringLiteral("network_secret = %1").arg(esc(conf.networkSecret));
 
     // --- [[peer]] 表格数组节 ---
     for (const auto &peer : conf.servers) {
