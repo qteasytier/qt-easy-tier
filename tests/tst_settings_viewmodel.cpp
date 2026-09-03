@@ -131,6 +131,40 @@ private slots:
         QCOMPARE(SettingsViewModel(nullptr, nullptr, path).themeMode(), QStringLiteral("auto"));
     }
 
+    /// 目标：setLanguage() 即时落盘 settings3.json，新实例可恢复；非法值回退 system；同值幂等
+    void setLanguage_persistsAndRestores()
+    {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString path = QDir(tempDir.path()).filePath(QStringLiteral("settings3.json"));
+
+        {
+            SettingsViewModel vm(nullptr, nullptr, path);
+            QCOMPARE(vm.language(), QStringLiteral("system"));
+
+            QSignalSpy spy(&vm, &SettingsViewModel::languageChanged);
+            vm.setLanguage(QStringLiteral("en"));
+            QCOMPARE(vm.language(), QStringLiteral("en"));
+            QCOMPARE(spy.count(), 1);
+            // 同值设置幂等：不发信号
+            vm.setLanguage(QStringLiteral("en"));
+            QCOMPARE(spy.count(), 1);
+            // 非法语言值规范化回 system
+            vm.setLanguage(QStringLiteral("fr"));
+            QCOMPARE(vm.language(), QStringLiteral("system"));
+        }
+
+        // 新实例从 settings3.json 恢复：最后一次写入为 system（非法值回退后落盘）
+        QCOMPARE(SettingsViewModel(nullptr, nullptr, path).language(), QStringLiteral("system"));
+
+        // 再次写入合法值并验证恢复
+        {
+            SettingsViewModel vm(nullptr, nullptr, path);
+            vm.setLanguage(QStringLiteral("zh_TW"));
+        }
+        QCOMPARE(SettingsViewModel(nullptr, nullptr, path).language(), QStringLiteral("zh_TW"));
+    }
+
     /// 目标：refreshAutoStart() 重新发射属性通知，供 QML 重新读取系统状态
     void refreshAutoStart_emitsSignal()
     {

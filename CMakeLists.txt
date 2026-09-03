@@ -45,6 +45,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
     Svg
     QuickDialogs2
     QuickEffects
+    LinguistTools
 )
 
 if(COMMAND qt_policy)
@@ -154,7 +155,9 @@ add_subdirectory(src/qml/pages)
 add_subdirectory(src/qml/dde)
 
 # Card/IconToolButton/EditableListItem/ErrorDialog/ImportNodesDialog/
-# GenerateCredentialDialog/CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
+# CredentialManageDialog 由 DDE 版同名组件按模式蒙版替换
+# (GenerateCredentialDialog 仅存于 DDE 蒙版集:共享版新增凭证功能已并入
+#  CredentialManageDialog,DDE 版仍为独立生成对话框)
 if(BUILD_WITH_DDE)
     list(APPEND QTET_QML_FILES ${QTET_QML_MASK_DDE})
 else()
@@ -172,6 +175,35 @@ qt_add_qml_module(appQtEasyTier
     VERSION 1.0
     RESOURCE_PREFIX "/"
     QML_FILES ${QTET_QML_FILES_ABS}
+)
+
+# ============================================
+# 翻译：源语言为简体中文（qsTr/tr 直接写中文），
+# 繁體/English 经 translations/*.ts 翻译并内嵌为 :/i18n/QtEasyTier_*.qm
+# ============================================
+qt_add_translations(appQtEasyTier
+    TS_FILES translations/QtEasyTier_zh_TW.ts translations/QtEasyTier_en.ts
+    RESOURCE_PREFIX "/i18n"
+    QM_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/translations"
+)
+
+# lupdate 覆盖扫描：qt_add_translations 只扫描 app target 源（QML + main.cpp），
+# qtet_appcore / qtet_system_tray 中的 tr() 不在其中，这里显式补扫
+add_custom_target(update-translations
+    COMMAND Qt6::lupdate
+            "${CMAKE_SOURCE_DIR}/src/main.cpp"
+            "${CMAKE_SOURCE_DIR}/src/core/viewmodels/ConfigEditorViewModel.cpp"
+            "${CMAKE_SOURCE_DIR}/src/core/viewmodels/runtime/BackendStatusViewModel.cpp"
+            "${CMAKE_SOURCE_DIR}/src/core/settings"
+            "${CMAKE_SOURCE_DIR}/src/app"
+            "${CMAKE_SOURCE_DIR}/src/system_tray"
+            ${QTET_QML_FILES_ABS}
+            -ts
+            "${CMAKE_SOURCE_DIR}/translations/QtEasyTier_zh_TW.ts"
+            "${CMAKE_SOURCE_DIR}/translations/QtEasyTier_en.ts"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "运行 lupdate 更新翻译源文件 (.ts)"
+    VERBATIM
 )
 
 enable_testing()

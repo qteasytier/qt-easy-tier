@@ -42,6 +42,7 @@ SettingsStore::Settings SettingsStore::load(const Settings &defaults) const
     settings.logLevel = obj.value(QLatin1String("logLevel")).toInt(settings.logLevel);
     settings.maxLogEntries = obj.value(QLatin1String("maxLogEntries")).toInt(settings.maxLogEntries);
     settings.themeMode = obj.value(QLatin1String("themeMode")).toString(settings.themeMode);
+    settings.language = obj.value(QLatin1String("language")).toString(settings.language);
     // 对加载的值做规范化（限制范围）
     return normalized(settings);
 }
@@ -58,6 +59,7 @@ bool SettingsStore::save(const Settings &settings) const
     obj[QStringLiteral("logLevel")] = normalizedSettings.logLevel;
     obj[QStringLiteral("maxLogEntries")] = normalizedSettings.maxLogEntries;
     obj[QStringLiteral("themeMode")] = normalizedSettings.themeMode;
+    obj[QStringLiteral("language")] = normalizedSettings.language;
 
     // 确保目标目录存在
     QDir dir(QFileInfo(m_filePath).path());
@@ -99,5 +101,11 @@ SettingsStore::Settings SettingsStore::normalized(Settings settings)
             && settings.themeMode != QLatin1String("light")
             && settings.themeMode != QLatin1String("dark"))
         settings.themeMode = QStringLiteral("auto");
+    // language 仅接受 system/zh_CN/zh_TW/en，非法值重置为 system
+    if (settings.language != QLatin1String("system")
+            && settings.language != QLatin1String("zh_CN")
+            && settings.language != QLatin1String("zh_TW")
+            && settings.language != QLatin1String("en"))
+        settings.language = QStringLiteral("system");
     return settings;
 }

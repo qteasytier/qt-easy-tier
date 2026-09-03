@@ -33,7 +33,7 @@ ConfigEditorViewModel::ConfigEditorViewModel(ConfigCommandService *commandServic
     m_autoSaveTimer.setInterval(kAutoSaveDelayMs);
     connect(&m_autoSaveTimer, &QTimer::timeout, this, &ConfigEditorViewModel::autoSaveTimeout);
 
-    // 表单结构元数据进程内不变，构造时构建一次缓存
+    // 表单结构元数据构造时构建一次缓存；语言切换后由 refreshFormSections() 重建
     m_formSections = buildFormSections();
 }
 
@@ -121,6 +121,13 @@ QStringList ConfigEditorViewModel::errorMessages() const { return m_errorMessage
 QVariantList ConfigEditorViewModel::formSections() const
 {
     return m_formSections;
+}
+
+void ConfigEditorViewModel::refreshFormSections()
+{
+    // 语言切换后按新翻译重建元数据（tr() 在构建时求值，缓存需整体重算）
+    m_formSections = buildFormSections();
+    emit formSectionsChanged();
 }
 
 QVariant ConfigEditorViewModel::fieldValue(const QString &key) const

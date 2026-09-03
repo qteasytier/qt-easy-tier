@@ -66,6 +66,9 @@ class SettingsViewModel : public QObject {
     /// 界面主题模式（auto=跟随系统 / light=亮色 / dark=暗色），由侧边栏切换按钮读写
     Q_PROPERTY(QString themeMode READ themeMode WRITE setThemeMode NOTIFY themeModeChanged FINAL)
 
+    /// 界面语言（system=跟随系统 / zh_CN=简体 / zh_TW=繁體 / en=English），由侧边栏语言菜单读写
+    Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged FINAL)
+
     Q_PROPERTY(QString frontendVersion READ frontendVersion CONSTANT FINAL)
     Q_PROPERTY(QString easyTierVersion READ easyTierVersion CONSTANT FINAL)
 
@@ -166,6 +169,8 @@ public:
     void setMaxLogEntries(int value);
     QString themeMode() const;
     void setThemeMode(const QString &value);
+    QString language() const;
+    void setLanguage(const QString &value);
     QString frontendVersion() const;
     QString easyTierVersion() const;
 
@@ -181,6 +186,7 @@ signals:
     void logLevelChanged();
     void maxLogEntriesChanged();
     void themeModeChanged();
+    void languageChanged();
 
 private:
     SettingsStore::Settings settings() const;
@@ -206,4 +212,5 @@ private:
     int m_logLevel = 1;
     int m_maxLogEntries = 100;
     QString m_themeMode = QStringLiteral("auto"); ///< 界面主题模式（auto/light/dark）
+    QString m_language = QStringLiteral("system"); ///< 界面语言（system/zh_CN/zh_TW/en）
 };

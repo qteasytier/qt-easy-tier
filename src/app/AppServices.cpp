@@ -30,6 +30,7 @@
 #include "core/settings/UpdateCheckService.h"
 #include "core/viewmodels/AppState.h"
 #include "core/viewmodels/ConfigEditorViewModel.h"
+#include "LanguageController.h"
 #include "core/viewmodels/ConfigListModel.h"
 #include "core/viewmodels/credential/CredentialViewModel.h"
 #include "core/viewmodels/FavoriteNodeViewModel.h"
@@ -67,6 +68,8 @@ AppServices::AppServices(const QSqlDatabase &database,
     m_updateCheckService = new UpdateCheckService(parentObject);
     // 设置 ViewModel：直接协调本地设置、daemon 自动回连与版本更新检查
     m_settingsViewModel = new SettingsViewModel(m_daemonApi, m_updateCheckService, QString(), parentObject);
+    // 语言控制器：构造时按持久化语言安装翻译器（早于 engine.load，首帧即正确语言）
+    m_languageController = new LanguageController(m_engine, m_settingsViewModel, parentObject);
     m_fontHelper = new FontHelper(parentObject);
     m_systemTrayManager = new SystemTrayManager(parentObject);
     // 托盘需要立即显示 daemon 初始状态，后续变化在 wireRuntime() 中持续同步。
@@ -133,6 +136,17 @@ AppServices::AppServices(const QSqlDatabase &database,
         wireConfigCoordination();
     }
 
+    // 语言切换后重建配置编辑器的表单元数据缓存（编辑器未创建时跳过）
+    if (m_configEditorViewModel) {
+        connect(m_languageController, &LanguageController::retranslated,
+                m_configEditorViewModel, &ConfigEditorViewModel::refreshFormSections);
+    }
+    // 托盘菜单/提示与底部状态栏文案随语言即时刷新
+    connect(m_languageController, &LanguageController::retranslated,
+            m_systemTrayManager, &SystemTrayManager::retranslateTray);
+    connect(m_languageController, &LanguageController::retranslated,
+            m_backendStatusViewModel, &BackendStatusViewModel::refreshTranslations);
+
     if (daemonConnectionMode == ConnectToDaemon)
         m_settingsViewModel->checkForUpdatesOnStartup();
 }
@@ -154,6 +168,7 @@ DangerousOperationService *AppServices::dangerousOperationService() const { retu
 DaemonClient *AppServices::daemonClient() const { return m_daemonClient; }
 DaemonApi *AppServices::daemonApi() const { return m_daemonApi; }
 SystemTrayManager *AppServices::systemTrayManager() const { return m_systemTrayManager; }
+LanguageController *AppServices::languageController() const { return m_languageController; }
 
 QObject *AppServices::serviceParent() const
 {

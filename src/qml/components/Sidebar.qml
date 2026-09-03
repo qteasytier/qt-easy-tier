@@ -1,4 +1,4 @@
-/* @brief 侧边栏导航组件：参照 SWB-QML-UI 示例的图标 rail 风格，SwbToolButton 导航项 + 底部明暗主题切换 */
+/* @brief 侧边栏导航组件：参照 SWB-QML-UI 示例的图标 rail 风格，SwbToolButton 导航项 + 底部语言/明暗主题切换 */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
@@ -7,7 +7,7 @@ import SwbControls
 // 侧边栏导航：64px 纯图标 rail（示例项目模式）
 // 选中态由 SwbToolButton 的 checked 背景块表达，悬停提示由 SwbToolTip 提供
 // 通过 currentIndex 控制选中项，itemClicked 信号通知外部切换页面
-/* @brief 侧边栏根容器：应用标识、导航按钮组、弹簧与主题切换按钮 */
+/* @brief 侧边栏根容器：应用标识、导航按钮组、弹簧与语言/主题切换按钮 */
 Rectangle {
     id: root
 
@@ -15,6 +15,17 @@ Rectangle {
 
     /* 当前选中项的索引，0=网络配置 1=节点收藏 2=日志 3=设置 */
     property int currentIndex: 0
+
+    /*
+      导航项清单：label 用 qsTr 字面量（可被 lupdate 收割），
+      engine.retranslate() 会让数组绑定重求值实现语言即时切换。
+    */
+    readonly property var navItems: [
+        { iconSource: "qrc:/icons/net-page.svg", label: qsTr("网络配置") },
+        { iconSource: "qrc:/icons/favorites.svg", label: qsTr("节点收藏") },
+        { iconSource: "qrc:/icons/log.svg", label: qsTr("日志") },
+        { iconSource: "qrc:/icons/settings.svg", label: qsTr("设置") }
+    ]
 
     /*
       主题模式：auto=跟随系统（默认）/ light / dark。
@@ -53,25 +64,19 @@ Rectangle {
 
         // 导航按钮组：纯图标 + 悬停提示，选中项图标点亮
         Repeater {
-            model: ListModel {
-                ListElement { iconSource: "qrc:/icons/net-page.svg"; label: "网络配置" }
-                ListElement { iconSource: "qrc:/icons/favorites.svg"; label: "节点收藏" }
-                ListElement { iconSource: "qrc:/icons/log.svg"; label: "日志" }
-                ListElement { iconSource: "qrc:/icons/settings.svg"; label: "设置" }
-            }
+            model: root.navItems
 
             delegate: SwbToolButton {
                 id: navButton
 
-                /* 模型角色：图标资源与提示文字（role 不能叫 icon，会与按钮自身的 icon 组属性冲突） */
-                required property string iconSource
-                required property string label
+                /* 模型角色：图标资源与提示文字 */
+                required property var modelData
                 required property int index
 
                 Layout.alignment: Qt.AlignHCenter
                 size: "lg"
 
-                icon.source: navButton.iconSource
+                icon.source: modelData.iconSource
                 icon.width: root.navIconSize
                 icon.height: root.navIconSize
                 icon.color: navButton.checked ? SwbTheme.accentForeground : SwbTheme.mutedForeground
@@ -80,14 +85,36 @@ Rectangle {
                 onClicked: root.itemClicked(navButton.index)
 
                 SwbToolTip {
-                    text: navButton.label
+                    text: navButton.modelData.label
                     visible: navButton.hovered
                 }
             }
         }
 
-        // 弹簧占位，把主题切换按钮推到底部
+        // 弹簧占位，把语言/主题切换按钮推到底部
         Item { Layout.fillHeight: true }
+
+        // 语言切换：点击弹出菜单，四选一（跟随系统/简体/繁體/English），
+        // 当前语言以 "✓" 后缀标记；写入经 LanguageController→SettingsViewModel 持久化，
+        // 生效（换翻译器 + retranslate）由控制器监听设置变化统一完成。
+        SwbToolButton {
+            id: languageButton
+
+            Layout.alignment: Qt.AlignHCenter
+            size: "lg"
+
+            icon.source: "qrc:/icons/language.svg"
+            icon.width: root.navIconSize
+            icon.height: root.navIconSize
+            icon.color: SwbTheme.mutedForeground
+
+            onClicked: languageMenu.popup()
+
+            SwbToolTip {
+                text: qsTr("语言")
+                visible: languageButton.hovered
+            }
+        }
 
         // 明暗主题切换：auto → light → dark 循环；auto 跟随系统深浅色并实时变化。
         // auto 模式以大写字母 A 作为图标（不使用 svg），light/dark 分别为太阳/月亮；
@@ -122,6 +149,29 @@ Rectangle {
                      : root.themeMode === "light" ? qsTr("主题：亮色")
                      : qsTr("主题：暗色")
                 visible: themeButton.hovered
+            }
+        }
+    }
+
+    // 语言选择菜单：条目来自 LanguageController.availableLanguages（label 随翻译更新），
+    // 不用 MenuItem 的 checkable（交互会打断 checked 绑定），改以文本 ✓ 后缀标记当前项
+    SwbMenu {
+        id: languageMenu
+        width: 170
+
+        Repeater {
+            model: LanguageController.availableLanguages
+
+            delegate: SwbMenuItem {
+                id: langItem
+
+                required property var modelData
+
+                text: modelData.label + (LanguageController.language === modelData.value ? "  ✓" : "")
+                onTriggered: {
+                    LanguageController.setLanguage(modelData.value)
+                    languageMenu.close()
+                }
             }
         }
     }

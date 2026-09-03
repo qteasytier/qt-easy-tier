@@ -112,26 +112,26 @@ QString SystemTrayManager::daemonStatusText() const
 {
     switch (m_daemonState) {
     case DaemonClient::ConnectionState::Connected:
-        return QStringLiteral("已连接");
+        return tr("已连接");
     case DaemonClient::ConnectionState::Connecting:
-        return QStringLiteral("连接中");
+        return tr("连接中");
     case DaemonClient::ConnectionState::Disconnected:
-        return QStringLiteral("未连接");
+        return tr("未连接");
     }
-    return QStringLiteral("未连接");
+    return tr("未连接");
 }
 
 QString SystemTrayManager::daemonStatusMenuText() const
 {
     switch (m_daemonState) {
     case DaemonClient::ConnectionState::Connected:
-        return QStringLiteral("🟢 后端状态：%1").arg(daemonStatusText());
+        return tr("🟢 后端状态：%1").arg(daemonStatusText());
     case DaemonClient::ConnectionState::Connecting:
-        return QStringLiteral("🟠 后端状态：%1").arg(daemonStatusText());
+        return tr("🟠 后端状态：%1").arg(daemonStatusText());
     case DaemonClient::ConnectionState::Disconnected:
-        return QStringLiteral("🔴 后端状态：%1").arg(daemonStatusText());
+        return tr("🔴 后端状态：%1").arg(daemonStatusText());
     }
-    return QStringLiteral("🔴 后端状态：%1").arg(daemonStatusText());
+    return tr("🔴 后端状态：%1").arg(daemonStatusText());
 }
 
 QString SystemTrayManager::networkCountMenuText() const
@@ -139,7 +139,7 @@ QString SystemTrayManager::networkCountMenuText() const
     const QString indicator = runningConfigCount() > 0
                                   ? QStringLiteral("🟢")
                                   : QStringLiteral("🟠");
-    return QStringLiteral("%1 网络连接：%2 个").arg(indicator).arg(runningConfigCount());
+    return tr("%1 网络连接：%2 个").arg(indicator).arg(runningConfigCount());
 }
 
 QString SystemTrayManager::currentIconPath() const
@@ -168,7 +168,7 @@ bool SystemTrayManager::eventFilter(QObject *watched, QEvent *event)
         event->ignore();
         hideMainWindow();
         TrayMessageHelper::showInfo(QStringLiteral("QtEasyTier"),
-                                    QStringLiteral("程序已隐藏到系统托盘，右键托盘图标可退出程序。"));
+                                    tr("程序已隐藏到系统托盘，右键托盘图标可退出程序。"));
         return true;
     }
 
@@ -187,8 +187,8 @@ void SystemTrayManager::createTrayIcon()
     m_daemonStatusAction = m_menu->addAction(QString());
     m_networkCountAction = m_menu->addAction(QString());
     m_menu->addSeparator();
-    m_toggleWindowAction = m_menu->addAction(QStringLiteral("关闭程序页面"));
-    m_quitAction = m_menu->addAction(QStringLiteral("退出程序"));
+    m_toggleWindowAction = m_menu->addAction(tr("关闭程序页面"));
+    m_quitAction = m_menu->addAction(tr("退出程序"));
 
     m_trayIcon = new QSystemTrayIcon(QIcon(currentIconPath()), this);
     m_trayIcon->setContextMenu(m_menu);
@@ -215,8 +215,15 @@ void SystemTrayManager::updateWindowActionText()
 
     const bool windowVisible = m_mainWindow && m_mainWindow->isVisible();
     m_toggleWindowAction->setText(windowVisible
-                                      ? QStringLiteral("关闭程序页面")
-                                      : QStringLiteral("开启程序页面"));
+                                      ? tr("关闭程序页面")
+                                      : tr("开启程序页面"));
+}
+
+void SystemTrayManager::retranslateTray()
+{
+    // 菜单状态项/图标/提示经 refreshTrayStatus 重建，窗口动作文字单独刷新
+    updateWindowActionText();
+    refreshTrayStatus();
 }
 
 void SystemTrayManager::updateStatusActions()

@@ -8,6 +8,7 @@
 #include "QmlSingletonRegistrar.h"
 
 #include "AppServices.h"
+#include "LanguageController.h"
 #include "core/settings/DangerousOperationService.h"
 #include "core/runtime/VpnRuntimeService.h"
 #include "platform/FontHelper.h"
@@ -79,4 +80,6 @@ void registerQmlSingletons(QQmlApplicationEngine &, AppServices &services)
     registerPrecreatedSingleton("DangerousOperationViewModel", services.dangerousOperationService());
     // 中文字体辅助
     registerPrecreatedSingleton("FontHelper", services.fontHelper());
+    // 界面语言（装卸翻译器与即时重翻译）
+    registerPrecreatedSingleton("LanguageController", services.languageController());
 }

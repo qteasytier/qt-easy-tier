@@ -9,11 +9,12 @@ set(_components_qml
 list(APPEND QTET_QML_FILES ${_components_qml})
 
 # DDE 蒙版组件的共享版(仅非 DDE 构建):DDE 构建用 dde/components/ 同名版本替换
+# 注意:GenerateCredentialDialog 仅存在于 DDE 蒙版集(共享版已删除,新增凭证
+# 功能并入共享版 CredentialManageDialog;DDE 版保留独立生成对话框的旧交互)
 set(_components_mask_shared
     components/Card.qml
     components/IconToolButton.qml
     components/ErrorDialog.qml
-    components/GenerateCredentialDialog.qml
     components/CredentialManageDialog.qml
 )
 list(APPEND QTET_QML_MASK_SHARED ${_components_mask_shared})

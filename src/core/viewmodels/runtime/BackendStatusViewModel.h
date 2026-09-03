@@ -39,6 +39,8 @@ public:
     bool connecting() const;
     /// 获取连接状态的本地化文本
     QString statusText() const;
+    /// 语言切换后重发 statusTextChanged 让 QML 重读翻译后的状态文本
+    void refreshTranslations();
 
 signals:
     /// 连接状态变化时发射

@@ -30,6 +30,7 @@ private slots:
         settings.logLevel = 2;
         settings.maxLogEntries = 250;
         settings.themeMode = QStringLiteral("dark");
+        settings.language = QStringLiteral("zh_TW");
 
         QVERIFY(store.save(settings));
 
@@ -40,6 +41,7 @@ private slots:
         QCOMPARE(loaded.logLevel, 2);
         QCOMPARE(loaded.maxLogEntries, 250);
         QCOMPARE(loaded.themeMode, QStringLiteral("dark"));
+        QCOMPARE(loaded.language, QStringLiteral("zh_TW"));
     }
 
     /// 测试目标：验证加载时对非法数值进行钳位处理
@@ -61,6 +63,7 @@ private slots:
         obj[QStringLiteral("logLevel")] = 9;    // 超出上限
         obj[QStringLiteral("maxLogEntries")] = 0; // 非法值
         obj[QStringLiteral("themeMode")] = QStringLiteral("blue"); // 非法主题值
+        obj[QStringLiteral("language")] = QStringLiteral("fr");    // 非法语言值
         file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
         file.close();
 
@@ -74,6 +77,8 @@ private slots:
         QCOMPARE(loaded.maxLogEntries, 1);
         // 检查非法主题值已重置为默认 auto
         QCOMPARE(loaded.themeMode, QStringLiteral("auto"));
+        // 检查非法语言值已重置为默认 system
+        QCOMPARE(loaded.language, QStringLiteral("system"));
     }
 
     /// 测试目标：JSON 中缺失 showExitPrompt 时默认返回 true

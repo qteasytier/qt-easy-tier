@@ -58,7 +58,7 @@ class ConfigEditorViewModel : public QObject {
      *   为字符串列表编辑器的添加对话框元数据
      * 字段间的联动禁用（dhcp→ipv4、白名单开关→输入框）不属于数据元数据，由 QML 侧实现
      */
-    Q_PROPERTY(QVariantList formSections READ formSections CONSTANT FINAL)
+    Q_PROPERTY(QVariantList formSections READ formSections NOTIFY formSectionsChanged FINAL)
 
     // ==================== 元数据 ====================
 
@@ -193,8 +193,11 @@ public:
     bool hasUnsavedChanges() const;
     QStringList errorMessages() const;
 
-    /// 表单结构元数据（见 Q_PROPERTY 注释；CONSTANT，进程内不变）
+    /// 表单结构元数据（见 Q_PROPERTY 注释；语言切换后经 refreshFormSections() 重建）
     QVariantList formSections() const;
+
+    /// 按当前翻译重建表单元数据缓存并通知 QML（由 LanguageController::retranslated 触发）
+    void refreshFormSections();
 
     // ==================== 元数据 getter/setter ====================
     QString displayName() const;         void setDisplayName(const QString &v);
@@ -397,6 +400,8 @@ signals:
     void hasUnsavedChangesChanged();
     /// 错误消息列表发生变化（加载失败 / 保存失败 / 错误被清除时触发）
     void errorMessagesChanged();
+    /// 表单元数据重建（语言切换后 refreshFormSections() 触发）
+    void formSectionsChanged();
 
     // ==================== 字段变更信号（由 setter 或 emitCurrentChanged 触发）====================
     // 每个 Q_PROPERTY 对应一个 NOTIFY 信号，QML 引擎依赖这些信号实现属性绑定更新

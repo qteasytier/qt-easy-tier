@@ -126,6 +126,7 @@ void SettingsViewModel::load()
     emit logLevelChanged();
     emit maxLogEntriesChanged();
     emit themeModeChanged();
+    emit languageChanged();
 }
 
 void SettingsViewModel::save()
@@ -308,6 +309,24 @@ void SettingsViewModel::setThemeMode(const QString &value)
     save();
 }
 
+QString SettingsViewModel::language() const
+{
+    return m_language;
+}
+
+void SettingsViewModel::setLanguage(const QString &value)
+{
+    // 仅接受合法四值，非法值按规范化规则回退为 system
+    const QString normalized = (value == QLatin1String("zh_CN") || value == QLatin1String("zh_TW")
+                                 || value == QLatin1String("en"))
+            ? value : QStringLiteral("system");
+    if (m_language == normalized)
+        return;
+    m_language = normalized;
+    emit languageChanged();
+    save();
+}
+
 QString SettingsViewModel::frontendVersion() const
 {
     return QStringLiteral(QTET_FRONTEND_VERSION);
@@ -343,6 +362,7 @@ SettingsStore::Settings SettingsViewModel::settings() const
     settings.logLevel = m_logLevel;
     settings.maxLogEntries = m_maxLogEntries;
     settings.themeMode = m_themeMode;
+    settings.language = m_language;
     return settings;
 }
 
@@ -355,4 +375,5 @@ void SettingsViewModel::applySettings(const SettingsStore::Settings &settings)
     m_logLevel = normalizedSettings.logLevel;
     m_maxLogEntries = normalizedSettings.maxLogEntries;
     m_themeMode = normalizedSettings.themeMode;
+    m_language = normalizedSettings.language;
 }

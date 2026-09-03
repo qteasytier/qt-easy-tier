@@ -43,6 +43,8 @@ public:
 
     /** @brief 更新 daemon 连接状态，并刷新托盘菜单和图标 */
     void setDaemonConnectionState(DaemonClient::ConnectionState state);
+    /** @brief 语言切换后按新翻译重建托盘菜单与提示文案（LanguageController::retranslated 触发） */
+    void retranslateTray();
     /** @brief 更新单个网络配置运行状态，仅 Running 会计入网络连接数量 */
     void setConfigRunState(const QString &instanceName, ConfigRunState state);
     /** @brief 当前 Running 网络配置数量，供菜单展示和测试验证 */

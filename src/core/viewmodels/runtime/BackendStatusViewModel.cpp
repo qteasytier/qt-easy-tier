@@ -39,10 +39,15 @@ bool BackendStatusViewModel::connecting() const
 
 QString BackendStatusViewModel::statusText() const
 {
-    // 根据当前连接状态返回对应的中文状态文本
+    // 根据当前连接状态返回对应的状态文本（随界面语言翻译）
     if (connected())
-        return QStringLiteral("后端已连接");
+        return tr("后端已连接");
     if (connecting())
-        return QStringLiteral("连接中...");
-    return QStringLiteral("后端未连接");
+        return tr("连接中...");
+    return tr("后端未连接");
+}
+
+void BackendStatusViewModel::refreshTranslations()
+{
+    emit statusTextChanged();
 }

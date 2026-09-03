@@ -3,6 +3,8 @@ add_qtet_library(qtet_appsupport
     AppLaunchManager.h
     AppServices.cpp
     AppServices.h
+    LanguageController.cpp
+    LanguageController.h
     QmlSingletonRegistrar.cpp
     QmlSingletonRegistrar.h
 )

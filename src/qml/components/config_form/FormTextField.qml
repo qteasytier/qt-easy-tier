@@ -15,7 +15,11 @@ RowLayout {
 
     SwbLabel {
         text: root.field.title
-        Layout.preferredWidth: 110
+        // 标签列三向钉死同一宽度：保证各行输入框左缘对齐（英文标签较长，110 不够用）
+        Layout.preferredWidth: 140
+        Layout.minimumWidth: 140
+        Layout.maximumWidth: 140
+        elide: Text.ElideRight
         visible: root.field.title !== ""
     }
 

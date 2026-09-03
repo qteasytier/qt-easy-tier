@@ -39,6 +39,7 @@ class FavoriteNodeRepository;
 class FavoriteNodeViewModel;
 class FontHelper;
 class ImportNodesViewModel;
+class LanguageController;
 class LogRepository;
 class LogViewModel;
 class NetworkConfigRepository;
@@ -120,6 +121,8 @@ public:
     DaemonApi *daemonApi() const;
     /// 获取系统托盘管理器（窗口显隐、托盘菜单、托盘消息输出）
     SystemTrayManager *systemTrayManager() const;
+    /// 获取语言控制器（界面语言装卸翻译器与即时重翻译）
+    LanguageController *languageController() const;
 
     /** @brief 设置退出提示处理函数（仅用于测试） */
     void setExitPromptHandler(ExitPromptHandler handler);
@@ -172,6 +175,7 @@ private:
     NetworkPageViewModel *m_networkPageViewModel = nullptr;
     FontHelper *m_fontHelper = nullptr;
     UpdateCheckService *m_updateCheckService = nullptr;
+    LanguageController *m_languageController = nullptr;
     SystemTrayManager *m_systemTrayManager = nullptr;
     bool m_daemonServiceEnsureAttempted = false;
     ExitPromptHandler m_exitPromptHandler;
