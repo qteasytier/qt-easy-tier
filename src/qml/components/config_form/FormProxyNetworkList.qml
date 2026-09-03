@@ -8,6 +8,8 @@ import SwbControls
  * 代理子网列表渲染器（数据驱动改造）
  * 按 key 泛化原页面的 proxyNetworks 加载/写回逻辑；
  * allow 为空时以 ["tcp","udp","icmp"] 兜底（与 ViewModel 侧归一化保持一致）。
+ * ViewModel 侧 allow 为字符串数组，ProxyNetworkListItem 的 ListModel 侧存逗号字符串
+ * （Qt6 ListModel 数组角色读写不可靠），在 reload/commit 边界做转换。
  */
 /* @brief 代理子网列表渲染器根布局 */
 ColumnLayout {
@@ -33,7 +35,7 @@ ColumnLayout {
             proxyList.model.append({
                 cidr: src.cidr,
                 mappedCidr: src.mappedCidr || "",
-                allow: src.allow && src.allow.length > 0 ? src.allow : root.defaultAllow
+                allow: (src.allow && src.allow.length > 0 ? src.allow : root.defaultAllow).join(",")
             })
         }
     }
@@ -46,7 +48,7 @@ ColumnLayout {
             proxies.push({
                 cidr: proxy.cidr,
                 mappedCidr: proxy.mappedCidr || "",
-                allow: proxy.allow && proxy.allow.length > 0 ? proxy.allow : root.defaultAllow
+                allow: proxy.allow && proxy.allow.length > 0 ? proxy.allow.split(",") : root.defaultAllow
             })
         }
         ConfigEditorViewModel.setFieldValue(root.field.key, proxies)
