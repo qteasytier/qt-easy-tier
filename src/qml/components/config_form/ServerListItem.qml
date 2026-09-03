@@ -1,4 +1,4 @@
-/* @brief 服务器地址列表组件：管理 uri + publicKey 列表，支持添加、删除和去重检测，Swb 控件迁移版 */
+/* @brief 服务器地址列表组件：管理 uri + publicKey 列表，支持添加、编辑、删除和去重检测，Swb 控件迁移版 */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -6,8 +6,8 @@ import QtEasyTier
 import SwbControls
 
 // 服务器地址列表组件：管理 uri + publicKey 列表
-// 支持添加、删除、去重检测
-/* @brief 服务器列表根布局，包含 ListView、添加按钮和添加对话框 */
+// 支持添加、编辑、删除、去重检测
+/* @brief 服务器列表根布局，包含 ListView、添加按钮和添加/编辑对话框 */
 ColumnLayout {
     id: root
 
@@ -80,6 +80,12 @@ ColumnLayout {
                 }
 
                 IconToolButton {
+                    iconSource: "qrc:/icons/edit.svg"
+                    flat: true
+                    onClicked: addDialog.openForEdit(serverRow.index)
+                }
+
+                IconToolButton {
                     iconSource: "qrc:/icons/delete.svg"
                     flat: true
                     onClicked: { listModel.remove(index); root.changed() }
@@ -95,25 +101,41 @@ ColumnLayout {
         size: "sm"
         text: qsTr("添加服务器地址")
         textColor: appTheme.statusGreen
-        onClicked: {
-            addDialog.uriText = ""
-            addDialog.publicKeyText = ""
-            addDialog.open()
-        }
+        onClicked: addDialog.openForAdd()
     }
 
-    // 添加服务器地址对话框
+    // 添加/编辑服务器地址对话框（editingIndex 区分模式：-1 添加，>=0 编辑）
     SwbDialog {
         id: addDialog
-        title: qsTr("添加服务器地址")
+        title: editingIndex >= 0 ? qsTr("编辑服务器地址") : qsTr("添加服务器地址")
         standardButtons: Dialog.Ok | Dialog.Cancel
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(420, parent ? parent.width - 48 : 360)
 
+        // 当前对话框模式：-1 添加，>=0 为正在编辑的列表项索引
+        property int editingIndex: -1
+
         // 暴露输入框文本便于预设／清空
         property alias uriText: uriField.text
         property alias publicKeyText: publicKeyField.text
+
+        // 以添加模式打开：清空输入
+        function openForAdd() {
+            editingIndex = -1
+            uriText = ""
+            publicKeyText = ""
+            open()
+        }
+
+        // 以编辑模式打开：预填当前项内容
+        function openForEdit(idx) {
+            editingIndex = idx
+            var item = listModel.get(idx)
+            uriText = item.uri
+            publicKeyText = item.publicKey || ""
+            open()
+        }
 
         ColumnLayout {
             width: parent ? parent.width : 360
@@ -146,20 +168,25 @@ ColumnLayout {
             uriField.selectAll()
         }
 
-        // 确认添加：去重检查 → 追加 → 通知变更
+        // 确认提交：非空校验 → uri 去重检查（编辑时排除自身）→ 追加/原位更新 → 通知变更
         onAccepted: {
             var uri = uriField.text.trim()
             if (!uri) return
             for (var i = 0; i < listModel.count; i++) {
-                if (listModel.get(i).uri === uri) {
+                if (i !== editingIndex && listModel.get(i).uri === uri) {
                     root.duplicateDetected(qsTr("服务器地址已存在"))
                     return
                 }
             }
-            listModel.append({ uri: uri, publicKey: publicKeyField.text.trim() })
+            if (editingIndex >= 0) {
+                listModel.set(editingIndex, { uri: uri, publicKey: publicKeyField.text.trim() })
+                editingIndex = -1
+            } else {
+                listModel.append({ uri: uri, publicKey: publicKeyField.text.trim() })
+                uriField.text = ""
+                publicKeyField.text = ""
+            }
             root.changed()
-            uriField.text = ""
-            publicKeyField.text = ""
         }
     }
 }

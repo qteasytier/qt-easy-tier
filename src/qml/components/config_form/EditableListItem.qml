@@ -1,19 +1,21 @@
-/* @brief 可编辑列表的单个条目：显示文本 + 删除按钮，悬停浅色反馈与行底分隔线 */
+/* @brief 可编辑列表的单个条目：显示文本 + 编辑/删除按钮，悬停浅色反馈与行底分隔线 */
 import QtQuick
 import QtQuick.Layouts
 import QtEasyTier
 import SwbControls
 
-// 可编辑列表的单个条目：显示文本 + 删除按钮
-/* @brief 列表项根容器，提供悬停反馈、行底分隔线和删除交互 */
+// 可编辑列表的单个条目：显示文本 + 编辑/删除按钮
+/* @brief 列表项根容器，提供悬停反馈、行底分隔线和编辑/删除交互 */
 Rectangle {
     id: root
 
-    /* 在列表中的索引，用于删除回调时定位 */
+    /* 在列表中的索引，用于编辑/删除回调时定位 */
     required property int itemIndex
     /* 显示的文本内容 */
     required property string itemText
 
+    /* 请求编辑当前项，携带自身索引 */
+    signal editRequested(int index)
     /* 请求从列表中删除当前项，携带自身索引 */
     signal removeRequested(int index)
 
@@ -52,6 +54,12 @@ Rectangle {
             Layout.fillWidth: true
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
+        }
+
+        IconToolButton {
+            iconSource: "qrc:/icons/edit.svg"
+            flat: true
+            onClicked: root.editRequested(root.itemIndex)
         }
 
         IconToolButton {

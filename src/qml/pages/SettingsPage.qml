@@ -339,7 +339,7 @@ Rectangle {
 
             // 版权信息
             SwbLabel {
-                text: qsTr("Copyright 2026 明月清风. All rights reserved.")
+                text: qsTr("Copyright 2026 QtEasyTier. All rights reserved.")
                 font: FontHelper.smallFont
                 color: dimTextColor
                 Layout.alignment: Qt.AlignHCenter
