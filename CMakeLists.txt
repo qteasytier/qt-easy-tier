@@ -202,11 +202,12 @@ qt_add_qml_module(appQtEasyTier
 # ============================================
 # 翻译：源语言为简体中文（qsTr/tr 直接写中文），
 # 繁體/English 经 translations/*.ts 翻译并内嵌为 :/i18n/QtEasyTier_*.qm
+# 注意：Qt 6.8 的 qt_add_translations 无 QM_OUTPUT_DIRECTORY（6.9 起才有，传入会被
+# 静默忽略），qm 生成在 build 根目录且 qrc alias 为裸文件名，加载路径见 LanguageController
 # ============================================
 qt_add_translations(appQtEasyTier
     TS_FILES translations/QtEasyTier_zh_TW.ts translations/QtEasyTier_en.ts
     RESOURCE_PREFIX "/i18n"
-    QM_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/translations"
 )
 
 # lupdate 覆盖扫描：qt_add_translations 只扫描 app target 源（QML + main.cpp），

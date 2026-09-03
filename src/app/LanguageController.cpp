@@ -4,6 +4,7 @@
 #include "core/viewmodels/SettingsViewModel.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QLocale>
 #include <QQmlApplicationEngine>
 #include <QTranslator>
@@ -84,13 +85,15 @@ void LanguageController::applyLanguage(const QString &language)
     }
     if (target != QLatin1String("zh_CN")) {
         auto *translator = new QTranslator(this);
-        // 资源路径与 qt_add_translations 生成的 qrc 对齐：
-        // TS 文件位于 translations/ 目录，rcc alias 会保留该目录段
-        if (translator->load(QStringLiteral(":/i18n/translations/QtEasyTier_%1.qm").arg(target))) {
+        // 资源路径与 qt_add_translations（Qt 6.8）生成的 qrc 对齐：
+        // qrc alias 为裸文件名，实际资源为 :/i18n/QtEasyTier_<lang>.qm
+        if (translator->load(QStringLiteral(":/i18n/QtEasyTier_%1.qm").arg(target))) {
             QCoreApplication::installTranslator(translator);
             m_translator = translator;
         } else {
-            // qm 缺失（如未内嵌的构建变体）时回退源语言，不阻塞启动
+            // qm 缺失时回退源语言，不阻塞启动；但失败必须可见，避免静默回归
+            qWarning() << "LanguageController: 翻译资源加载失败，回退源语言"
+                       << QStringLiteral(":/i18n/QtEasyTier_%1.qm").arg(target);
             translator->deleteLater();
         }
     }
