@@ -21,8 +21,9 @@
 
 1. **Qt 版本要求 6.10 → 6.8**：`qt_standard_project_setup(REQUIRES 6.8)`。
    宿主仓库（QtEasyTier）及其 CI 基于 Qt 6.8；库内版本敏感 API
-   （`Popup.popupType`、`T.ContextMenu` 附加属性）均自 Qt 6.8 起可用，
-   上游仅声明未测试 6.8。
+   （`Popup.popupType` 等）自 Qt 6.8 起可用，上游仅声明未测试 6.8。
+   注意：`T.ContextMenu` 附加属性在 aqt 6.8.3 构建中实际不存在
+   （"Non-existent attached object"），相关控件已按下方源码补丁改写。
 2. **QT_PATH 默认值**：上游默认硬编码 Windows 路径 `D:/Code/Libs/Qt/...` 并无条件追加到
    `CMAKE_PREFIX_PATH`；改为默认为空，且仅在路径存在时追加。
 3. **移除 QuickVectorImage 组件**：`find_package` 与 `target_link_libraries(SwbControls)`
@@ -40,6 +41,12 @@
 - **`components/SwbProgressBar.qml`**：移除 `import QtQuick.Effects`、`MultiEffect`
   渲染块与仅为遮罩服务的 `progressMask`（layer 纹理），indeterminate 扫掠动画源
   （本身已带圆角 + `clip: true`）改为直接显示。
+- **六个文本控件（SwbTextField / SwbSearchField / SwbTextArea / SwbSpinBox /
+  SwbDoubleSpinBox / SwbComboBox）**：`T.ContextMenu.menu` 附加属性挂载编辑菜单
+  改为"普通 Menu 子对象 + TapHandler（右键）popup()"——该附加属性在 aqt 6.8.3
+  构建中不存在（Non-existent attached object），整控件连带加载失败；`popup()`
+  无参在光标处弹出，与附加属性行为一致。SwbTextField/SwbSearchField/SwbTextArea
+  随之移除仅剩此用途的 `import QtQuick.Templates as T`。
 - **`components/SwbTextEditingContextMenu.qml`**：七个文本编辑动作
   （`UndoAction`/`RedoAction`/`CutAction`/`CopyAction`/`PasteAction`/`DeleteAction`/
   `SelectAllAction`）为 Qt 6.9 才引入 QtQuick.Controls.impl 的类型，Qt 6.8 上报

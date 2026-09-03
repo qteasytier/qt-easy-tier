@@ -41,10 +41,18 @@ DoubleSpinBox {
         validator: control.validator
         inputMethodHints: control.inputMethodHints
 
-        // Themed right-click editing menu.
-        T.ContextMenu.menu: SwbTextEditingContextMenu {
+        // Themed right-click editing menu (local patch: the T.ContextMenu attached
+        // property is unavailable in the Qt 6.8.3 aqt build; plain Menu + TapHandler
+        // keeps 6.8 support).
+        SwbTextEditingContextMenu {
+            id: editingMenu
             editor: parent
             theme: control.theme
+        }
+
+        TapHandler {
+            acceptedButtons: Qt.RightButton
+            onTapped: editingMenu.popup()
         }
     }
 

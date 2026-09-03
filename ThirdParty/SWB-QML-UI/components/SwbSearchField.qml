@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Templates as T
 
 TextField {
     id: control
@@ -14,10 +13,18 @@ TextField {
     bottomPadding: 0
     verticalAlignment: TextInput.AlignVCenter
 
-    // Themed right-click editing menu.
-    T.ContextMenu.menu: SwbTextEditingContextMenu {
+    // Themed right-click editing menu (local patch: the T.ContextMenu attached
+    // property is unavailable in the Qt 6.8.3 aqt build; plain Menu + TapHandler
+    // keeps 6.8 support).
+    SwbTextEditingContextMenu {
+        id: editingMenu
         editor: control
         theme: control.theme
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: editingMenu.popup()
     }
 
     font.pixelSize: control.theme.fontSize
