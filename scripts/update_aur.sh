@@ -35,7 +35,9 @@
 set -euo pipefail
 
 AUR_HOST="aur.archlinux.org"
+# 去掉可能存在的尾随斜杠，避免出现 /workspace//package/aur 这类双斜杠路径
 WORKSPACE="${CNB_BUILD_WORKSPACE:-$(pwd)}"
+WORKSPACE="${WORKSPACE%/}"
 SRC_AUR_DIR="${WORKSPACE}/package/aur"
 # 中间产物放临时目录，避免污染仓库工作区
 WORK_DIR="${QTET_AUR_WORK_DIR:-${TMPDIR:-/tmp}/qtet-aur-work}"
@@ -124,7 +126,16 @@ update_pkg() {
     local repo_dir="${WORK_DIR}/${pkg}"
     local remote="ssh://aur@${AUR_HOST}/${pkg}.git"
 
-    [ -d "${src_dir}" ] || die "本地构建配置不存在: ${src_dir}"
+    if [ ! -d "${src_dir}" ]; then
+        err "本地构建配置不存在: ${src_dir}"
+        err "请确认 package/aur/${pkg} 已被提交到仓库（包含 PKGBUILD / .SRCINFO），"
+        err "并检查该目录是否被 .gitignore 排除。"
+        exit 1
+    fi
+    if [ ! -f "${src_dir}/PKGBUILD" ]; then
+        err "${src_dir} 下缺少 PKGBUILD"
+        exit 1
+    fi
 
     log "======== 更新 ${pkg} ========"
 

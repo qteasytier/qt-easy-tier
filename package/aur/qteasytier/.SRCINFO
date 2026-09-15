@@ -1,0 +1,26 @@
+pkgbase = qteasytier
+	pkgdesc = 基于 EasyTier 的 Qt 图形化异地组网客户端
+	pkgver = 0.0.0
+	pkgrel = 1
+	url = https://github.com/qteasytier/qt-easy-tier
+	install = qteasytier.install
+	arch = x86_64
+	arch = aarch64
+	license = GPL-3.0-only
+	makedepends = cmake
+	makedepends = ninja
+	makedepends = git
+	depends = qt6-base
+	depends = qt6-declarative
+	depends = qt6-svg
+	depends = qt6-tools
+	depends = openssl
+	depends = sqlite
+	depends = hicolor-icon-theme
+	provides = qteasytier
+	conflicts = qteasytier-bin
+	conflicts = qteasytier-dde
+	options = !lto
+	source = qteasytier-0.0.0.tar.gz::https://github.com/qteasytier/qt-easy-tier/archive/refs/tags/0.0.0.tar.gz
+
+pkgname = qteasytier
