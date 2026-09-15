@@ -2,7 +2,8 @@
 #
 # 源码包：从 Git 标签（tag = 版本号）拉取 QtEasyTier 源码并本地编译。
 # 版本号占位符 0.0.0 会在 scripts/update_aur.sh 推送时被替换为真实版本号。
-# 前置条件：仓库需已存在与版本号同名的 git tag（v* 分支发布流程会自动打标签）。
+# 前置条件：仓库需已存在与版本号同名的 git tag（发布流程会自动打标签）。
+# AUR 更新为手动触发，请确认 tag 已就绪后再点「更新 AUR 版本」按钮。
 
 pkgname=qteasytier
 pkgver=0.0.0

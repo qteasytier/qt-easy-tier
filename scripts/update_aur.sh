@@ -14,6 +14,9 @@
 #      替换 sha256sums 中的 SHA256SUMS 占位符
 #   6. 提交并以 --force 推送（AUR 侧历史可能与本地分叉，强推保证一致）
 #
+# 本脚本仅由分支详情页「更新 AUR 版本」按钮手动触发，不做自动等待重试：
+# release 产物未就绪时直接失败，产物发布后再点一次按钮即可。
+#
 # 用法：
 #   PRIVATE_KEY="$(cat key)" bash scripts/update_aur.sh
 #
@@ -24,8 +27,6 @@
 #                      project(QtEasyTier VERSION x.y.z) 提取
 #   CNB_BUILD_WORKSPACE 可选，仓库工作空间根目录（CNB 流水线自动注入）
 #   PKG_LIST           可选，待更新的 AUR 包名，缺省 "qteasytier qteasytier-bin"
-#   DEB_WAIT_SECONDS   可选，bin 包等待 .deb 产物出现的总时长，缺省 1800 秒
-#   DEB_WAIT_INTERVAL  可选，bin 包轮询间隔，缺省 30 秒
 #   AUR_GIT_NAME       可选，提交作者名，缺省 Myqfeng
 #   AUR_GIT_EMAIL      可选，提交作者邮箱
 #
@@ -44,8 +45,6 @@ WORK_DIR="${QTET_AUR_WORK_DIR:-${TMPDIR:-/tmp}/qtet-aur-work}"
 DOWNLOAD_DIR="${WORK_DIR}/downloads"
 
 PKG_LIST="${PKG_LIST:-qteasytier qteasytier-bin}"
-DEB_WAIT_SECONDS="${DEB_WAIT_SECONDS:-1800}"
-DEB_WAIT_INTERVAL="${DEB_WAIT_INTERVAL:-30}"
 AUR_GIT_NAME="${AUR_GIT_NAME:-Myqfeng}"
 AUR_GIT_EMAIL="${AUR_GIT_EMAIL:-viagrahuang@outlook.com}"
 
@@ -94,27 +93,17 @@ setup_ssh_key() {
 }
 
 # ---------------------------------------------------------------------
-# 3. 下载产物（带重试等待：v* 分支触发时 release 可能尚未发布到 CNB）
+# 3. 下载产物（不重试等待：产物未就绪直接失败，手动重跑即可）
 # ---------------------------------------------------------------------
-download_with_wait() {
+download_deb() {
     local url="$1"
     local dest="$2"
-    local waited=0
 
-    while :; do
-        if curl -fsSL --retry 2 --retry-delay 5 --connect-timeout 30 -o "${dest}" "${url}"; then
-            return 0
-        fi
+    log "下载产物: ${url}"
+    curl -fsSL --retry 2 --retry-delay 5 --connect-timeout 30 -o "${dest}" "${url}" || {
         rm -f "${dest}"
-
-        if [ "${waited}" -ge "${DEB_WAIT_SECONDS}" ]; then
-            die "等待 ${DEB_WAIT_SECONDS}s 后仍无法下载: ${url}"
-        fi
-
-        log "产物暂不可下载（已等待 ${waited}s），${DEB_WAIT_INTERVAL}s 后重试"
-        sleep "${DEB_WAIT_INTERVAL}"
-        waited=$((waited + DEB_WAIT_INTERVAL))
-    done
+        die "产物下载失败（可能 release 尚未发布）: ${url}"
+    }
 }
 
 # ---------------------------------------------------------------------
@@ -178,7 +167,7 @@ update_pkg() {
         mkdir -p "${DOWNLOAD_DIR}"
         deb_file="${DOWNLOAD_DIR}/$(basename "${deb_url}")"
         rm -f "${deb_file}"
-        download_with_wait "${deb_url}" "${deb_file}"
+        download_deb "${deb_url}" "${deb_file}"
 
         sha="$(sha256sum "${deb_file}" | awk '{print $1}')"
         [ -n "${sha}" ] || die "${pkg}: 计算 sha256 失败"
