@@ -1,0 +1,64 @@
+# =====================================================================
+# QtEasyTier CNB 流水线 —— AUR 版本更新（qteasytier / qteasytier-bin）
+#
+# 本文件由根目录 .cnb.yml 通过 include 引入。
+#
+# 触发方式（二者共用同一条流水线）：
+#   1. 分支详情页「更新 AUR 版本」按钮（event: web_trigger_aur，
+#      按钮定义见 .cnb/web_trigger.yml）；
+#   2. 推送 vX.Y.Z 形式的分支（glob 模式 "v*"），随发布流程自动执行。
+#
+# 流水线逻辑（详见 scripts/update_aur.sh）：
+#   - 版本号从根 CMakeLists.txt 的 project(QtEasyTier VERSION x.y.z) 提取；
+#   - 分别克隆 AUR 仓库 ssh://aur@aur.archlinux.org/<pkg>.git，
+#     清空其全部文件后写入 package/aur/<pkg> 下的构建配置；
+#   - 把配置中的占位版本号 0.0.0 替换为真实版本号；
+#   - qteasytier-bin 额外按替换后的 source 地址下载 .deb 并计算 sha256，
+#     替换 sha256sums 中的 SHA256SUMS 占位符；
+#   - 使用密钥仓库 myqfeng/keys 的 aur.yml 中 PRIVATE_KEY 私钥，
+#     以 --force 推送更新（AUR 侧历史可能与本地分叉，强推保证一致）。
+#
+# 前置条件：AUR 侧配置引用的 release 产物必须先发布到本仓库。
+#   - qteasytier（源码包）依赖 git tag <版本号>；
+#   - qteasytier-bin 依赖本仓库 release <版本号> 下的 deb 附件。
+#   若产物尚未就绪（例如 v* 分支刚推送、GitHub Actions 仍在构建），
+#   bin 包的下载环节会按 DEB_WAIT_SECONDS 轮询等待；也可稍后用按钮重跑。
+# =====================================================================
+
+# AUR 更新为轻量任务，单核足够（CNB 节点默认 8 核）
+# 环境镜像 docker/aur.Dockerfile 由 CNB 按哈希缓存复用
+.aur-update: &aur-update
+  name: 更新 AUR 版本
+  runner:
+    cpus: 1
+  docker:
+    build:
+      dockerfile: docker/aur.Dockerfile
+  env:
+    # 等待 release 产物出现的总时长与轮询间隔（秒）
+    DEB_WAIT_SECONDS: "1800"
+    DEB_WAIT_INTERVAL: "30"
+  # AUR 推送私钥来自专用密钥仓库（PRIVATE_KEY），仅本流水线需要
+  imports:
+    - https://cnb.cool/myqfeng/keys/-/blob/main/aur.yml
+  # 两个 AUR 包串行强推，避免并发推送互相覆盖
+  lock:
+    key: aur-update
+    wait: true
+  stages:
+    - name: 更新 qteasytier / qteasytier-bin
+      script: bash scripts/update_aur.sh
+
+# ---- 手动：分支详情页按钮触发 ----
+"**":
+  web_trigger_aur:
+    update-aur:
+      <<: *aur-update
+      name: 更新 AUR 版本（手动触发）
+
+# ---- 自动：推送 vX.Y.Z 分支触发（与 "**" 的同步流水线并行执行） ----
+"v*":
+  push:
+    update-aur:
+      <<: *aur-update
+      name: 更新 AUR 版本（v* 分支发布）
