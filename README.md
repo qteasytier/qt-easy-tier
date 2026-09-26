@@ -189,3 +189,25 @@ ctest --test-dir build --output-on-failure
 </p>
 
 [点击前往赞助详情页面](https://qtet.cn/other/donate/)
+
+## 许可证
+
+QtEasyTier 在 LGPL-3.0 许可下发布。其使用的第三方开源软件遵循其各自的许可证。
+
+## 本项目使用的开源软件
+
+#### Qt Framework
+网址：[https://www.qt.io/](https://www.qt.io/)
+
+#### OpenSSL
+网址：[https://www.openssl.org/](https://www.openssl.org/)
+
+#### Boost.Asio (Daemon中使用)
+网址：[https://www.boost.org/](https://www.boost.org/)
+
+#### EasyTier
+网址：[https://www.easytier.cn/](https://www.easytier.cn/)
+
+#### SWB-QML-UI
+网址：[https://github.com/xxmzwf/SWB-QML-UI](https://github.com/xxmzwf/SWB-QML-UI)
+
