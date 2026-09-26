@@ -6,7 +6,7 @@
  * - 所有网络配置实例的生命周期（本地 / 外部 controller 集合）
  * - 启停、状态查询、stopAll 收敛
  * - daemon 心跳轮询与实例真实状态同步
- * - 当前查看实例与运行状态展示模型（NodeInfoModel / RuntimeLogModel）
+ * - 当前查看实例与运行状态展示模型（NodeInfoModel / DaemonLogModel）
  *
  * 单实例生命周期状态机由 VpnController 承担，daemon 数据异步解析由
  * StatusMonitor 承担，本服务不复制这些逻辑，只负责跨实例协调与展示数据注入。
@@ -14,7 +14,7 @@
 #pragma once
 
 #include "core/runtime/NodeInfoModel.h"
-#include "core/runtime/RuntimeLogModel.h"
+#include "core/runtime/DaemonLogModel.h"
 #include "config/ConfigRunState.h"
 #include "daemon_service/DaemonClient.h"
 #include "VpnController.h"
@@ -41,8 +41,8 @@ class VpnRuntimeService : public QObject {
 
     /// 节点信息模型（当前查看实例的节点列表）
     Q_PROPERTY(NodeInfoModel *nodeInfoModel READ nodeInfoModel CONSTANT)
-    /// 运行时日志模型（当前查看实例的事件日志）
-    Q_PROPERTY(RuntimeLogModel *runtimeLogModel READ runtimeLogModel CONSTANT)
+    /// daemon 事件日志模型（当前查看实例的后端运行日志）
+    Q_PROPERTY(DaemonLogModel *daemonLogModel READ daemonLogModel CONSTANT)
 
 public:
     /**
@@ -88,12 +88,12 @@ public:
     void setActiveInstanceName(const QString &name);
     /// 获取节点信息模型（当前查看实例的节点数据）
     NodeInfoModel *nodeInfoModel() const;
-    /// 获取运行时日志模型（当前查看实例的事件日志）
-    RuntimeLogModel *runtimeLogModel() const;
+    /// 获取 daemon 事件日志模型（当前查看实例的后端运行日志）
+    DaemonLogModel *daemonLogModel() const;
 
     /// 获取指定实例的节点信息列表（当前缓存，供展示模型填充）
     QVariantList nodeInfosFor(const QString &instanceName) const;
-    /// 获取指定实例的运行时日志列表（当前缓存，供展示模型填充）
+    /// 获取指定实例的 daemon 事件日志列表（当前缓存，供展示模型填充）
     QVariantList logEntriesFor(const QString &instanceName) const;
     /// 获取当前全部外部实例名列表（daemon 中存在但本地配置列表中不存在的运行中实例）
     QStringList externalInstances() const;
@@ -195,8 +195,8 @@ private:
 
     /// 节点信息展示模型（本服务所有）
     NodeInfoModel *m_nodeInfoModel = nullptr;
-    /// 运行时日志展示模型（本服务所有）
-    RuntimeLogModel *m_runtimeLogModel = nullptr;
+    /// daemon 事件日志展示模型（本服务所有）
+    DaemonLogModel *m_daemonLogModel = nullptr;
 
     /// 当前查看的实例名（运行状态页数据源指向）
     QString m_activeInstanceName;

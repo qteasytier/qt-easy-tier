@@ -12,7 +12,7 @@
  * - 基础模块：DaemonClient、DaemonApi、各 Repository、SystemTrayManager、FontHelper
  * - 应用核心服务：VpnRuntimeService、ConfigCommandService、ConfigImportExportService、CredentialService、DangerousOperationService 等
  * - ViewModel / Model：各种 ViewModel 和 Model（供 QML 绑定）
- * - 运行状态：StatusMonitor、NodeInfoModel、RuntimeLogModel
+ * - 运行状态：StatusMonitor、NodeInfoModel、DaemonLogModel
  *
  * @see QmlSingletonRegistrar
  */

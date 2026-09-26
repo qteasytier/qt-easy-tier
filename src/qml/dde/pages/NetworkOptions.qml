@@ -47,6 +47,19 @@ ColumnLayout {
         return true
     }
 
+    /* 高级设置页签是否已被激活：未激活前不实例化其表单，避免打开编辑器就构建两张表单 */
+    property bool advancedTabCreated: false
+
+    // 首次切到"高级设置"页签时才允许创建对应表单；创建后保持实例，
+    // 避免来回切页签反复重建整张表单（表单值仍由 ViewModel 持有，重建不丢数据）。
+    Connections {
+        target: tabBar
+        function onCurrentIndexChanged() {
+            if (tabBar.currentIndex === 1)
+                root.advancedTabCreated = true
+        }
+    }
+
     // ============================================
     // Tab 页签容器：DTK 下划线页签头（自带底部分隔线）
     // ============================================
@@ -57,10 +70,30 @@ ColumnLayout {
     }
 
     // 内容区：两个标签页按索引切换
+    // 两张表单合计上千个 QML 对象，打开编辑器就全部实例化会明显抬高内存占用，
+    // 因此页签内容放进 Loader 延迟创建：只有被激活过的页签才真正建出表单。
     StackLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         currentIndex: tabBar.currentIndex
+
+        Loader {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            sourceComponent: basicTabComponent
+        }
+
+        Loader {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            active: root.advancedTabCreated
+            sourceComponent: advancedTabComponent
+        }
+    }
+
+    /* 基础设置页签内容：页面打开即创建，之后常驻 */
+    Component {
+        id: basicTabComponent
 
         // ============================================
         // Tab 1: 基础设置
@@ -128,6 +161,11 @@ ColumnLayout {
                 Item { Layout.preferredHeight: 8 }
             }
         }
+    }
+
+    /* 高级设置页签内容：首次切到该页签时创建，之后常驻 */
+    Component {
+        id: advancedTabComponent
 
         // ============================================
         // Tab 2: 高级设置

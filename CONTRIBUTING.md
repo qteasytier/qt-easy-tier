@@ -79,7 +79,7 @@ main.cpp → DatabaseConnection → QQmlApplicationEngine → AppServices
 
 - ViewModel / Model 位于 `src/core/viewmodels/`，与应用服务一起编译进 `qtet_appcore`。
 - ViewModel 负责暴露 QML 可绑定属性/信号/槽、转换数据、协调页面动作、调用应用服务；不应拼 daemon payload、写持久化细节、承载平台逻辑或自建静态 singleton。
-- 运行状态展示模型 `NodeInfoModel` / `RuntimeLogModel` 属于应用核心层（`src/core/runtime/`），由 `VpnRuntimeService` 持有并填充。
+- 运行状态展示模型 `NodeInfoModel` / `DaemonLogModel` 属于应用核心层（`src/core/runtime/`），由 `VpnRuntimeService` 持有并填充。
 - QML singleton `DangerousOperationViewModel` 是兼容注册名，实际注册对象是应用服务 `DangerousOperationService`。
 - 新 QML 文件加入其所在目录（`src/qml/components/`、`src/qml/components/config_form/`、`src/qml/pages/`、`src/qml/dde/` 及其子目录）的 `CMakeLists.txt`；根 `CMakeLists.txt` 按目录聚合各列表并按 `BUILD_WITH_DDE` 整树二选一。共享前端使用 SwbControls（`import SwbControls`），DDE 前端使用 `org.deepin.dtk` 控件；两种前端都不从 C++ 注入 QQuickStyle。
 

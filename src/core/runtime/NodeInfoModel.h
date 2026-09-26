@@ -26,6 +26,9 @@ struct NodeInfoItem {
     QString latencyLevel;        ///< 延迟等级（"green" / "orange" / "red" / "unknown"）
     bool showLatency = true;     ///< 是否显示延迟信息（本地节点无延迟时不显示）
     QString protocol;            ///< 传输协议
+
+    /// 值比较：数据未变化时用于跳过整表重置
+    bool operator==(const NodeInfoItem &other) const = default;
 };
 
 /**

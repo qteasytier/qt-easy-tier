@@ -189,7 +189,7 @@ ColumnLayout {
 
                 // 空状态：暂无日志
                 SwbLabel {
-                    visible: VpnRuntimeService.runtimeLogModel.count === 0
+                    visible: VpnRuntimeService.daemonLogModel.count === 0
                     text: qsTr("暂无日志")
                     font.pixelSize: 24
                     color: SwbTheme.mutedForeground
@@ -202,14 +202,14 @@ ColumnLayout {
                 // 日志文本框：使用控件内置滚动条，文本自动避开滚动区域边界
                 SwbScrollView {
                     id: logScrollView
-                    visible: VpnRuntimeService.runtimeLogModel.count > 0
+                    visible: VpnRuntimeService.daemonLogModel.count > 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
 
                     SwbTextArea {
                         id: runtimeLogTextArea
-                        text: VpnRuntimeService.runtimeLogModel.plainText
+                        text: VpnRuntimeService.daemonLogModel.plainText
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.WrapAnywhere
