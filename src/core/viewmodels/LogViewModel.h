@@ -41,10 +41,23 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    /// 从仓库加载最近日志（最近 1000 条）
+    /// 从仓库加载最近日志（条数上限由 maxEntries() 决定）
     Q_INVOKABLE void loadLogs();
     /// 清空所有日志
     Q_INVOKABLE bool clearLogs();
+
+    /**
+     * @brief 设置内存中保留的日志条数上限
+     * @param maxEntries 最大条数，小于 1 时按 1 处理
+     *
+     * 与设置页的"最大日志保存条数"保持一致：内存里只保留展示所需的条数，
+     * 避免在用户把上限调小后仍然常驻远超展示需要的日志对象。
+     * 上限真正变化时会立即重新加载一次。
+     */
+    void setMaxEntries(int maxEntries);
+
+    /// 获取当前内存日志条数上限
+    int maxEntries() const;
 
     /// 获取当前日志条目数量
     int count() const;
@@ -56,4 +69,5 @@ signals:
 private:
     LogRepository *m_repo = nullptr; ///< 日志仓库（非所有权）
     QList<LogEntry> m_logs;          ///< 内存中的日志条目缓存
+    int m_maxEntries = 1000;         ///< 内存日志条数上限（装配时按设置项覆盖）
 };

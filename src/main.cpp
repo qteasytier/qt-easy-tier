@@ -15,7 +15,7 @@
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QUrl>
-#include <QWindow>
+#include <QQuickWindow>
 
 #include "app/AppLaunchManager.h"
 #include "app/AppServices.h"
@@ -26,6 +26,8 @@
 
 int main(int argc, char *argv[])
 {
+    // 使用软件渲染降低资源占用
+    //QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
 
     QApplication app(argc, argv);
     app.setOrganizationName(QStringLiteral("qteasytier"));

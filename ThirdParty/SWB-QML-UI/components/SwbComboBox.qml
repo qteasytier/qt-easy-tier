@@ -80,6 +80,7 @@ ComboBox {
 
     // Editable trigger content that filters as the user types.
     contentItem: TextField {
+        id: editField
         padding: 0
         text: control.editable ? control.editText : control.displayText
         placeholderText: control.placeholderText
@@ -98,18 +99,25 @@ ComboBox {
                 control.popup.open()
         }
 
-        // Themed right-click editing menu (local patch: the T.ContextMenu attached
-        // property is unavailable in the Qt 6.8.3 aqt build; plain Menu + TapHandler
-        // keeps 6.8 support).
-        SwbTextEditingContextMenu {
-            id: editingMenu
-            editor: parent
-            theme: control.theme
+        // 本地补丁（QtEasyTier）：菜单延迟到首次右键时才创建，避免每个下拉框
+        // 常驻一份 SwbTextEditingContextMenu（7 个 SwbMenuItem × 3 个 Canvas 图标）。
+        Loader {
+            id: editingMenuLoader
+            active: false
+
+            sourceComponent: SwbTextEditingContextMenu {
+                editor: editField
+                theme: control.theme
+            }
         }
 
         TapHandler {
             acceptedButtons: Qt.RightButton
-            onTapped: editingMenu.popup()
+            onTapped: {
+                editingMenuLoader.active = true
+                if (editingMenuLoader.item)
+                    editingMenuLoader.item.popup()
+            }
         }
 
         // Open after the click finishes so cursor placement is preserved and the popup overlay

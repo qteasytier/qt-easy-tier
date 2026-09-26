@@ -47,6 +47,17 @@
   构建中不存在（Non-existent attached object），整控件连带加载失败；`popup()`
   无参在光标处弹出，与附加属性行为一致。SwbTextField/SwbSearchField/SwbTextArea
   随之移除仅剩此用途的 `import QtQuick.Templates as T`。
+- **六个文本控件（SwbTextField / SwbSearchField / SwbTextArea / SwbSpinBox /
+  SwbDoubleSpinBox / SwbComboBox）的内置右键菜单改为懒创建**：原实现让每个文本控件
+  常驻一份 `SwbTextEditingContextMenu`（`SwbMenu` + 7 个 `SwbMenuItem`，每项还带
+  3 个 `Canvas` 手绘图标），配置编辑器这类一次建出上百个输入控件的页面要为此付出
+  很大的内存代价（宿主实测：把运行状态页日志 `SwbTextArea` 上的常驻菜单去掉后，
+  该页堆内存下降约 30MB）。现改为
+  `Loader { active: false; sourceComponent: SwbTextEditingContextMenu { … } }`，
+  右键 `TapHandler` 首次触发时才置 `active = true` 再 `popup()`，只有真正用过右键
+  菜单的控件才承担这份开销。注意 `SwbSpinBox` / `SwbDoubleSpinBox` / `SwbComboBox`
+  的菜单挂在 `contentItem` 内部，原先写的是 `editor: parent`，内联组件里 `parent`
+  不再指向 contentItem，已改为显式 id（`valueInput` / `editField`）。
 - **`components/SwbTextEditingContextMenu.qml`**：七个文本编辑动作
   （`UndoAction`/`RedoAction`/`CutAction`/`CopyAction`/`PasteAction`/`DeleteAction`/
   `SelectAllAction`）为 Qt 6.9 才引入 QtQuick.Controls.impl 的类型，Qt 6.8 上报

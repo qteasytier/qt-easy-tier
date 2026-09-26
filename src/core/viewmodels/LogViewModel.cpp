@@ -74,11 +74,27 @@ QHash<int, QByteArray> LogViewModel::roleNames() const
 
 void LogViewModel::loadLogs()
 {
-    // 全量重置模型，从仓库加载最近 1000 条日志
+    // 全量重置模型，从仓库加载最近 m_maxEntries 条日志
     beginResetModel();
-    m_logs = m_repo->loadRecent(1000);
+    m_logs = m_repo->loadRecent(m_maxEntries);
     endResetModel();
     emit countChanged();
+}
+
+void LogViewModel::setMaxEntries(int maxEntries)
+{
+    const int normalized = qMax(1, maxEntries);
+    if (m_maxEntries == normalized)
+        return;
+
+    m_maxEntries = normalized;
+    // 上限变化后立即按新上限重新加载，释放多余的内存日志对象
+    loadLogs();
+}
+
+int LogViewModel::maxEntries() const
+{
+    return m_maxEntries;
 }
 
 bool LogViewModel::clearLogs()

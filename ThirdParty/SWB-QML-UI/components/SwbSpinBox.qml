@@ -26,6 +26,7 @@ SpinBox {
 
     // Left-aligned editable value.
     contentItem: TextInput {
+        id: valueInput
         z: 2
         text: control.displayText
         clip: width < implicitWidth
@@ -39,18 +40,25 @@ SpinBox {
         validator: control.validator
         inputMethodHints: control.inputMethodHints
 
-        // Themed right-click editing menu (local patch: the T.ContextMenu attached
-        // property is unavailable in the Qt 6.8.3 aqt build; plain Menu + TapHandler
-        // keeps 6.8 support).
-        SwbTextEditingContextMenu {
-            id: editingMenu
-            editor: parent
-            theme: control.theme
+        // 本地补丁（QtEasyTier）：菜单延迟到首次右键时才创建，避免每个微调框
+        // 常驻一份 SwbTextEditingContextMenu（7 个 SwbMenuItem × 3 个 Canvas 图标）。
+        Loader {
+            id: editingMenuLoader
+            active: false
+
+            sourceComponent: SwbTextEditingContextMenu {
+                editor: valueInput
+                theme: control.theme
+            }
         }
 
         TapHandler {
             acceptedButtons: Qt.RightButton
-            onTapped: editingMenu.popup()
+            onTapped: {
+                editingMenuLoader.active = true
+                if (editingMenuLoader.item)
+                    editingMenuLoader.item.popup()
+            }
         }
     }
 

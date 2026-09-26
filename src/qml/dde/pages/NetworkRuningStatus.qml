@@ -182,7 +182,7 @@ ColumnLayout {
 
                 // 空状态：暂无日志
                 Label {
-                    visible: VpnRuntimeService.runtimeLogModel.count === 0
+                    visible: VpnRuntimeService.daemonLogModel.count === 0
                     text: qsTr("暂无日志")
                     font.pixelSize: 24
                     color: palette.placeholderText
@@ -195,7 +195,7 @@ ColumnLayout {
                 // 日志只读文本：Flickable 承载滚动 + TextArea 无背景纯文本形态
                 Flickable {
                     id: logScrollView
-                    visible: VpnRuntimeService.runtimeLogModel.count > 0
+                    visible: VpnRuntimeService.daemonLogModel.count > 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
@@ -207,7 +207,7 @@ ColumnLayout {
                     TextArea {
                         id: runtimeLogTextArea
                         width: logScrollView.width
-                        text: VpnRuntimeService.runtimeLogModel.plainText
+                        text: VpnRuntimeService.daemonLogModel.plainText
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.WrapAnywhere

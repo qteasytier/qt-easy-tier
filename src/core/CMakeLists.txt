@@ -17,8 +17,8 @@ add_qtet_library(qtet_appcore
     logging/RepositoryLogSink.h
     runtime/NodeInfoModel.cpp
     runtime/NodeInfoModel.h
-    runtime/RuntimeLogModel.cpp
-    runtime/RuntimeLogModel.h
+    runtime/DaemonLogModel.cpp
+    runtime/DaemonLogModel.h
     runtime/StatusMonitor.cpp
     runtime/StatusMonitor.h
     runtime/VpnController.cpp

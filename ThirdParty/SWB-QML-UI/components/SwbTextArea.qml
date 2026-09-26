@@ -16,15 +16,27 @@ TextArea {
     // Themed right-click editing menu (local patch: the T.ContextMenu attached
     // property is unavailable in the Qt 6.8.3 aqt build; plain Menu + TapHandler
     // keeps 6.8 support).
-    SwbTextEditingContextMenu {
-        id: editingMenu
-        editor: control
-        theme: control.theme
+    // 本地补丁（QtEasyTier）：菜单延迟到首次右键时才创建。
+    // 每个文本控件常驻一份 SwbTextEditingContextMenu（Menu + 7 个 SwbMenuItem，
+    // 每项还带 3 个 Canvas 图标），在表单类页面里累计代价很高；懒创建后
+    // 只有真正用过右键菜单的控件才承担这份开销。
+    Loader {
+        id: editingMenuLoader
+        active: false
+
+        sourceComponent: SwbTextEditingContextMenu {
+            editor: control
+            theme: control.theme
+        }
     }
 
     TapHandler {
         acceptedButtons: Qt.RightButton
-        onTapped: editingMenu.popup()
+        onTapped: {
+            editingMenuLoader.active = true
+            if (editingMenuLoader.item)
+                editingMenuLoader.item.popup()
+        }
     }
 
     font.pixelSize: control.theme.fontSize

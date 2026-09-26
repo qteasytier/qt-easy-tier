@@ -22,7 +22,7 @@
 #include "core/config/ConfigCommandService.h"
 #include "core/config/ConfigImportExportService.h"
 #include "core/runtime/NodeInfoModel.h"
-#include "core/runtime/RuntimeLogModel.h"
+#include "core/runtime/DaemonLogModel.h"
 #include "core/runtime/VpnRuntimeService.h"
 #include "config/ConfigRunState.h"
 #include "sqlite_repository/DatabaseConnection.h"
@@ -179,7 +179,7 @@ private slots:
         QVERIFY(nodeRoles.contains("connectionTypeText"));
         QVERIFY(nodeRoles.contains("latencyText"));
 
-        RuntimeLogModel logModel;
+        DaemonLogModel logModel;
         const auto logRoles = logModel.roleNames().values();
         // 检查运行日志模型暴露关键 role
         QVERIFY(logRoles.contains("timestamp"));
@@ -246,8 +246,8 @@ private slots:
     }
 
     /// 目标：运行日志模型暴露可绑定 count，QML 显隐绑定可随 model reset 更新
-    void runtimeLogModelCountNotifiesWhenItemsChange() {
-        RuntimeLogModel model;
+    void daemonLogModelCountNotifiesWhenItemsChange() {
+        DaemonLogModel model;
         QVERIFY(model.metaObject()->indexOfProperty("count") >= 0);
         QSignalSpy countSpy(&model, SIGNAL(countChanged()));
 
@@ -270,8 +270,8 @@ private slots:
     }
 
     /// 目标：运行日志模型提供完整多行文本，供 QML 文本显示框直接绑定
-    void runtimeLogModelExposesPlainText() {
-        RuntimeLogModel model;
+    void daemonLogModelExposesPlainText() {
+        DaemonLogModel model;
         QVERIFY(model.metaObject()->indexOfProperty("plainText") >= 0);
 
         // 准备测试数据：两条日志
@@ -354,8 +354,8 @@ private slots:
         QCOMPARE(cached.last().toMap().value(QStringLiteral("message")).toString(), QStringLiteral("event 204"));
     }
 
-    /// 目标：VpnRuntimeService 刷新 RuntimeLogModel 时使用 controller 的累计日志缓存，而非本次 daemon 返回窗口
-    void vpnRuntimeServiceRefreshesRuntimeLogModelFromCachedLogs() {
+    /// 目标：VpnRuntimeService 刷新 DaemonLogModel 时使用 controller 的累计日志缓存，而非本次 daemon 返回窗口
+    void vpnRuntimeServiceRefreshesDaemonLogModelFromCachedLogs() {
         insertConfig(QStringLiteral("inst-logs"), QStringLiteral("日志配置"));
 
         DaemonClient client;
@@ -384,13 +384,13 @@ private slots:
         service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {first, second});
         service.onInstanceInfoParsed(QStringLiteral("inst-logs"), {}, {second, third});
 
-        // 检查 RuntimeLogModel 包含全部 3 条日志（不重复）
-        QCOMPARE(service.runtimeLogModel()->rowCount(), 3);
-        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(0, 0), RuntimeLogModel::MessageRole).toString(),
+        // 检查 DaemonLogModel 包含全部 3 条日志（不重复）
+        QCOMPARE(service.daemonLogModel()->rowCount(), 3);
+        QCOMPARE(service.daemonLogModel()->data(service.daemonLogModel()->index(0, 0), DaemonLogModel::MessageRole).toString(),
                  QStringLiteral("first event"));
-        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(1, 0), RuntimeLogModel::MessageRole).toString(),
+        QCOMPARE(service.daemonLogModel()->data(service.daemonLogModel()->index(1, 0), DaemonLogModel::MessageRole).toString(),
                  QStringLiteral("second event"));
-        QCOMPARE(service.runtimeLogModel()->data(service.runtimeLogModel()->index(2, 0), RuntimeLogModel::MessageRole).toString(),
+        QCOMPARE(service.daemonLogModel()->data(service.daemonLogModel()->index(2, 0), DaemonLogModel::MessageRole).toString(),
                  QStringLiteral("third event"));
     }
 

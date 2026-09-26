@@ -183,6 +183,9 @@ void AppServices::wireLogging()
 
     // 从设置中读取初始值，配置日志槽
     m_repositoryLogSink->setMaxEntries(m_settingsViewModel->maxLogEntries());
+    // 日志列表只保留展示所需的条数，避免内存中长期驻留远超上限的日志对象
+    if (m_logViewModel)
+        m_logViewModel->setMaxEntries(m_settingsViewModel->maxLogEntries());
     auto *logDispatcher = LogDispatcher::instance();
     logDispatcher->clearSinks();
     logDispatcher->setMinimumLevel(static_cast<LogLevel>(m_settingsViewModel->logLevel()));
@@ -196,6 +199,8 @@ void AppServices::wireLogging()
     QObject::connect(m_settingsViewModel, &SettingsViewModel::maxLogEntriesChanged,
                      m_repositoryLogSink, [this]() {
                          m_repositoryLogSink->setMaxEntries(m_settingsViewModel->maxLogEntries());
+                         if (m_logViewModel)
+                             m_logViewModel->setMaxEntries(m_settingsViewModel->maxLogEntries());
                      });
 }
 

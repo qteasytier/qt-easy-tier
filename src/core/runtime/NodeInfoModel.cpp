@@ -130,13 +130,17 @@ void NodeInfoModel::setHideServerNodes(bool value)
 
 void NodeInfoModel::setItems(const QList<NodeInfoItem> &items)
 {
+    // 数据与当前缓存完全一致时直接返回：运行状态页每 3 秒心跳都会重新注入一次，
+    // 无变化还整表重置会让 QML 反复销毁/重建列表委托，白白制造分配与 GC 压力。
+    if (m_sourceItems == items)
+        return;
+
     m_sourceItems = items;
     rebuildVisibleItems();
 }
 
 void NodeInfoModel::rebuildVisibleItems()
 {
-    const int oldCount = m_items.size();
     QList<NodeInfoItem> visibleItems;
     visibleItems.reserve(m_sourceItems.size());
     for (const NodeInfoItem &item : m_sourceItems) {
@@ -146,6 +150,11 @@ void NodeInfoModel::rebuildVisibleItems()
         visibleItems.append(item);
     }
 
+    // 可见集合未变化时不做任何通知（例如隐藏服务节点开关切换后可见行不变）
+    if (m_items == visibleItems)
+        return;
+
+    const int oldCount = m_items.size();
     // 全量替换 UI 可见模型数据
     beginResetModel();
     m_items = visibleItems;

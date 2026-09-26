@@ -7,7 +7,7 @@
  * - 心跳驱动的状态同步（轮询 daemon 运行实例列表）
  * - stopAll 收敛、失败处理与安全超时
  * - controller 生命周期管理（懒创建 / 移除）
- * - 当前查看实例与运行状态展示模型（NodeInfoModel / RuntimeLogModel）填充
+ * - 当前查看实例与运行状态展示模型（NodeInfoModel / DaemonLogModel）填充
  *
  * 单实例状态机由 VpnController 承担，daemon 数据异步解析由 StatusMonitor 承担。
  */
@@ -35,7 +35,7 @@ VpnRuntimeService::VpnRuntimeService(DaemonClient *client, DaemonApi *daemonApi,
 {
     // 创建运行状态展示模型，本服务持有所有权（父对象为本服务）
     m_nodeInfoModel = new NodeInfoModel(this);
-    m_runtimeLogModel = new RuntimeLogModel(this);
+    m_daemonLogModel = new DaemonLogModel(this);
 
     // 创建心跳定时器，每 3 秒触发一次
     m_heartbeatTimer = new QTimer(this);
@@ -312,9 +312,9 @@ NodeInfoModel *VpnRuntimeService::nodeInfoModel() const
     return m_nodeInfoModel;
 }
 
-RuntimeLogModel *VpnRuntimeService::runtimeLogModel() const
+DaemonLogModel *VpnRuntimeService::daemonLogModel() const
 {
-    return m_runtimeLogModel;
+    return m_daemonLogModel;
 }
 
 QVariantList VpnRuntimeService::nodeInfosFor(const QString &instanceName) const
@@ -351,7 +351,7 @@ void VpnRuntimeService::onInstanceInfoParsed(const QString &instName,
     // 若该实例是当前查看实例，直接刷新展示模型
     if (instName == m_activeInstanceName) {
         m_nodeInfoModel->setFromVariantList(ctrl->nodeInfos());
-        m_runtimeLogModel->setFromVariantList(ctrl->logEntries());
+        m_daemonLogModel->setFromVariantList(ctrl->logEntries());
     }
 }
 
@@ -462,7 +462,7 @@ void VpnRuntimeService::refreshModels()
     // 从 controller 缓存中读取当前查看实例的节点与日志数据并填充模型
     const QString name = m_activeInstanceName;
     m_nodeInfoModel->setFromVariantList(nodeInfosFor(name));
-    m_runtimeLogModel->setFromVariantList(logEntriesFor(name));
+    m_daemonLogModel->setFromVariantList(logEntriesFor(name));
 }
 
 VpnController *VpnRuntimeService::findController(const QString &instanceName) const
