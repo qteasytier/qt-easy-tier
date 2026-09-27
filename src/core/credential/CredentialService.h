@@ -12,7 +12,8 @@
  * 生成的 credential_secret（Base64 私钥）分发给其他节点即可临时加入网络，
  * 典型用法：`easytier-core --network-name <name> --secure-mode --credential <secret> -p <url>`。
  *
- * 实现通过 DaemonApi::callJsonRpc 将 protobuf JSON 请求体透传给 daemon，
+ * 实现通过 DaemonApi 的凭证语义方法把 protobuf JSON 请求体透传给 daemon
+ * （服务名/方法名与 Base64 信封编解码封装在 DaemonApi 内），
  * daemon 再在进程内调用 easytier-core 的 RPC 服务（IPC 路径已打通）。
  *
  * 状态管理：所有与 daemon 的通信操作共用单一操作状态机（CredentialOperation），
@@ -97,7 +98,7 @@ public:
      * @brief 异步签发临时凭证
      *
      * 内部构造 protobuf JSON 请求体（携带实例选择器），通过
-     * DaemonApi::callJsonRpc 调用 daemon 的 generate_credential 方法。
+     * DaemonApi::generateCredential 调用 daemon 的 generate_credential 方法。
      * 完成后发射 generateSucceeded / generateFailed 信号。
      *
      * @param request 生成参数

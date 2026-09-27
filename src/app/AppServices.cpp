@@ -107,7 +107,7 @@ AppServices::AppServices(const QSqlDatabase &database,
         m_vpnRuntimeService = new VpnRuntimeService(m_daemonClient, m_daemonApi,
                                                     m_configRepository, m_statusMonitor,
                                                     parentObject);
-        // 临时凭证服务：签发安全模式临时节点密钥（经 DaemonApi::callJsonRpc 调 daemon）
+        // 临时凭证服务：签发安全模式临时节点密钥（经 DaemonApi 的凭证接口调 daemon）
         m_credentialService = new CredentialService(m_daemonApi, parentObject);
         m_credentialViewModel = new CredentialViewModel(m_credentialService, parentObject);
         // 危险操作服务：编排后端安装/卸载与全量数据清空的跨基础服务流程

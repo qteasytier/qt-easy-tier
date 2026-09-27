@@ -4,8 +4,9 @@
  *
  * 各操作流程：
  * 1. 构造 protobuf JSON 请求体（snake_case 字段，携带实例选择器）
- * 2. 通过 DaemonApi::callJsonRpc 调用 daemon 的 call_json_rpc 桥接方法
- * 3. 用 QFutureWatcher 异步等待结果，解码 Base64 response 后提取字段
+ * 2. 通过 DaemonApi 的凭证语义方法（generateCredential 等）调用 daemon，
+ *    服务名/方法名与 Base64 信封编解码由 DaemonApi 内部完成
+ * 3. 用 QFutureWatcher 异步等待结果（响应已解码为 protobuf JSON 对象），提取字段
  * 4. 发射对应成功 / 失败信号
  */
 #include "CredentialService.h"
@@ -17,21 +18,9 @@
 #include <QException>
 #include <QFutureWatcher>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 
 namespace {
-
-/** @brief 凭证管理 RPC 服务名（与 easytier-cli credential 对应） */
-const QString kCredentialService = QStringLiteral("api.instance.CredentialManageRpcService");
-/** @brief 签发临时凭证方法名 */
-const QString kGenerateMethod = QStringLiteral("generate_credential");
-/** @brief 查询凭证列表方法名 */
-const QString kListMethod = QStringLiteral("list_credentials");
-/** @brief 新增/更新凭证方法名 */
-const QString kUpsertMethod = QStringLiteral("upsert_credential");
-/** @brief 撤销凭证方法名 */
-const QString kRevokeMethod = QStringLiteral("revoke_credential");
 
 /**
  * @brief 从响应对象中提取过期时刻（Unix 秒级时间戳）
@@ -77,26 +66,6 @@ QJsonArray toJsonArray(const QStringList &list)
     return arr;
 }
 
-/**
- * @brief 解码 daemon 返回结果中的 Base64 response 字段为 JSON 对象
- * @param result DaemonApi 返回的异步结果（含 Base64 编码的 response 字段）
- * @param ok     输出：解码与解析是否成功
- * @return 解析得到的响应对象；失败时为空对象
- */
-QJsonObject decodeResponse(const QJsonObject &result, bool *ok)
-{
-    const QByteArray respB64 = result.value(QStringLiteral("response")).toString().toLatin1();
-    const QByteArray resp = QByteArray::fromBase64(respB64);
-
-    QJsonParseError parseError;
-    const QJsonDocument respDoc = QJsonDocument::fromJson(resp, &parseError);
-    if (parseError.error != QJsonParseError::NoError) {
-        *ok = false;
-        return {};
-    }
-    *ok = true;
-    return respDoc.object();
-}
 } // namespace
 
 CredentialService::CredentialService(DaemonApi *daemonApi, QObject *parent)
@@ -148,12 +117,9 @@ void CredentialService::generateCredential(const GenerateRequest &request)
         payload.insert(QStringLiteral("credential_id"), request.credentialId);
     payload.insert(QStringLiteral("reusable"), request.reusable);
 
-    const QByteArray payloadJson = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     setOperation(CredentialOperation::Generate);
 
-    QFuture<QJsonObject> future = m_daemonApi->callJsonRpc(kCredentialService, kGenerateMethod,
-                                                           QString(),
-                                                           QString::fromUtf8(payloadJson));
+    QFuture<QJsonObject> future = m_daemonApi->generateCredential(payload);
 
     auto *watcher = new QFutureWatcher<QJsonObject>(this);
     connect(watcher, &QFutureWatcher<QJsonObject>::finished, this,
@@ -161,12 +127,8 @@ void CredentialService::generateCredential(const GenerateRequest &request)
                 watcher->deleteLater();
                 setOperation(CredentialOperation::Idle);
                 try {
-                    bool ok = false;
-                    const QJsonObject obj = decodeResponse(watcher->result(), &ok);
-                    if (!ok) {
-                        emit generateFailed(QStringLiteral("解析 daemon 响应失败"));
-                        return;
-                    }
+                    // 响应信封（Base64）已由 DaemonApi 解码为 protobuf JSON 对象
+                    const QJsonObject obj = watcher->result();
 
                     qint64 expiryUnix = parseExpiryUnix(obj);
                     // 部分 daemon 版本不返回 expiry_unix 字段，用签发时刻 + ttl 估算过期时刻
@@ -193,25 +155,17 @@ void CredentialService::listCredentials(const QString &instanceName)
         return;
     }
 
-    const QByteArray payloadJson =
-        QJsonDocument(instancePayload(instanceName)).toJson(QJsonDocument::Compact);
     setOperation(CredentialOperation::List);
 
-    QFuture<QJsonObject> future = m_daemonApi->callJsonRpc(kCredentialService, kListMethod,
-                                                           QString(),
-                                                           QString::fromUtf8(payloadJson));
+    QFuture<QJsonObject> future = m_daemonApi->listCredentials(instancePayload(instanceName));
 
     auto *watcher = new QFutureWatcher<QJsonObject>(this);
     connect(watcher, &QFutureWatcher<QJsonObject>::finished, this, [this, watcher]() {
         watcher->deleteLater();
         setOperation(CredentialOperation::Idle);
         try {
-            bool ok = false;
-            const QJsonObject obj = decodeResponse(watcher->result(), &ok);
-            if (!ok) {
-                emit listFailed(QStringLiteral("解析 daemon 响应失败"));
-                return;
-            }
+            // 响应信封（Base64）已由 DaemonApi 解码为 protobuf JSON 对象
+            const QJsonObject obj = watcher->result();
 
             QVariantList items;
             const QJsonArray creds = obj.value(QStringLiteral("credentials")).toArray();
@@ -244,24 +198,17 @@ void CredentialService::upsertCredential(const UpsertRequest &request)
     payload.insert(QStringLiteral("expiry_unix"), request.expiryUnix);
     payload.insert(QStringLiteral("reusable"), request.reusable);
 
-    const QByteArray payloadJson = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     setOperation(CredentialOperation::Upsert);
 
-    QFuture<QJsonObject> future = m_daemonApi->callJsonRpc(kCredentialService, kUpsertMethod,
-                                                           QString(),
-                                                           QString::fromUtf8(payloadJson));
+    QFuture<QJsonObject> future = m_daemonApi->upsertCredential(payload);
 
     auto *watcher = new QFutureWatcher<QJsonObject>(this);
     connect(watcher, &QFutureWatcher<QJsonObject>::finished, this, [this, watcher]() {
         watcher->deleteLater();
         setOperation(CredentialOperation::Idle);
         try {
-            bool ok = false;
-            const QJsonObject obj = decodeResponse(watcher->result(), &ok);
-            if (!ok) {
-                emit upsertFailed(QStringLiteral("解析 daemon 响应失败"));
-                return;
-            }
+            // 响应信封（Base64）已由 DaemonApi 解码为 protobuf JSON 对象
+            const QJsonObject obj = watcher->result();
             emit upsertSucceeded(obj.value(QStringLiteral("changed")).toBool());
         } catch (const QException &e) {
             emit upsertFailed(QString::fromUtf8(e.what()));
@@ -282,24 +229,17 @@ void CredentialService::revokeCredential(const QString &instanceName, const QStr
     QJsonObject payload = instancePayload(instanceName);
     payload.insert(QStringLiteral("credential_id"), credentialId);
 
-    const QByteArray payloadJson = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     setOperation(CredentialOperation::Revoke);
 
-    QFuture<QJsonObject> future = m_daemonApi->callJsonRpc(kCredentialService, kRevokeMethod,
-                                                           QString(),
-                                                           QString::fromUtf8(payloadJson));
+    QFuture<QJsonObject> future = m_daemonApi->revokeCredential(payload);
 
     auto *watcher = new QFutureWatcher<QJsonObject>(this);
     connect(watcher, &QFutureWatcher<QJsonObject>::finished, this, [this, watcher]() {
         watcher->deleteLater();
         setOperation(CredentialOperation::Idle);
         try {
-            bool ok = false;
-            const QJsonObject obj = decodeResponse(watcher->result(), &ok);
-            if (!ok) {
-                emit revokedFailed(QStringLiteral("解析 daemon 响应失败"));
-                return;
-            }
+            // 响应信封（Base64）已由 DaemonApi 解码为 protobuf JSON 对象
+            const QJsonObject obj = watcher->result();
             emit revokedSucceeded(obj.value(QStringLiteral("success")).toBool());
         } catch (const QException &e) {
             emit revokedFailed(QString::fromUtf8(e.what()));

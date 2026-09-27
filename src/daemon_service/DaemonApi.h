@@ -4,6 +4,9 @@
  *
  * 对 DaemonClient 的二次封装，将常用的 daemon RPC 调用包装为语义明确的方法。
  * 每个方法对应一个 daemon JSON-RPC 方法名，调用方无需手动构造方法名字符串和参数。
+ *
+ * 需要经 daemon 内嵌 RPC 桥接（call_json_rpc）转发的调用（当前为安全模式临时凭证），
+ * 其服务名、方法名与 Base64 信封编解码只在本类实现内出现，不对外暴露通用 JSON-RPC 入口。
  */
 #pragma once
 
@@ -76,25 +79,53 @@ public:
     QFuture<QJsonObject> getAutoReconnect();
 
     /**
-     * @brief 调用 daemon 的通用 JSON-RPC 桥接方法 → daemon RPC: call_json_rpc
+     * @brief 签发安全模式临时凭证 → daemon RPC: call_json_rpc(CredentialManageRpcService.generate_credential)
      *
-     * 将服务名、方法名、注册域与 protobuf JSON 请求体透传给 daemon，
-     * 由 daemon 在进程内调用 easytier-core 的 RPC 服务（对应 FFI 的 call_json_rpc）。
+     * 请求体由调用方按业务语义构造为 protobuf JSON（snake_case 字段，含实例选择器）；
+     * 服务名、方法名与请求/响应信封的 Base64 编解码均在本类实现内完成。
      *
-     * 按 daemon IPC 约定，请求体的 payload 字段与响应的 response 字段均以 Base64 传输，
-     * 本方法负责 payload 的编码，响应解码由上层服务负责。
-     *
-     * @param serviceName  RPC 服务名（如 "api.instance.CredentialManageRpcService"）
-     * @param methodName   RPC 方法名（snake_case 或 proto 原始名均可）
-     * @param domainName   服务注册域（TcpProxyRpcService 专用，其他服务传空字符串）
-     * @param payloadJson  protobuf JSON 格式的请求体
-     * @return 异步结果 QFuture，result 含 daemon 返回的 Base64 编码 response 字段
+     * @param payload protobuf JSON 格式的请求体
+     * @return 异步结果 QFuture，result 为已解码的 protobuf JSON 响应对象；
+     *         daemon 报错时以 QException 形式抛出
      */
-    QFuture<QJsonObject> callJsonRpc(const QString &serviceName,
-                                     const QString &methodName,
-                                     const QString &domainName,
-                                     const QString &payloadJson);
+    QFuture<QJsonObject> generateCredential(const QJsonObject &payload);
+
+    /**
+     * @brief 查询实例已签发的临时凭证 → daemon RPC: call_json_rpc(CredentialManageRpcService.list_credentials)
+     * @param payload protobuf JSON 格式的请求体（仅含实例选择器）
+     * @return 异步结果 QFuture，result 为已解码的 protobuf JSON 响应对象
+     */
+    QFuture<QJsonObject> listCredentials(const QJsonObject &payload);
+
+    /**
+     * @brief 新增/更新临时凭证 → daemon RPC: call_json_rpc(CredentialManageRpcService.upsert_credential)
+     * @param payload protobuf JSON 格式的请求体
+     * @return 异步结果 QFuture，result 为已解码的 protobuf JSON 响应对象
+     */
+    QFuture<QJsonObject> upsertCredential(const QJsonObject &payload);
+
+    /**
+     * @brief 撤销临时凭证 → daemon RPC: call_json_rpc(CredentialManageRpcService.revoke_credential)
+     * @param payload protobuf JSON 格式的请求体（实例选择器 + 凭证 ID）
+     * @return 异步结果 QFuture，result 为已解码的 protobuf JSON 响应对象
+     */
+    QFuture<QJsonObject> revokeCredential(const QJsonObject &payload);
 
 private:
+    /**
+     * @brief 经 daemon 的 call_json_rpc 桥接调用 easytier 内嵌 RPC 服务（私有实现，非对外接口）
+     *
+     * 负责将 protobuf JSON 请求体编码为 Base64 后透传给 daemon，并把响应信封中
+     * Base64 编码的 response 字段解码回 protobuf JSON 对象；daemon 错误原样透传。
+     *
+     * @param serviceName RPC 服务名（如 "api.instance.CredentialManageRpcService"）
+     * @param methodName  RPC 方法名（snake_case）
+     * @param payloadJson protobuf JSON 格式的请求体
+     * @return 异步结果 QFuture，result 为解码后的响应对象
+     */
+    QFuture<QJsonObject> callBridge(const QString &serviceName,
+                                    const QString &methodName,
+                                    const QJsonObject &payloadJson);
+
     DaemonClient *m_client = nullptr; ///< daemon IPC 客户端指针（外部管理生命周期）
 };

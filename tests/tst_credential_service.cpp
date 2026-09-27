@@ -3,7 +3,7 @@
  * @brief 临时凭证（临时节点密钥）链路单元测试
  *
  * 使用内存 QLocalServer 模拟 daemon，验证：
- * - DaemonApi::callJsonRpc 发出正确的 call_json_rpc 请求（payload Base64）
+ * - DaemonApi 凭证接口发出正确的 call_json_rpc 请求（service/method/payload Base64）
  * - CredentialService 构造的 protobuf JSON 请求体正确（实例选择器 + 全部字段）
  * - CredentialService 正确解析 generate_credential 响应并发射 generateSucceeded
  * - CredentialService 正确解析 list_credentials 响应并填充凭证列表模型
@@ -54,15 +54,15 @@ private:
     }
 
 private slots:
-    /// 测试目标: DaemonApi::callJsonRpc 发出 call_json_rpc 请求，payload 按 Base64 编码
-    void daemonApiCallJsonRpcBuildsCorrectMessage()
+    /// 测试目标: DaemonApi 凭证接口发出 call_json_rpc 请求，payload 按 Base64 编码
+    void daemonApiCredentialBridgeBuildsCorrectMessage()
     {
         QLocalServer server;
         const QString sockPath = tempSockPath();
         QVERIFY(server.listen(sockPath));
 
-        QString method;
-        QJsonObject params;
+        QStringList methods;
+        QList<QJsonObject> paramsList;
         connect(&server, &QLocalServer::newConnection, [&]() {
             auto *sock = server.nextPendingConnection();
             connect(sock, &QLocalSocket::readyRead, [&, sock]() {
@@ -71,8 +71,8 @@ private slots:
                 auto frames = FrameProtocol::decode(buf);
                 for (const QByteArray &f : frames) {
                     IpcMessage req = IpcMessage::fromJson(f);
-                    method = req.method;
-                    params = req.params;
+                    methods.append(req.method);
+                    paramsList.append(req.params);
                     auto resp = IpcMessage::response(req.id, req.method,
                                                      {{"response", ""}});
                     sock->write(FrameProtocol::encode(resp.toJson()));
@@ -85,22 +85,35 @@ private slots:
         connectClient(client, sockPath);
 
         DaemonApi api(&client);
-        const QString payload = QStringLiteral("{\"a\":1}");
-        QFuture<QJsonObject> future = api.callJsonRpc(QStringLiteral("Svc"),
-                                                      QStringLiteral("Meth"),
-                                                      QStringLiteral("domain"),
-                                                      payload);
-        QTRY_VERIFY_WITH_TIMEOUT(future.isFinished(), 3000);
+        const QJsonObject payload{{QStringLiteral("instance"), QStringLiteral("inst-a")}};
+        const QList<QFuture<QJsonObject>> futures{
+            api.generateCredential(payload),
+            api.listCredentials(payload),
+            api.upsertCredential(payload),
+            api.revokeCredential(payload),
+        };
+        for (const QFuture<QJsonObject> &future : futures)
+            QTRY_VERIFY_WITH_TIMEOUT(future.isFinished(), 3000);
 
-        // 检查请求方法名与参数
-        QCOMPARE(method, QStringLiteral("call_json_rpc"));
-        QCOMPARE(params.value(QStringLiteral("service_name")).toString(), QStringLiteral("Svc"));
-        QCOMPARE(params.value(QStringLiteral("method_name")).toString(), QStringLiteral("Meth"));
-        QCOMPARE(params.value(QStringLiteral("domain_name")).toString(), QStringLiteral("domain"));
-        // payload 字段为 Base64，解码后应与原始 JSON 一致
-        const QByteArray decoded = QByteArray::fromBase64(
-            params.value(QStringLiteral("payload")).toString().toUtf8());
-        QCOMPARE(QString::fromUtf8(decoded), payload);
+        // 4 个语义方法都经 daemon 的 call_json_rpc 桥接转发，仅 method_name 不同
+        const QStringList expectedMethods{QStringLiteral("generate_credential"),
+                                          QStringLiteral("list_credentials"),
+                                          QStringLiteral("upsert_credential"),
+                                          QStringLiteral("revoke_credential")};
+        QCOMPARE(methods.size(), expectedMethods.size());
+        QCOMPARE(paramsList.size(), expectedMethods.size());
+        for (int i = 0; i < expectedMethods.size(); ++i) {
+            QCOMPARE(methods.at(i), QStringLiteral("call_json_rpc"));
+            const QJsonObject &params = paramsList.at(i);
+            QCOMPARE(params.value(QStringLiteral("service_name")).toString(),
+                     QStringLiteral("api.instance.CredentialManageRpcService"));
+            QCOMPARE(params.value(QStringLiteral("method_name")).toString(), expectedMethods.at(i));
+            QVERIFY(params.value(QStringLiteral("domain_name")).toString().isEmpty());
+            // payload 字段为 Base64，解码后应与原始 JSON 一致
+            const QByteArray decoded = QByteArray::fromBase64(
+                params.value(QStringLiteral("payload")).toString().toUtf8());
+            QCOMPARE(QJsonDocument::fromJson(decoded).object(), payload);
+        }
 
         client.disconnectFromDaemon();
         server.close();
@@ -281,6 +294,54 @@ private slots:
         QCOMPARE(successSpy.count(), 0);
         // DaemonClient 会在错误消息前加 "daemon error: " 前缀
         QVERIFY(failSpy.at(0).at(0).toString().contains(QStringLiteral("No instance matches")));
+        QVERIFY(!service.busy());
+
+        client.disconnectFromDaemon();
+        server.close();
+    }
+
+    /// 测试目标: daemon 响应信封无法解码为 JSON 时发射 generateFailed（提示与改造前一致）
+    void credentialServiceHandlesUndecodableResponse()
+    {
+        QLocalServer server;
+        const QString sockPath = tempSockPath();
+        QVERIFY(server.listen(sockPath));
+
+        connect(&server, &QLocalServer::newConnection, [&]() {
+            auto *sock = server.nextPendingConnection();
+            connect(sock, &QLocalSocket::readyRead, [sock]() {
+                QByteArray buf;
+                buf.append(sock->readAll());
+                auto frames = FrameProtocol::decode(buf);
+                for (const QByteArray &f : frames) {
+                    IpcMessage req = IpcMessage::fromJson(f);
+                    // response 为合法 Base64（解码为 "not json"）但不是合法 JSON
+                    auto resp = IpcMessage::response(req.id, req.method,
+                                                     {{"response", "bm90IGpzb24="}});
+                    sock->write(FrameProtocol::encode(resp.toJson()));
+                    sock->flush();
+                }
+            });
+        });
+
+        DaemonClient client;
+        connectClient(client, sockPath);
+
+        DaemonApi api(&client);
+        CredentialService service(&api);
+
+        QSignalSpy successSpy(&service, &CredentialService::generateSucceeded);
+        QSignalSpy failSpy(&service, &CredentialService::generateFailed);
+
+        CredentialService::GenerateRequest req;
+        req.instanceName = QStringLiteral("inst-a");
+        req.ttlSeconds = 3600;
+        service.generateCredential(req);
+
+        QTRY_VERIFY_WITH_TIMEOUT(failSpy.count() == 1, 3000);
+        QCOMPARE(successSpy.count(), 0);
+        // 解码失败经 DaemonApi 的 future 以异常透传，文案与改造前保持一致
+        QCOMPARE(failSpy.at(0).at(0).toString(), QStringLiteral("解析 daemon 响应失败"));
         QVERIFY(!service.busy());
 
         client.disconnectFromDaemon();
