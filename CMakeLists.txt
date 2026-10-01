@@ -21,10 +21,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-# 构建后端可选参数
+# 构建后端的可选参数
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
 # qtet-daemon 克隆来源：GITHUB / CNB，默认 GITHUB
-set(CLONE_DAEMON_FROM "GITHUB" CACHE STRING "Clone qtet-daemon from GITHUB or CNB")
+set(CLONE_DAEMON_FROM "CNB" CACHE STRING "Clone qtet-daemon from GITHUB or CNB")
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITHUB CNB)
 
 # DDE 桌面适配开关：开启后构建基于 DDE（Deepin v25）的前端页面
