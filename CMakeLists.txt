@@ -23,7 +23,7 @@ set(CMAKE_AUTORCC ON)
 
 # 构建后端的可选参数
 option(BUILD_WITH_DAEMON "Build and collect qtet-daemon runtime" ON)
-# qtet-daemon 克隆来源可选GITHUB和CNB，默认 GITHUB
+# qtet-daemon 克隆来源:可选GITHUB和CNB，默认 GITHUB
 set(CLONE_DAEMON_FROM "CNB" CACHE STRING "Clone qtet-daemon from GITHUB or CNB")
 set_property(CACHE CLONE_DAEMON_FROM PROPERTY STRINGS GITHUB CNB)
 
