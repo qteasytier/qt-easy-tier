@@ -24,14 +24,14 @@
 # =====================================================================
 
 # AUR 更新为轻量任务，单核足够（CNB 节点默认 8 核）
-# 环境镜像 docker/aur.Dockerfile 由 CNB 按哈希缓存复用
+# 环境直接使用官方 ubuntu:24.04 镜像，所需依赖在 stage 内现场安装，
+# 不再维护 docker/aur.Dockerfile，也无需走 CNB 的镜像动态构建缓存。
 .aur-update: &aur-update
   name: 更新 AUR 版本
   runner:
     cpus: 1
   docker:
-    build:
-      dockerfile: docker/aur.Dockerfile
+    image: ubuntu:24.04
   # AUR 推送私钥来自专用密钥仓库（PRIVATE_KEY），仅本流水线需要
   imports:
     - https://cnb.cool/myqfeng/keys/-/blob/main/aur.yml
@@ -41,7 +41,16 @@
     wait: true
   stages:
     - name: 更新 qteasytier / qteasytier-bin
-      script: bash scripts/update_aur.sh
+      script: |
+        export DEBIAN_FRONTEND=noninteractive
+        export LANG=C.UTF-8
+        apt-get update
+        # AUR 更新只需要 git（SSH 推送）+ curl（下载 release 产物）+ 基础工具，
+        # 无 Qt 等重型依赖，现场 apt 安装即可
+        apt-get install -y --no-install-recommends \
+          bash ca-certificates coreutils curl findutils git openssh-client
+        rm -rf /var/lib/apt/lists/*
+        bash scripts/update_aur.sh
 
 # ---- 手动：分支详情页按钮触发（唯一触发入口） ----
 "**":
