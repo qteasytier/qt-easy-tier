@@ -18,4 +18,4 @@ jobs:
           PLUGIN_AUTH_TYPE: "https"
           PLUGIN_USERNAME: "cnb"
           PLUGIN_PASSWORD: ${{ secrets.CNB_PASSWORD }}
-          PLUGIN_FORCE: "true"
+          PLUGIN_FORCE: "false"
